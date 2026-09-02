@@ -679,6 +679,97 @@ const BIKES = [
     body:"#0B0D12", body2:"#FFC24B", frame:"#FFC24B", fork:"#FFC24B", rim:"#FFC24B",
     decal:{ text:"YOZMA X", x:96, y:70, size:12, rot:-0.28, col:"#FFC24B" },
     wheel:{tire:"street", spokes:"cast", rim:"#FFC24B", disc:true}, gear:"street" },
+
+  /* ---------- new builds ---------- */
+  { name:"Vulture 350R", cls:"mx", pipe:"can",
+    limit:96, torque:0.54, sl:1.15, brake:0.84, weight:0.29, bp:28, loop:-31, rpmMax:12800,
+    wb:170, rf:42, rr:39, head:[139,104], grip:[125,122], peg:[61,15], seat:[33,73], lean:68,
+    body:"#6B2FBF", body2:"#E9DDFF", frame:"#1A1424", fork:"#C9D0D8", rim:"#B388FF",
+    shape:{ tank:"slim", tail:"high", plate:true },
+    decal:{ text:"VULTURE", x:100, y:84, size:10, rot:-0.42, col:"#E9DDFF" },
+    wheel:{tire:"knobby", spokes:"wire", rim:"#B388FF", disc:true}, gear:"mx" },
+
+  { name:"Dunecrest 450", cls:"mx", pipe:"can",
+    limit:101, torque:0.58, sl:1.12, brake:0.82, weight:0.31, bp:27, loop:-30, rpmMax:12200,
+    wb:178, rf:43, rr:41, head:[145,108], grip:[131,126], peg:[63,17], seat:[35,76], lean:69,
+    body:"#E8A33D", body2:"#2B2015", frame:"#332615", fork:"#D8A93A", rim:"#F0DCA8",
+    shape:{ tank:"beefy", tail:"flat", cowl:true, guards:true },
+    decal:{ text:"DUNECREST", x:98, y:90, size:9, rot:-0.4, col:"#2B2015" },
+    wheel:{tire:"knobby", spokes:"wire", rim:"#F0DCA8", disc:true}, gear:"mx" },
+
+  { name:"Basswood 300", cls:"mx", pipe:"chamber",
+    limit:91, torque:0.49, sl:1.20, brake:0.79, weight:0.28, bp:31, loop:-29, rpmMax:12600,
+    wb:168, rf:41, rr:39, head:[137,102], grip:[123,120], peg:[60,15], seat:[32,72], lean:67,
+    body:"#1F7A5A", body2:"#D8F3E4", frame:"#101A16", fork:"#C9D0D8", rim:"#D8F3E4",
+    shape:{ tank:"wasp", tail:"stub", guards:true },
+    decal:{ text:"BASSWOOD", x:99, y:82, size:9, rot:-0.45, col:"#D8F3E4" },
+    wheel:{tire:"knobby", spokes:"wire", rim:"#D8F3E4", disc:true}, gear:"mx" },
+
+  { name:"Ironjaw SM",   cls:"mx", pipe:"can",
+    limit:112, torque:0.56, sl:1.30, brake:1.02, weight:0.27, bp:29, loop:-27, rpmMax:11800,
+    wb:166, rf:38, rr:36, head:[136,100], grip:[122,118], peg:[59,13], seat:[31,71], lean:64,
+    body:"#C41E3A", body2:"#141414", frame:"#1C1C1C", fork:"#E4E8ED", rim:"#141414",
+    shape:{ tank:"boxy", tail:"stub", plate:true },
+    decal:{ text:"IRONJAW", x:100, y:88, size:10, rot:-0.3, col:"#F2F5F8" },
+    wheel:{tire:"street", spokes:"cast", rim:"#141414", disc:true}, gear:"street" },
+
+  { name:"Saltflat 500",  cls:"mx", pipe:"chamber",
+    limit:118, torque:0.62, sl:1.10, brake:0.86, weight:0.32, bp:26, loop:-33, rpmMax:13200,
+    wb:180, rf:43, rr:41, head:[147,110], grip:[133,128], peg:[64,17], seat:[36,77], lean:70,
+    body:"#E4E8ED", body2:"#1D5FD8", frame:"#20242B", fork:"#D8A93A", rim:"#1D5FD8",
+    shape:{ tank:"beefy", tail:"flat", cowl:true },
+    decal:{ text:"SALTFLAT", x:97, y:92, size:9, rot:-0.4, col:"#1D5FD8" },
+    wheel:{tire:"knobby", spokes:"wire", rim:"#1D5FD8", disc:true}, gear:"mx" },
+
+  { name:"Nightshade 250", cls:"mx", pipe:"chamber",
+    limit:94, torque:0.52, sl:1.16, brake:0.81, weight:0.27, bp:30, loop:-31, rpmMax:13000,
+    wb:169, rf:41, rr:39, head:[138,103], grip:[124,121], peg:[60,15], seat:[32,72], lean:67,
+    body:"#14161C", body2:"#3CF08C", frame:"#0C0E12", fork:"#3CF08C", rim:"#3CF08C",
+    shape:{ tank:"wasp", tail:"high", plate:true },
+    decal:{ text:"NIGHTSHADE", x:98, y:84, size:9, rot:-0.44, col:"#3CF08C" },
+    wheel:{tire:"knobby", spokes:"wire", rim:"#3CF08C", disc:true}, gear:"mx" },
+
+  { name:"Coral Key 200", cls:"ebike", electric:true,
+    limit:72, torque:0.62, sl:1.35, brake:0.84, weight:0.36, bp:32, loop:-24, rpmMax:9800,
+    wb:160, rf:39, rr:37, head:[130,84], grip:[120,102], peg:[58,14], seat:[29,66], lean:66,
+    body:"#12A5B8", body2:"#FFF0C4", frame:"#0E2A30", fork:"#C9D0D8", rim:"#FFF0C4",
+    shape:{ tank:"slim", tail:"stub" },
+    decal:{ text:"CORAL KEY", x:99, y:80, size:9, rot:-0.4, col:"#0E2A30" },
+    wheel:{tire:"knobby", spokes:"wire", rim:"#FFF0C4", disc:true}, gear:"street" },
+
+  { name:"Redtail 690", cls:"mx", pipe:"can",
+    limit:124, torque:0.60, sl:1.22, brake:0.94, weight:0.30, bp:27, loop:-29, rpmMax:11500,
+    wb:174, rf:41, rr:39, head:[142,106], grip:[128,124], peg:[62,16], seat:[34,74], lean:68,
+    body:"#FF6A13", body2:"#1B1B1B", frame:"#26221E", fork:"#E4E8ED", rim:"#1B1B1B",
+    shape:{ tank:"boxy", tail:"high", cowl:true, guards:true },
+    decal:{ text:"REDTAIL", x:100, y:90, size:10, rot:-0.34, col:"#1B1B1B" },
+    wheel:{tire:"knobby", spokes:"wire", rim:"#1B1B1B", disc:true}, gear:"mx" },
+
+  { name:"Glasswing E1", cls:"mx", electric:true,
+    limit:128, torque:0.74, sl:1.06, brake:0.92, weight:0.28, bp:24, loop:-34, rpmMax:13800,
+    wb:172, rf:42, rr:40, head:[141,105], grip:[127,123], peg:[62,16], seat:[34,74], lean:68,
+    body:"#DDE6EE", body2:"#7A2BE2", frame:"#3B2A5C", fork:"#B388FF", rim:"#7A2BE2",
+    shape:{ tank:"slim", tail:"high", plate:true },
+    decal:{ text:"GLASSWING", x:99, y:84, size:9, rot:-0.42, col:"#7A2BE2" },
+    wheel:{tire:"knobby", spokes:"wire", rim:"#7A2BE2", disc:true}, gear:"mx" },
+
+  { name:"Boarhound 700", cls:"mx", pipe:"can",
+    limit:108, torque:0.66, sl:1.08, brake:0.88, weight:0.34, bp:26, loop:-32, rpmMax:11200,
+    wb:182, rf:44, rr:42, head:[149,112], grip:[135,130], peg:[65,18], seat:[37,78], lean:70,
+    body:"#5A6B2F", body2:"#E8DCB8", frame:"#2A2E1C", fork:"#D8A93A", rim:"#E8DCB8",
+    shape:{ tank:"beefy", tail:"flat", cowl:true, guards:true },
+    decal:{ text:"BOARHOUND", x:97, y:92, size:9, rot:-0.4, col:"#E8DCB8" },
+    wheel:{tire:"knobby", spokes:"wire", rim:"#E8DCB8", disc:true}, gear:"mx" },
+
+  /* ---------- 500k halo bike ---------- */
+  { name:"Apex Omega", cls:"mx", electric:true,
+    limit:210, torque:0.96, sl:0.78, brake:1.45, weight:0.24, bp:18, loop:-44, rpmMax:18000,
+    wb:176, rf:43, rr:41, head:[144,108], grip:[130,126], peg:[63,17], seat:[35,76], lean:69,
+    body:"#0A0B10", body2:"#FFC24B", frame:"#C9A227", fork:"#FFC24B", rim:"#FFC24B",
+    seatCol:"#241B06",
+    shape:{ tank:"wasp", tail:"high", plate:true, guards:true },
+    decal:{ text:"OMEGA", x:101, y:86, size:13, rot:-0.4, col:"#FFC24B" },
+    wheel:{tire:"knobby", spokes:"wire", rim:"#FFC24B", disc:true}, gear:"mx" },
 ];
 
 const HELMETS = [
@@ -762,7 +853,10 @@ const trickById = id => TRICKS.find(t => t.id === id) || null;
 /* ---------- economy + save ---------- */
 const PRICES  = [0, 900, 2400, 13000, 8000, 7000, 9500, 9000, 8500, 4800, 26000, 18000, 11000, 2600,
                  1400, 5200, 7800, 7400, 12500, 12000, 6600, 21000, 19500, 14500,
-                 8200, 10500, 7900, 6900, 7600, 16000, 34000, 31000, 17500, 23000];
+                 8200, 10500, 7900, 6900, 7600, 16000, 34000, 31000, 17500, 23000,
+                 0, 0, 0, 0, 0, 0,                                    // 34-39: code-unlocked secrets
+                 15500, 20500, 11800, 27500, 33000, 14200, 9800, 36000, 41000, 24500,
+                 500000];                                             // Apex Omega
 const HPRICES = [0, 0, 700, 1500, 2600, 400];
 BIKES.forEach((b, i) => { b.price = PRICES[i] || 0; b.idx = i; });
 HELMETS.forEach((h, i) => { h.price = HPRICES[i] || 0; h.idx = i; });
@@ -1783,6 +1877,45 @@ function chain(pivot, rearR){
   ctx.fillStyle = "#7C848E"; ctx.beginPath(); ctx.arc(pivot[0]+10, -pivot[1], 8, 0, 7); ctx.fill();
 }
 
+
+/* ---------- MX bodywork shapes ----------
+   Named silhouette variants so bikes can differ in profile, not just colour.
+   Anything unspecified falls back to "stock", which is the original shape. */
+const MX_TANK = {
+  stock: { shroud:[[70,68],[104,66],[130,86],[132,102],[112,104],[86,92],[68,84]],
+           shade: [[86,92],[112,104],[132,102],[130,92],[104,84]],
+           accent:[[96,74],[126,92],[128,100],[104,86],[92,80]] },
+  // low, pinched racer tank
+  slim:  { shroud:[[74,66],[104,64],[124,82],[125,95],[107,97],[88,87],[72,79]],
+           shade: [[88,87],[107,97],[125,95],[123,86],[103,80]],
+           accent:[[98,72],[120,88],[121,94],[102,82],[94,77]] },
+  // tall, full-figured enduro shroud
+  beefy: { shroud:[[64,70],[106,69],[137,89],[139,110],[112,112],[84,97],[62,87]],
+           shade: [[84,97],[112,112],[139,110],[136,98],[104,86]],
+           accent:[[94,77],[131,97],[133,107],[104,89],[90,83]] },
+  // hard-edged, slab-sided supermoto tank
+  boxy:  { shroud:[[66,72],[110,70],[132,80],[134,106],[112,108],[82,98],[64,88]],
+           shade: [[82,98],[112,108],[134,106],[132,94],[100,88]],
+           accent:[[92,80],[128,88],[129,104],[104,92],[88,86]] },
+  // wasp-waisted: big up top, cut away low
+  wasp:  { shroud:[[68,64],[108,62],[136,84],[133,104],[108,100],[90,86],[66,80]],
+           shade: [[90,86],[108,100],[133,104],[131,92],[104,80]],
+           accent:[[100,70],[130,88],[128,98],[104,84],[96,76]] },
+};
+const MX_TAIL = {
+  stock: { r:15, a0:1.20, a1:1.66, tip:[[-14,62],[-40,66],[-42,58],[-16,54]],
+           seat:[[-6,78],[64,80],[70,72],[2,70]] },
+  // kicked-up racer tail
+  high:  { r:21, a0:1.13, a1:1.70, tip:[[-12,72],[-42,80],[-45,71],[-15,63]],
+           seat:[[-6,84],[64,81],[70,73],[2,74]] },
+  // long, flat desert-sled tail
+  flat:  { r:13, a0:1.24, a1:1.63, tip:[[-18,60],[-52,61],[-53,53],[-19,52]],
+           seat:[[-12,76],[64,79],[70,71],[-2,69]] },
+  // chopped stubby tail
+  stub:  { r:17, a0:1.28, a1:1.62, tip:[[-10,64],[-26,67],[-28,59],[-12,56]],
+           seat:[[0,78],[64,80],[70,72],[6,71]] },
+};
+
 function drawMX(B){
   const wb = B.wb, head = B.head, piv = [58, 16];
   const fa = Math.atan2(wb - head[0], head[1]);      // fork tilt from vertical
@@ -1800,10 +1933,11 @@ function drawMX(B){
   tube([piv[0]-4, 78], [piv[0]+2, piv[1]+16], 5, "#4A515B");
   spring([piv[0]+1, piv[1]+16], [piv[0]-4, 74], 6, 4, "#C4413A");
 
-  // rear fender
+  // rear fender (profile varies by tail style)
+  const TL = MX_TAIL[(B.shape && B.shape.tail) || "stock"] || MX_TAIL.stock;
   ctx.strokeStyle = B.body; ctx.lineWidth = 7;
-  ctx.beginPath(); ctx.arc(0, 0, B.rr + 15, Math.PI * 1.20, Math.PI * 1.66); ctx.stroke();
-  ctx.fillStyle = B.body; polyUp([[-14,62],[-40,66],[-42,58],[-16,54]]); ctx.fill();
+  ctx.beginPath(); ctx.arc(0, 0, B.rr + TL.r, Math.PI * TL.a0, Math.PI * TL.a1); ctx.stroke();
+  ctx.fillStyle = B.body; polyUp(TL.tip); ctx.fill();
 
   // engine
   if (B.electric) {
@@ -1840,18 +1974,16 @@ function drawMX(B){
   tube([66,78], [4, 82], 6, B.frame);
   tube([head[0]-4, head[1]-16], [98,44], 6, B.frame);
 
-  // shroud + tank
-  ctx.fillStyle = B.body;
-  polyUp([[70,68],[104,66],[130,86],[132,102],[112,104],[86,92],[68,84]]); ctx.fill();
-  ctx.fillStyle = "rgba(0,0,0,.16)";
-  polyUp([[86,92],[112,104],[132,102],[130,92],[104,84]]); ctx.fill();
-  ctx.fillStyle = B.body2;
-  polyUp([[96,74],[126,92],[128,100],[104,86],[92,80]]); ctx.fill();
+  // shroud + tank (profile varies by tank style)
+  const TK2 = MX_TANK[(B.shape && B.shape.tank) || "stock"] || MX_TANK.stock;
+  ctx.fillStyle = B.body;   polyUp(TK2.shroud); ctx.fill();
+  ctx.fillStyle = "rgba(0,0,0,.16)"; polyUp(TK2.shade); ctx.fill();
+  ctx.fillStyle = B.body2;  polyUp(TK2.accent); ctx.fill();
   decal(B);
 
   // seat
-  ctx.fillStyle = "#171B22";
-  polyUp([[-6,78],[64,80],[70,72],[2,70]]); ctx.fill();
+  ctx.fillStyle = B.seatCol || "#171B22";
+  polyUp(TL.seat); ctx.fill();
   ctx.fillStyle = "rgba(255,255,255,.07)";
   polyUp([[-2,78],[62,80],[62,77],[0,75]]); ctx.fill();
 
@@ -1864,6 +1996,22 @@ function drawMX(B){
   wheel(wb, 0, B.rf, B.wheel);
   tripleClamp([head[0]+2, head[1]-2], fa, "#8E96A0");
 
+  const SH = B.shape || {};
+  if (SH.plate) {                                   // front number plate, straddling the clamp
+    ctx.fillStyle = B.body;
+    polyUp([[head[0]-12, head[1]+30],[head[0]+12, head[1]+24],[head[0]+16, head[1]-6],[head[0]-8, head[1]-2]]); ctx.fill();
+    ctx.fillStyle = B.body2;
+    polyUp([[head[0]-7, head[1]+24],[head[0]+8, head[1]+20],[head[0]+11, head[1]+2],[head[0]-4, head[1]+5]]); ctx.fill();
+  }
+  if (SH.cowl) {                                    // rally headlight cowl
+    ctx.fillStyle = B.body;
+    polyUp([[head[0]-12, head[1]+32],[head[0]+16, head[1]+26],[head[0]+20, head[1]-4],[head[0]-8, head[1]+0]]); ctx.fill();
+    ctx.fillStyle = "rgba(255,243,196,.92)";
+    ctx.beginPath(); ctx.ellipse(head[0]+8, -(head[1]+12), 7, 10, 0.18, 0, 7); ctx.fill();
+    ctx.fillStyle = "rgba(0,0,0,.22)";
+    polyUp([[head[0]-12, head[1]+32],[head[0]+16, head[1]+26],[head[0]+16, head[1]+21],[head[0]-12, head[1]+26]]); ctx.fill();
+  }
+
   if (B.fx && B.fx.flame && (PREVIEW || THROTTLE())) flame(B.pipe === "chamber" ? -6 : -2, B.pipe === "chamber" ? 20 : 24);
 
   // bars + front plate
@@ -1872,6 +2020,13 @@ function drawMX(B){
   tube(bar, [B.grip[0]-8, B.grip[1]], 5.5, "#262B33");
   ctx.fillStyle = "#C4413A"; rr(bar[0]-16, -(bar[1]+5), 24, 7, 3); ctx.fill();
   ctx.fillStyle = "#14181E"; rr(B.grip[0]-12, -(B.grip[1]+4), 18, 8, 4); ctx.fill();
+
+  if ((B.shape || {}).guards) {                     // handguards wrap the grips
+    ctx.fillStyle = B.body2;
+    polyUp([[B.grip[0]-10, B.grip[1]+11],[B.grip[0]+8, B.grip[1]+7],[B.grip[0]+8, B.grip[1]-5],[B.grip[0]-8, B.grip[1]-1]]); ctx.fill();
+    ctx.fillStyle = "rgba(0,0,0,.18)";
+    polyUp([[B.grip[0]-8, B.grip[1]+8],[B.grip[0]+6, B.grip[1]+5],[B.grip[0]+6, B.grip[1]+1],[B.grip[0]-7, B.grip[1]+3]]); ctx.fill();
+  }
 }
 
 function drawSport(B){
