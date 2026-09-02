@@ -831,7 +831,7 @@ const CODES = {
 const SAVE = { coins:0, codes:[], bikes:[0], lids:[0,1], bike:0, lid:0, best:0, rampBest:0,
                quests:[], qp:{}, qdone:[], tune:{}, spot:0, bestRide:0,
                tricks:[], slots:["stand","knee","drag","nohand","fob","onehand"],
-               rider:{}, track:0, bestEvade:0, escapes:0, busts:0 };
+               rider:{}, track:0 };
 
 /* ---------- tuning ---------- */
 const PAINT = ["#FF6A13","#E01B24","#D0111B","#1D5FD8","#2452D8","#2FBF6B","#00C2C7",
@@ -997,7 +997,6 @@ const S = {
   shake:0, crashT:0, crashSpin:0, flash:0,
   wheelieT:0, dragT:0, cleared:0, crashWhy:"looped out", coach:true,
   trick:null, lastTrick:null, combo:0, comboT:0, stopT:0,
-  heat:0, chase:false, cop:null, evadeT:0, sirenT:0, copWarn:0,
   photo:false, pz:1, pox:0, poy:0,
   parts:[], toast:null, toastT:0,
   sound:true, music:true, muteNote:0, muteMsg:"",
@@ -1320,12 +1319,6 @@ const audio = (() => {
            tone(t, 0.1, 880, 880, 0.11, "square"); tone(t + 0.07, 0.28, 1318, 1318, 0.10, "triangle");
            noise(t, 0.16, 0.08, "highpass", 5200, 1); },
     hit(f, d, v){ if (ac) tone(ac.currentTime, d, f, f * 0.4, v, "square"); },
-    siren(near){ if (!ac) return; const t = ac.currentTime, v = 0.05 + near * 0.09;
-                 tone(t, 0.30, 720, 1180, v, "sawtooth");
-                 tone(t + 0.30, 0.30, 1180, 720, v, "sawtooth"); },
-    bust(){ if (!ac) return; const t = ac.currentTime;
-            for (let i = 0; i < 4; i++) tone(t + i * 0.11, 0.14, 300 - i * 40, 120, 0.16, "square");
-            noise(t, 0.5, 0.22, "lowpass", 900, 1); },
   };
 })();
 const sfx = audio;
@@ -1388,7 +1381,6 @@ function tickStreet(){
   if (S.dir > 90 + STOPPIE_MAX) return crash("over the bars");
 
   if (S.rideOut) { updateRideOut(); if (S.over) return; }
-  tickHeat(); if (S.over) return;
 
   if (S.spd > 0 && !THROTTLE()) { S.spd -= 0.1; if (S.rpm > 0) S.rpm -= 1000; }
   if (S.spd < 0) S.spd = 0;
@@ -1467,85 +1459,6 @@ function tickStreet(){
   stepParts();
 }
 
-/* ---------- heat & police chase ---------- */
-const HEAT_MAX = 100, COP_CATCH = 40, COP_ESCAPE = 1100, COP_START_GAP = 380;
-
-function copType(){ return CAR_TYPES.find(t => t.cop) || CAR_TYPES[0]; }
-
-function startChase(){
-  S.chase = true; S.evadeT = 0; S.sirenT = 0;
-  // rolls in from behind, off the left of the screen
-  // top speed is tied to your bike, so escaping is possible on anything —
-  // but only if you commit to riding near flat out
-  S.cop = { wx: S.scroll + BIKE_X - COP_START_GAP,
-            spd: Math.max(18, S.spd * 0.8),
-            max: Math.max(24, bike().limit * 0.92),
-            t: copType(), tint: "#F2F5F8", dirn: 1 };
-  toast("COPS ON YOU — LOSE THEM");
-  sfx.siren(1);
-}
-
-function endChase(escaped){
-  if (escaped) {
-    const pts = Math.round(900 + S.evadeT * 120);
-    S.score += pts; earn(pts / 12);
-    SAVE.escapes = (SAVE.escapes | 0) + 1;
-    if (S.evadeT > (SAVE.bestEvade || 0)) SAVE.bestEvade = Math.round(S.evadeT * 10) / 10;
-    qAdd("escapes", 1); qMax("evade", S.evadeT);
-    toast("LOST THEM  +" + pts); sfx.quest(); persist();
-  }
-  S.chase = false; S.cop = null; S.heat = 0; S.evadeT = 0;
-}
-
-function tickHeat(){
-  const easy = 90 - S.dir;
-
-  if (!S.chase) {
-    // stunting in public builds heat; riding clean cools it off
-    if (S.spd > 6 && (easy > 20 || S.stopT > 0.3)) {
-      S.heat += (0.16 + easy * 0.006) * (S.rideOut ? 1.25 : 1);
-      if (S.heat > HEAT_MAX * 0.75 && S.copWarn <= 0) {
-        S.copWarn = 90; toast("someone called it in…");
-      }
-    } else if (easy < 6) {
-      S.heat -= 0.22;
-    }
-    if (S.copWarn > 0) S.copWarn--;
-    S.heat = Math.max(0, Math.min(HEAT_MAX, S.heat));
-    if (S.heat >= HEAT_MAX) startChase();
-    return;
-  }
-
-  // --- active chase ---
-  const cop = S.cop;
-  S.evadeT += 1 / 30;
-
-  // always trying to close, but capped by its own top speed — outrun it and you live
-  const gap = (S.scroll + BIKE_X) - cop.wx;
-  const want = Math.min(cop.max, S.spd + 12);
-  cop.spd += Math.max(-0.9, Math.min(0.7, (want - cop.spd) * 0.06));
-  cop.spd = Math.max(0, Math.min(cop.max, cop.spd));
-  cop.wx += cop.spd * 0.62;
-
-  // siren loop, louder as it closes
-  if (--S.sirenT <= 0) {
-    S.sirenT = 36;
-    sfx.siren(Math.max(0, Math.min(1, 1 - gap / 900)));
-  }
-
-  // evading pays, and it pays more the closer they are
-  if (S.spd > 6) {
-    const risk = Math.max(0, 1 - gap / 700);
-    const g = (2.2 + risk * 9) * (1 + easy / 90) * S.mult;
-    S.score += g; earn(g / 15);
-    const bk = S.rideOut ? "bestRide" : "best";
-    if (S.score > SAVE[bk]) SAVE[bk] = Math.floor(S.score);
-  }
-
-  if (gap < COP_CATCH) { SAVE.busts = (SAVE.busts | 0) + 1; sfx.bust(); return crash("busted"); }
-  if (gap > COP_ESCAPE) endChase(true);
-}
-
 function crash(why){
   S.over = true; S.crashT = 46; S.crashSpin = 0;
   S.crashWhy = why || "looped out";
@@ -1557,7 +1470,6 @@ function crash(why){
   if (S.lastScore > SAVE[bk2]) SAVE[bk2] = S.lastScore;
   persist();
   S.score = 0; S.mult = 1; S.spd = 0; S.av = 0; S.rpm = 0; S.wheelieT = 0;
-  S.chase = false; S.cop = null; S.heat = 0; S.evadeT = 0; S.copWarn = 0;
 }
 function respawn(){ S.over = false; S.dir = 90; S.av = 0; S.spd = 0; S.sag = 0; S.sagV = 0; S.crashSpin = 0; }
 
@@ -2972,74 +2884,6 @@ function drawGauge(){
   ctx.textAlign = "left";
 }
 
-function drawChaseCop(){
-  if (!S.chase || !S.cop) return;
-  const sx = S.cop.wx - S.scroll, y = GROUND;
-  if (sx < -360 || sx > W + 400) return;
-  // headlight wash thrown up the road ahead of them
-  const g = ctx.createLinearGradient(sx, y, sx + 300, y);
-  g.addColorStop(0, "rgba(120,170,255,.22)");
-  g.addColorStop(1, "rgba(120,170,255,0)");
-  ctx.fillStyle = g;
-  ctx.beginPath(); ctx.moveTo(sx + 50, y - 26); ctx.lineTo(sx + 320, y - 58);
-  ctx.lineTo(sx + 320, y - 2); ctx.lineTo(sx + 50, y - 4); ctx.closePath(); ctx.fill();
-  drawCar(sx, y, 0.92, S.cop);
-  // strobe wash on the road under the lightbar
-  if (Math.floor(performance.now() / 220) % 2) {
-    ctx.fillStyle = "rgba(60,123,255,.16)";
-    ctx.beginPath(); ctx.ellipse(sx, y + 2, 120, 16, 0, 0, 7); ctx.fill();
-  } else {
-    ctx.fillStyle = "rgba(255,61,78,.16)";
-    ctx.beginPath(); ctx.ellipse(sx, y + 2, 120, 16, 0, 0, 7); ctx.fill();
-  }
-}
-
-// when the cop is off-screen or buried behind the HUD, show how close they are
-function drawCopWarn(){
-  if (!S.chase || !S.cop) return;
-  const sx = S.cop.wx - S.scroll;
-  if (sx > 250) return;                       // already plainly visible on the road
-  const gap = (S.scroll + BIKE_X) - S.cop.wx;
-  const near = Math.max(0, Math.min(1, 1 - gap / COP_ESCAPE));
-  const pulse = 0.55 + 0.45 * Math.sin(performance.now() / (120 + (1 - near) * 260));
-  const x = 30, y = 292;
-  ctx.save();
-  ctx.globalAlpha = 0.35 + 0.65 * near * pulse;
-  const flash = Math.floor(performance.now() / 220) % 2;
-  ctx.fillStyle = flash ? "#3C7BFF" : "#FF3D4E";
-  ctx.beginPath();                            // arrow pointing back down the road
-  ctx.moveTo(x, y); ctx.lineTo(x + 22, y - 13); ctx.lineTo(x + 22, y + 13);
-  ctx.closePath(); ctx.fill();
-  ctx.globalAlpha = 1;
-  ctx.font = '700 17px "Saira Condensed", sans-serif';
-  ctx.fillStyle = near > 0.72 ? "#FF3D4E" : "rgba(231,237,243,.9)";
-  ctx.fillText(Math.round(gap) + "m", x + 30, y + 6);
-  ctx.restore();
-}
-
-function drawHeat(){
-  const chasing = S.chase;
-  if (!chasing && S.heat < 1) return;
-  const w = 190, x = W/2 - w/2, y = 24;
-  const pct = chasing ? 1 : S.heat / HEAT_MAX;
-  ctx.fillStyle = "rgba(10,13,18,.55)"; rr(x - 6, y - 6, w + 12, 24, 8); ctx.fill();
-  ctx.fillStyle = "rgba(255,255,255,.10)"; rr(x, y, w, 12, 6); ctx.fill();
-  const flash = chasing && Math.floor(performance.now() / 220) % 2;
-  ctx.fillStyle = chasing ? (flash ? "#3C7BFF" : "#FF3D4E")
-                          : pct > 0.75 ? "#FF3D7F" : pct > 0.4 ? "#FFC24B" : "#3CF08C";
-  rr(x, y, Math.max(2, w * pct), 12, 6); ctx.fill();
-  ctx.font = '700 12px "Barlow Condensed", sans-serif';
-  ctx.textAlign = "center";
-  ctx.fillStyle = "rgba(231,237,243,.75)";
-  if (chasing) {
-    const gap = Math.max(0, (S.scroll + BIKE_X) - S.cop.wx);
-    ctx.fillText("EVADE  " + S.evadeT.toFixed(1) + "s   " + Math.round(gap / COP_ESCAPE * 100) + "%", W/2, y + 30);
-  } else {
-    ctx.fillText("HEAT", W/2, y + 30);
-  }
-  ctx.textAlign = "left";
-}
-
 function drawHUD(){
   const B = bike();
   ctx.textBaseline = "alphabetic";
@@ -3063,8 +2907,6 @@ function drawHUD(){
   }
 
   drawGauge();
-  drawHeat();
-  drawCopWarn();
 
   panel(18, H-96, 214, 78);
   label("mph", 32, H-74);
@@ -3179,7 +3021,6 @@ function renderStreet(){
 
   drawScene();
   if (S.rideOut) { drawCars(); drawPack(0); drawPack(1); drawHazards(); }
-  drawChaseCop();
 
   const sq = Math.max(0.25, 1 - Math.abs(90 - S.dir)/130);
   const shx = S.dir > 90.4 ? BIKE_X + bike().wb * BIKE_SCALE - 44*sq : BIKE_X + 44*sq;
