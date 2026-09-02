@@ -770,6 +770,25 @@ const BIKES = [
     shape:{ tank:"wasp", tail:"high", plate:true, guards:true },
     decal:{ text:"OMEGA", x:101, y:86, size:13, rot:-0.4, col:"#FFC24B" },
     wheel:{tire:"knobby", spokes:"wire", rim:"#FFC24B", disc:true}, gear:"mx" },
+
+  /* ---------- code-unlocked customs ---------- */
+  { name:"CL2 MX", cls:"mx", electric:true, secret:true,
+    limit:120, torque:0.80, sl:1.02, brake:1.30, weight:0.26, bp:21, loop:-42, rpmMax:13600,
+    wb:174, rf:42, rr:40, head:[142,106], grip:[128,124], peg:[62,16], seat:[34,74], lean:68,
+    body:"#12C25A", body2:"#06301A", frame:"#0A2415", fork:"#8DFFB8", rim:"#8DFFB8",
+    seatCol:"#0A2415",
+    shape:{ tank:"wasp", tail:"high", plate:true, guards:true },
+    decal:{ text:"CL2", x:104, y:84, size:14, rot:-0.4, col:"#06301A" },
+    wheel:{tire:"knobby", spokes:"wire", rim:"#8DFFB8", disc:true}, gear:"mx" },
+
+  { name:"Eli Custom", cls:"mx", pipe:"can", secret:true,
+    limit:109, torque:0.66, sl:1.10, brake:1.08, weight:0.28, bp:25, loop:-36, rpmMax:12600,
+    wb:172, rf:42, rr:40, head:[141,105], grip:[127,123], peg:[62,16], seat:[34,74], lean:68,
+    body:"#F4F1E6", body2:"#C9A227", frame:"#2A2620", fork:"#E8DCB8", rim:"#C9A227",
+    seatCol:"#1A1712",
+    shape:{ tank:"slim", tail:"stub", cowl:true },
+    decal:{ text:"ELI", x:104, y:80, size:14, rot:-0.36, col:"#C9A227" },
+    wheel:{tire:"knobby", spokes:"wire", rim:"#C9A227", disc:true}, gear:"mx" },
 ];
 
 const HELMETS = [
@@ -856,7 +875,8 @@ const PRICES  = [0, 900, 2400, 13000, 8000, 7000, 9500, 9000, 8500, 4800, 26000,
                  8200, 10500, 7900, 6900, 7600, 16000, 34000, 31000, 17500, 23000,
                  0, 0, 0, 0, 0, 0,                                    // 34-39: code-unlocked secrets
                  15500, 20500, 11800, 27500, 33000, 14200, 9800, 36000, 41000, 24500,
-                 500000];                                             // Apex Omega
+                 500000,                                            // Apex Omega
+                 0, 0];                                             // 51-52: code-unlocked customs
 const HPRICES = [0, 0, 700, 1500, 2600, 400];
 BIKES.forEach((b, i) => { b.price = PRICES[i] || 0; b.idx = i; });
 HELMETS.forEach((h, i) => { h.price = HPRICES[i] || 0; h.idx = i; });
@@ -920,6 +940,9 @@ const CODES = {
   nohands:     { m:"Heel clicker unlocked", trick:"heel" },
   miami:       { m:"1,500 coins + underglow on this bike", coins:1500, fx:"glow" },
   braaap:      { m:"Exhaust flame unlocked on this bike", fx:"flame" },
+  dev2:        { m:"600,000 coins dropped in", coins:600000 },
+  caleb:       { m:"CL2 MX unlocked — 120mph, huge grip and stopping power", bike:51 },
+  eli:         { m:"Eli Custom unlocked — 109mph in pearl and gold", bike:52 },
 };
 
 const SAVE = { coins:0, codes:[], bikes:[0], lids:[0,1], bike:0, lid:0, best:0, rampBest:0,
