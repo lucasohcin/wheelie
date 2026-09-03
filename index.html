@@ -292,6 +292,26 @@
   .tier .btn{width:100%; padding:6px 4px; font-size:12px}
   .tier .got{font-size:11px; color:var(--neon); letter-spacing:.1em; text-transform:uppercase}
 
+
+  .passsheet{width:min(1240px,97vw); max-height:93vh; display:flex; flex-direction:column; gap:14px}
+  .passbanner{
+    display:flex; align-items:center; gap:14px; width:min(560px,92vw); margin:0 auto 16px;
+    padding:11px 16px; border-radius:14px; cursor:pointer; text-align:left;
+    background:linear-gradient(96deg, rgba(28,22,8,.85), rgba(14,20,28,.85));
+    border:1px solid rgba(255,194,75,.42); color:var(--text); font-family:var(--ui);
+  }
+  .passbanner:hover{border-color:var(--amber); background:linear-gradient(96deg, rgba(40,31,10,.9), rgba(18,25,34,.9))}
+  .passbanner .lab{font-family:var(--num); font-weight:700; font-size:14.5px; letter-spacing:.02em; flex:none}
+  .passbanner .lab .pro{font-style:normal; font-size:10px; letter-spacing:.14em; color:#0B0F14;
+                        background:var(--amber); border-radius:5px; padding:2px 5px; margin-left:5px}
+  .passbanner .mid{flex:1; display:flex; flex-direction:column; gap:4px; min-width:90px}
+  .passbanner .track{display:block; height:7px; border-radius:5px; background:rgba(255,255,255,.12); overflow:hidden}
+  .passbanner .track i{display:block; height:100%; background:linear-gradient(90deg,var(--neon),var(--amber))}
+  .passbanner .sub{font-size:11.5px; color:var(--dim); font-family:var(--num); letter-spacing:.04em}
+  .passbanner .badge{flex:none; font-family:var(--num); font-weight:700; font-size:11.5px; letter-spacing:.08em;
+                     color:#0B0F14; background:var(--neon); border-radius:20px; padding:5px 11px}
+  .passbanner .go{flex:none; font-family:var(--num); font-weight:700; font-size:12px;
+                  letter-spacing:.12em; color:var(--amber); text-transform:uppercase}
   /* ---------- battle pass ---------- */
   .pass{display:flex; flex-direction:column; gap:14px; overflow:hidden}
   .passhead{display:flex; align-items:center; gap:18px; flex-wrap:wrap}
@@ -425,6 +445,7 @@
     <div class="wallet"><span class="dot"></span><span id="coinsMenu">0</span> <span style="opacity:.65">coins</span></div>
     <div class="lvlbar" id="lvlbar"></div>
     <div class="whoami" id="whoami" hidden></div>
+    <button class="passbanner" id="openSeason"></button>
     <div class="whoami"><button id="openBoard">View the leaderboard</button></div>
     <div class="modes">
       <button class="mode" id="mStreet">
@@ -512,6 +533,18 @@
 </div>
 
 
+
+<div class="sheet" id="season" hidden>
+  <div class="passsheet">
+    <div class="shophead">
+      <h2>Season Pass</h2>
+      <div class="wallet"><span class="dot"></span><span id="coinsSeason">0</span> <span style="opacity:.65">coins</span></div>
+      <button class="btn" id="seasonBack">Back</button>
+    </div>
+    <div id="seasonBody"></div>
+  </div>
+</div>
+
 <div class="sheet" id="board" hidden>
   <div class="boardwrap">
     <div class="shophead">
@@ -532,7 +565,6 @@
         <button class="tab" id="tabLids" aria-selected="false">Helmets</button>
         <button class="tab" id="tabCust" aria-selected="false">Customise</button>
         <button class="tab" id="tabTricks" aria-selected="false">Tricks</button>
-        <button class="tab" id="tabSeason" aria-selected="false">Season</button>
         <button class="tab" id="tabKeys" aria-selected="false">Controls</button>
       </div>
       <div class="wallet"><span class="dot"></span><span id="coinsShop">0</span> <span style="opacity:.65">coins</span></div>
@@ -1889,7 +1921,7 @@ addEventListener("keydown", e => {
   if (keys[k]) return;
   keys[k] = true;
   const playing = S.mode === "street" || S.mode === "ramp";
-  if (k === "escape") { playing ? openMenu() : (S.mode === "shop" ? openMenu() : S.mode === "board" ? closeBoard() : 0); return; }
+  if (k === "escape") { playing ? openMenu() : (S.mode === "shop" ? openMenu() : S.mode === "board" ? closeBoard() : S.mode === "season" ? closeSeason() : 0); return; }
   if (k === "enter") { playing ? (S.paused && togglePause()) : startMode("rideout"); return; }
   if (!playing) return;
   const act = actionFor(k);
@@ -4698,6 +4730,8 @@ function syncWallet(){
   renderTracks();
   document.getElementById("coinsMenu").textContent = money(SAVE.coins);
   document.getElementById("coinsShop").textContent = money(SAVE.coins);
+  const cs = document.getElementById("coinsSeason");
+  if (cs) cs.textContent = money(SAVE.coins);
   document.getElementById("bestStreet").textContent = "BEST " + money(SAVE.best);
   document.getElementById("bestRide").textContent = "BEST " + money(SAVE.bestRide);
   document.getElementById("bestRamp").textContent = "BEST " + SAVE.rampBest + " M";
@@ -5016,6 +5050,7 @@ function rewardArt(r, box){
 
 function renderSeason(){
   syncWallet();
+  const elGrid = document.getElementById("seasonBody");
   elGrid.className = "pass";
   elGrid.innerHTML = "";
   const st = seasonState(), now = seasonNow(), tier = seasonTier();
@@ -5166,11 +5201,10 @@ addEventListener("keydown", e => {
 
 function setTab(name){
   shopTab = name;
-  for (const [id, key] of [["tabBikes","bikes"],["tabLids","lids"],["tabCust","cust"],["tabTricks","tricks"],["tabSeason","season"],["tabKeys","keys"]])
+  for (const [id, key] of [["tabBikes","bikes"],["tabLids","lids"],["tabCust","cust"],["tabTricks","tricks"],["tabKeys","keys"]])
     document.getElementById(id).setAttribute("aria-selected", key === name ? "true" : "false");
   if (name === "cust") renderCustom();
   else if (name === "keys") { custCv = null; listenFor = null; renderKeys(); }
-  else if (name === "season") { custCv = null; renderSeason(); }
   else if (name === "tricks") { custCv = null; renderTricks(); }
   else { elGrid.className = "grid"; custCv = null; renderShop(); }
 }
@@ -5178,7 +5212,6 @@ function setTab(name){
 document.getElementById("tabCust").addEventListener("click", () => { sfx.ui(); setTab("cust"); });
 document.getElementById("tabTricks").addEventListener("click", () => { sfx.ui(); setTab("tricks"); });
 document.getElementById("tabKeys").addEventListener("click", () => { sfx.ui(); setTab("keys"); });
-document.getElementById("tabSeason").addEventListener("click", () => { sfx.ui(); setTab("season"); });
 document.getElementById("tabBikes").addEventListener("click", () => setTab("bikes"));
 document.getElementById("tabLids").addEventListener("click", () => setTab("lids"));
 addEventListener("pointerdown", () => audio.start(), { once:true });
@@ -5232,7 +5265,7 @@ function renderWho(){
 }
 function openMenu(){
   S.mode = "menu"; S.paused = false;
-  elShop.hidden = true; elBoard.hidden = true; elMenu.hidden = false;
+  elShop.hidden = true; elBoard.hidden = true; elSeason.hidden = true; elMenu.hidden = false;
   elExit.classList.remove("on");
   for (const k in keys) keys[k] = false;
   for (const k in touchKeys) touchKeys[k] = false;
@@ -5240,7 +5273,7 @@ function openMenu(){
   audio.mute(!S.sound);
   audio.setStyle("menu");
   sfx.ui();
-  syncWallet(); persist(); renderWho(); renderLevel();
+  syncWallet(); persist(); renderWho(); renderLevel(); renderSeasonBanner();
 }
 function openShop(){
   S.mode = "shop"; elMenu.hidden = true; elShop.hidden = false;
@@ -5418,6 +5451,32 @@ document.getElementById("authTabIn").addEventListener("click", () => { sfx.ui();
 document.getElementById("authTabUp").addEventListener("click", () => { sfx.ui(); setAuthMode("up"); });
 addEventListener("beforeunload", () => { if (pushDirty) { try { cloudPush(); } catch(e){} } });
 
+
+
+/* ---------- season pass screen ---------- */
+const elSeason = document.getElementById("season");
+function renderSeasonBanner(){
+  const el = document.getElementById("openSeason");
+  if (!el) return;
+  const st = seasonState(), now = seasonNow(), tier = seasonTier();
+  const into = (st.xp || 0) - tier * SEASON_XP_PER_TIER;
+  const pct = tier >= SEASON_TIERS ? 100 : Math.round(into / SEASON_XP_PER_TIER * 100);
+  const waiting = unclaimedCount();
+  el.innerHTML =
+    `<span class="lab">Season ${now.id + 1} Pass${st.prem ? ` <i class="pro">PREMIUM</i>` : ""}</span>
+     <span class="mid"><span class="track"><i style="width:${pct}%"></i></span>
+       <span class="sub">Tier ${tier} / ${SEASON_TIERS} · ${now.daysLeft}d left</span></span>
+     ${waiting ? `<span class="badge">${waiting} to claim</span>` : `<span class="go">View</span>`}`;
+}
+function openSeason(){
+  S.mode = "season"; S.paused = false;
+  elMenu.hidden = true; elShop.hidden = true; elBoard.hidden = true; elSeason.hidden = false;
+  sfx.ui();
+  renderSeason();
+}
+function closeSeason(){ elSeason.hidden = true; openMenu(); }
+document.getElementById("openSeason").addEventListener("click", openSeason);
+document.getElementById("seasonBack").addEventListener("click", closeSeason);
 
 /* ---------- leaderboard screen ---------- */
 const elBoard = document.getElementById("board");
