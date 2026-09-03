@@ -5400,6 +5400,7 @@ function openShop(){
   setTab(shopTab === "cust" ? "cust" : shopTab);
 }
 function startMode(m){
+  setTimeout(popBroadcast, 400);            // a waiting announcement greets the run
   S.rideOut = (m === "rideout");
   S.mode = S.rideOut ? "street" : m;
   S.paused = false;
@@ -5551,19 +5552,24 @@ async function pullBroadcasts(){
   renderBroadcast();
   popBroadcast();
 }
-// anything unseen pops up on screen, whatever you are doing
+const bcastPlaying = () => (S.mode === "street" || S.mode === "ramp") && !S.paused && !S.photo;
+// An announcement is only spent while you are actually riding. renderStreet
+// runs behind the menu too, so consuming it anywhere else burned the whole
+// 14 seconds behind the menu sheet and it never appeared on a run.
 function popBroadcast(){
+  if (!bcastPlaying()) return;
   for (const b of BCAST.list) {
     if (BCAST.seen[b.id]) continue;
     bcastSeen(b.id);
     S.bcast = { msg:b.message, t:420 };     // ~14s on screen
-    if (S.mode === "street" || S.mode === "ramp") sfx.quest();
+    sfx.quest();
     return;
   }
 }
 function drawBroadcast(){
   const b = S.bcast;
   if (!b || b.t <= 0) return;
+  if (!bcastPlaying()) return;              // do not burn the timer off-screen
   b.t--;
   if (b.t <= 0) { S.bcast = null; return; }
   const fade = Math.min(1, b.t / 30) * Math.min(1, (420 - b.t) / 12);
@@ -5571,7 +5577,8 @@ function drawBroadcast(){
   ctx.globalAlpha = fade;
   ctx.font = '700 17px "Saira Condensed", sans-serif';
   const w = Math.min(W - 60, ctx.measureText(b.msg).width + 130);
-  const x = (W - w) / 2, y = 96;
+  // clear of the wheelie gauge above and the combo callout below
+  const x = (W - w) / 2, y = 172;
   ctx.fillStyle = "rgba(8,12,17,.88)";
   rr(x, y, w, 40, 12); ctx.fill();
   ctx.strokeStyle = "rgba(60,240,140,.75)"; ctx.lineWidth = 1.5;
@@ -5606,6 +5613,7 @@ function renderBroadcast(){
 function showLiveBroadcast(){
   const live = document.getElementById("bcastLive");
   if (!live) return;
+  if (bcastPlaying()) return;               // riding gets the in-canvas one instead
   if (!Array.isArray(SAVE.seenBc)) SAVE.seenBc = [];
   const b = BCAST.list.find(x => !SAVE.seenBc.includes(x.id));
   if (!b) return;
