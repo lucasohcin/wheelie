@@ -409,13 +409,20 @@ let W = 960, SCALE = 1, OFFX = 0, OFFY = 0, DPR = 1, BIKE_X = 300;
 const BIKE_SCALE = 1.24;
 const STOPPIE_MAX = 46;
 
-let lastVW = -1, lastVH = -1;
+let lastVW = -1, lastVH = -1, lastQ = -1;
+/* Render scale adapts to what the machine can actually keep up with: full
+   device pixels when there is headroom, fewer when frames start slipping.
+   Fill rate, not game logic, is what costs frames here. */
+const Q_STEPS = [1, 1.25, 1.5, 2];
+let qIdx = 2, frameAvg = 16, qHold = 0;
+function renderScale(){ return Math.min(Q_STEPS[qIdx], window.devicePixelRatio || 1); }
 function resize(){
   const w = Math.max(2, innerWidth  | 0 || cv.clientWidth  || 960);
   const h = Math.max(2, innerHeight | 0 || cv.clientHeight || 540);
-  if (w === lastVW && h === lastVH) return;
-  lastVW = w; lastVH = h;
-  DPR = Math.min(2, window.devicePixelRatio || 1);
+  const q = renderScale();
+  if (w === lastVW && h === lastVH && q === lastQ) return;
+  lastVW = w; lastVH = h; lastQ = q;
+  DPR = q;
   const want = Math.round(H * w / h);
   W = Math.max(780, Math.min(1760, isFinite(want) ? want : 960));
   cv.width  = Math.round(w * DPR);
@@ -424,6 +431,15 @@ function resize(){
   OFFX  = (w - W * SCALE) / 2;
   OFFY  = (h - H * SCALE) / 2;
   BIKE_X = Math.min(410, W * 0.355);
+  // no need to clear the backdrop cache here: its key already includes W and H
+}
+
+// watch the frame time and move the render scale a step at a time
+function tuneQuality(dt){
+  if (dt > 0 && dt < 500) frameAvg += (dt - frameAvg) * 0.05;
+  if (qHold > 0) { qHold--; return; }
+  if (frameAvg > 21 && qIdx > 0)                      { qIdx--; qHold = 90; frameAvg = 16; }
+  else if (frameAvg < 12 && qIdx < Q_STEPS.length - 1) { qIdx++; qHold = 180; frameAvg = 16; }
 }
 addEventListener("resize", resize);
 resize();
@@ -2761,20 +2777,28 @@ function billboard(x, base, i, sp){
 }
 
 function skyline(off, sp){
-  const span = 92, first = Math.floor(off / span) - 1;
-  for (let i = 0; i < Math.ceil(W / span) + 3; i++) {
+  const span = 92, first = Math.floor(off / span) - 1, n = Math.ceil(W / span) + 3;
+  // one path for every block, one for every lit window: same picture, two draws
+  ctx.fillStyle = sp.city;
+  ctx.beginPath();
+  for (let i = 0; i < n; i++) {
     const idx = first + i, x = idx * span - off;
     const w = 40 + rand(idx) * 44, h = 44 + rand(idx + 9) * 86;
-    ctx.fillStyle = sp.city;
-    ctx.fillRect(x, 252 - h, w, h);
-    if (rand(idx + 3) > 0.62) ctx.fillRect(x + w*0.3, 252 - h - 16, w*0.4, 16);
-    if (sp.cityLit) {
-      ctx.fillStyle = "rgba(255,214,140,.7)";
-      for (let k = 0; k < 12; k++)
-        if (rand(idx*13 + k) > 0.55)
-          ctx.fillRect(x + 6 + (k%3)*(w/3.4), 252 - h + 10 + Math.floor(k/3)*15, 4, 6);
-    }
+    ctx.rect(x, 252 - h, w, h);
+    if (rand(idx + 3) > 0.62) ctx.rect(x + w*0.3, 252 - h - 16, w*0.4, 16);
   }
+  ctx.fill();
+  if (!sp.cityLit) return;
+  ctx.fillStyle = "rgba(255,214,140,.7)";
+  ctx.beginPath();
+  for (let i = 0; i < n; i++) {
+    const idx = first + i, x = idx * span - off;
+    const w = 40 + rand(idx) * 44, h = 44 + rand(idx + 9) * 86;
+    for (let k = 0; k < 12; k++)
+      if (rand(idx*13 + k) > 0.55)
+        ctx.rect(x + 6 + (k%3)*(w/3.4), 252 - h + 10 + Math.floor(k/3)*15, 4, 6);
+  }
+  ctx.fill();
 }
 
 function hexa(h, a){
@@ -2812,15 +2836,7 @@ function tuft(x, y, s, col){
 function drawTrail(){
   const sp = spot(), sc = S.scroll;
 
-  const g = ctx.createLinearGradient(0, 0, 0, 330);
-  for (const [p, c] of sp.sky) g.addColorStop(p, c);
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, 330);
-
-  const sx = W * 0.76, sy = 300 * sp.sunY;
-  const gg = ctx.createRadialGradient(sx, sy, 4, sx, sy, 160);
-  gg.addColorStop(0, sp.sunGlow); gg.addColorStop(1, "rgba(0,0,0,0)");
-  ctx.fillStyle = gg; ctx.beginPath(); ctx.arc(sx, sy, 160, 0, 7); ctx.fill();
-  ctx.fillStyle = sp.sun; ctx.beginPath(); ctx.arc(sx, sy, 28, 0, 7); ctx.fill();
+  ctx.drawImage(LAYERS.sky, 0, 0, W, LAYERS.skyH);
 
   ctx.fillStyle = "rgba(255,255,255,.42)";
   for (let i = 0; i < 7; i++) {
@@ -2907,42 +2923,100 @@ function drawTrail(){
     tuft(x, H - 4, 1.5, "#3E5A2E");
   }
   ctx.fillStyle = sp.haze; ctx.fillRect(0, 0, W, 406);
-  const vg = ctx.createRadialGradient(W/2, H*0.52, H*0.44, W/2, H*0.52, H*1.0);
-  vg.addColorStop(0, "rgba(0,0,0,0)"); vg.addColorStop(1, "rgba(0,0,0,.34)");
-  ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+  vignette(0.34);
+}
+
+
+/* ---------- cached backdrop layers ----------
+   The sky, the vignette and the road wash never change while you ride, but
+   they were being rebuilt (gradients and all) every single frame, which cost
+   more than everything else on screen combined. Bake them into offscreen
+   canvases once per spot/size and blit them instead. */
+const LAYERS = { key:"", sky:null, vig:null, road:null, lamp:null };
+function makeLayer(w, h){
+  const c = document.createElement("canvas");
+  c.width = Math.max(1, Math.ceil(w)); c.height = Math.max(1, Math.ceil(h));
+  return c;
+}
+function buildLayers(){
+  const sp = spot(), key = SAVE.spot + "|" + W + "|" + H;
+  if (LAYERS.key === key) return;
+  LAYERS.key = key;
+
+  // full-screen vignette
+  const v = makeLayer(W, H), vc = v.getContext("2d");
+  const vg = vc.createRadialGradient(W/2, H*0.52, H*0.44, W/2, H*0.52, H*1.0);
+  vg.addColorStop(0, "rgba(0,0,0,0)"); vg.addColorStop(1, "rgba(0,0,0,1)");
+  vc.fillStyle = vg; vc.fillRect(0, 0, W, H);
+  LAYERS.vig = v;
+
+  // sky band: gradient + sun + glow (trail spots use a taller band and their own sun)
+  const trail = sp.kind === "trail";
+  const kh = trail ? 330 : 300;
+  const k = makeLayer(W, kh), kc = k.getContext("2d");
+  const g = kc.createLinearGradient(0, 0, 0, kh);
+  for (const [p, c] of sp.sky) g.addColorStop(p, c);
+  kc.fillStyle = g; kc.fillRect(0, 0, W, kh);
+  const sx = W * (trail ? 0.76 : 0.72), sy = 300 * sp.sunY;
+  const sr = trail ? 160 : 150;
+  const gg = kc.createRadialGradient(sx, sy, 4, sx, sy, sr);
+  gg.addColorStop(0, sp.sunGlow); gg.addColorStop(1, "rgba(0,0,0,0)");
+  kc.fillStyle = gg; kc.beginPath(); kc.arc(sx, sy, sr, 0, 7); kc.fill();
+  kc.fillStyle = sp.sun; kc.beginPath(); kc.arc(sx, sy, trail ? 28 : sp.night ? 20 : 30, 0, 7); kc.fill();
+  if (!trail && sp.night) { kc.fillStyle = sp.sky[1][1]; kc.beginPath(); kc.arc(sx-9, sy-6, 18, 0, 7); kc.fill(); }
+  LAYERS.sky = k; LAYERS.skyH = kh;
+
+  // road surface + its vertical wash
+  const rh = H - 406;
+  const r = makeLayer(W, rh), rc = r.getContext("2d");
+  rc.fillStyle = sp.road; rc.fillRect(0, 0, W, rh);
+  const rg = rc.createLinearGradient(0, 0, 0, rh);
+  rg.addColorStop(0, "rgba(255,255,255,.05)"); rg.addColorStop(1, "rgba(0,0,0,.25)");
+  rc.fillStyle = rg; rc.fillRect(0, 0, W, rh);
+  LAYERS.road = r;
+
+  // one streetlamp glow, reused for every lamp at night
+  const L = makeLayer(380, 260), lc = L.getContext("2d");
+  const lg = lc.createRadialGradient(190, 130, 10, 190, 130, 190);
+  lg.addColorStop(0, "rgba(255,214,140,.20)"); lg.addColorStop(1, "rgba(0,0,0,0)");
+  lc.fillStyle = lg; lc.beginPath(); lc.ellipse(190, 130, 190, 130, 0, 0, 7); lc.fill();
+  LAYERS.lamp = L;
+}
+function vignette(alpha){
+  if (!LAYERS.vig) return;
+  ctx.globalAlpha = alpha;
+  ctx.drawImage(LAYERS.vig, 0, 0, W, H);
+  ctx.globalAlpha = 1;
 }
 
 function drawScene(){
   const sp = spot(), sc = S.scroll;
+  buildLayers();
   if (sp.kind === "trail") return drawTrail();
 
-  const g = ctx.createLinearGradient(0, 0, 0, 300);
-  for (const [p, c] of sp.sky) g.addColorStop(p, c);
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, 300);
-
-  const sx = W * 0.72, sy = 300 * sp.sunY;
-  const gg = ctx.createRadialGradient(sx, sy, 4, sx, sy, 150);
-  gg.addColorStop(0, sp.sunGlow); gg.addColorStop(1, "rgba(0,0,0,0)");
-  ctx.fillStyle = gg; ctx.beginPath(); ctx.arc(sx, sy, 150, 0, 7); ctx.fill();
-  ctx.fillStyle = sp.sun; ctx.beginPath(); ctx.arc(sx, sy, sp.night ? 20 : 30, 0, 7); ctx.fill();
-  if (sp.night) { ctx.fillStyle = sp.sky[1][1]; ctx.beginPath(); ctx.arc(sx-9, sy-6, 18, 0, 7); ctx.fill(); }
+  ctx.drawImage(LAYERS.sky, 0, 0, W, 300);
 
   ctx.fillStyle = sp.night ? "rgba(90,60,120,.35)" : "rgba(255,255,255,.32)";
+  ctx.beginPath();
   for (let i = 0; i < 8; i++) {
     const x = ((i*260 - sc*0.04) % (W+320)) - 160, y = 40 + rand(i)*90;
     for (let k = 0; k < 4; k++) {
-      ctx.beginPath(); ctx.arc(x + k*22, y - (k===1||k===2 ? 8 : 0), 16 + rand(i+k)*8, 0, 7); ctx.fill();
+      const r = 16 + rand(i+k)*8, cx2 = x + k*22, cy2 = y - (k===1||k===2 ? 8 : 0);
+      ctx.moveTo(cx2 + r, cy2); ctx.arc(cx2, cy2, r, 0, 7);
     }
   }
+  ctx.fill();
 
   skyline(sc * 0.08, sp);
 
   ctx.fillStyle = sp.sea; ctx.fillRect(0, 252, W, 40);
   ctx.strokeStyle = sp.seaHi; ctx.lineWidth = 2;
+  ctx.beginPath();
   for (let i = 0; i < 30; i++) {
     const x = ((i*61 - sc*0.06) % (W+80)) - 40, y = 258 + (i%4)*8;
-    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x+22, y); ctx.stroke();
+    ctx.moveTo(x, y); ctx.lineTo(x+22, y);
   }
+  ctx.stroke();
 
   ctx.fillStyle = sp.sand; ctx.fillRect(0, 292, W, 24);
   for (let i = 0; i < 10; i++) palm(((i*226 - sc*0.3) % (W+452)) - 226, 302, 0.9, sp, sp.night);
@@ -2952,43 +3026,41 @@ function drawScene(){
   ctx.fillStyle = "rgba(0,0,0,.18)"; ctx.fillRect(0, 322, W, 3);
 
   ctx.fillStyle = sp.roadFar; ctx.fillRect(0, 324, W, 66);
-  ctx.fillStyle = sp.line;
-  for (let i = 0; i < 20; i++) ctx.fillRect(((i*96 - sc*0.72) % (W+192)) - 96, 355, 44, 4);
+  ctx.fillStyle = sp.line; ctx.beginPath();
+  for (let i = 0; i < 20; i++) ctx.rect(((i*96 - sc*0.72) % (W+192)) - 96, 355, 44, 4);
+  ctx.fill();
 
   ctx.fillStyle = sp.night ? "#3A3742" : "#B9B4A6"; ctx.fillRect(0, 390, W, 16);
-  ctx.fillStyle = sp.line;
-  for (let i = 0; i < 18; i++) ctx.fillRect(((i*112 - sc*0.86) % (W+224)) - 112, 394, 58, 8);
+  ctx.fillStyle = sp.line; ctx.beginPath();
+  for (let i = 0; i < 18; i++) ctx.rect(((i*112 - sc*0.86) % (W+224)) - 112, 394, 58, 8);
+  ctx.fill();
 
   for (let i = 0; i < 8; i++) palm(((i*322 - sc*0.55) % (W+644)) - 322, 324, 1.5, sp, sp.night);
 
-  ctx.fillStyle = sp.road; ctx.fillRect(0, 406, W, H-406);
-  const rg = ctx.createLinearGradient(0, 406, 0, H);
-  rg.addColorStop(0, "rgba(255,255,255,.05)"); rg.addColorStop(1, "rgba(0,0,0,.25)");
-  ctx.fillStyle = rg; ctx.fillRect(0, 406, W, H-406);
+  ctx.drawImage(LAYERS.road, 0, 406, W, H-406);
   ctx.fillStyle = "rgba(255,255,255,.05)";
+  ctx.beginPath();
   for (let i = 0; i < 110; i++) {
     const x = ((i*137 - sc) % (W+40)) - 20, y = 412 + rand(i)*(H-418);
-    ctx.fillRect(x, y, 2, 2);
+    ctx.rect(x, y, 2, 2);
   }
-  ctx.fillStyle = sp.line;
-  for (let i = 0; i < 16; i++) ctx.fillRect(((i*148 - sc) % (W+296)) - 148, 522, 76, 6);
+  ctx.fill();
+  ctx.fillStyle = sp.line; ctx.beginPath();
+  for (let i = 0; i < 16; i++) ctx.rect(((i*148 - sc) % (W+296)) - 148, 522, 76, 6);
+  ctx.fill();
   ctx.fillStyle = "rgba(255,255,255,.14)"; ctx.fillRect(0, GROUND, W, 2);
 
   if (sp.night) {
     for (let i = 0; i < 6; i++) {
       const x = ((i*300 - sc*0.86) % (W+600)) - 300;
-      const lg = ctx.createRadialGradient(x, 300, 10, x, 300, 190);
-      lg.addColorStop(0, "rgba(255,214,140,.20)"); lg.addColorStop(1, "rgba(0,0,0,0)");
-      ctx.fillStyle = lg; ctx.beginPath(); ctx.ellipse(x, 430, 190, 130, 0, 0, 7); ctx.fill();
+      ctx.drawImage(LAYERS.lamp, x - 190, 300);
       ctx.strokeStyle = "#2A3038"; ctx.lineWidth = 5;
       ctx.beginPath(); ctx.moveTo(x, 314); ctx.lineTo(x, 190); ctx.lineTo(x+30, 182); ctx.stroke();
       ctx.fillStyle = "#FFE0A0"; rr(x+26, 180, 20, 7, 3); ctx.fill();
     }
   }
   ctx.fillStyle = sp.haze; ctx.fillRect(0, 0, W, 406);
-  const vg = ctx.createRadialGradient(W/2, H*0.52, H*0.44, W/2, H*0.52, H*1.0);
-  vg.addColorStop(0, "rgba(0,0,0,0)"); vg.addColorStop(1, "rgba(0,0,0,.36)");
-  ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+  vignette(0.36);
 }
 
 function drawParts(){
@@ -4209,6 +4281,7 @@ function loop(now){
   requestAnimationFrame(loop);
   resize();
   const dt = Math.min(200, now - last); last = now;
+  tuneQuality(dt);
   const playing = (S.mode === "street" || S.mode === "ramp") && !S.paused && !S.photo;
   if (playing) {
     acc += dt;
