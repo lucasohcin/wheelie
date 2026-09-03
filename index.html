@@ -312,6 +312,28 @@
                      color:#0B0F14; background:var(--neon); border-radius:20px; padding:5px 11px}
   .passbanner .go{flex:none; font-family:var(--num); font-weight:700; font-size:12px;
                   letter-spacing:.12em; color:var(--amber); text-transform:uppercase}
+
+  .crewsheet{width:min(860px,96vw); max-height:93vh; display:flex; flex-direction:column; gap:14px}
+  .crewbody{overflow:auto; display:flex; flex-direction:column; gap:12px}
+  .crewcard{border:1px solid var(--edge); border-radius:14px; background:rgba(10,13,18,.6); padding:16px; text-align:left}
+  .crewcard h3{margin:0 0 3px; font-family:var(--display); font-size:21px; letter-spacing:.01em}
+  .crewcard .sub{color:var(--dim); font-size:12.5px; margin-bottom:12px}
+  .crewrow{display:grid; grid-template-columns:52px 1fr auto auto; gap:12px; align-items:center;
+           padding:10px 14px; border-bottom:1px solid rgba(42,51,65,.6)}
+  .crewrow:last-child{border-bottom:0}
+  .crewrow .pos{font-family:var(--num); font-weight:700; font-size:16px; color:var(--dim); text-align:right}
+  .crewrow .nm{font-family:var(--num); font-weight:700; font-size:15.5px; text-align:left;
+               overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .crewrow .mem{font-size:12px; color:var(--dim); font-family:var(--num)}
+  .crewrow .sc{font-family:var(--num); font-weight:700; font-size:16px; color:var(--amber)}
+  .crewrow.mine{background:rgba(16,38,27,.5)}
+  .crewrow .btn{padding:5px 13px; font-size:12px}
+  .crewlist{border:1px solid var(--edge); border-radius:14px; background:rgba(10,13,18,.55); overflow:hidden}
+  .crewform{display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end}
+  .crewform .fld{margin:0; flex:1; min-width:160px}
+  .bonus{display:inline-block; font-family:var(--num); font-weight:700; font-size:11.5px; letter-spacing:.1em;
+         color:#0B0F14; background:var(--neon); border-radius:20px; padding:4px 10px}
+  .crewnote{color:var(--dim); font-size:12.5px; line-height:1.6}
   /* ---------- battle pass ---------- */
   .pass{display:flex; flex-direction:column; gap:14px; overflow:hidden}
   .passhead{display:flex; align-items:center; gap:18px; flex-wrap:wrap}
@@ -446,7 +468,8 @@
     <div class="lvlbar" id="lvlbar"></div>
     <div class="whoami" id="whoami" hidden></div>
     <button class="passbanner" id="openSeason"></button>
-    <div class="whoami"><button id="openBoard">View the leaderboard</button></div>
+    <div class="whoami"><button id="openBoard">View the leaderboard</button>
+      <span style="opacity:.4">·</span><button id="openCrew">Crews</button></div>
     <div class="modes">
       <button class="mode" id="mStreet">
         <div class="ic">🌴</div>
@@ -533,6 +556,19 @@
 </div>
 
 
+
+
+<div class="sheet" id="crew" hidden>
+  <div class="crewsheet">
+    <div class="shophead">
+      <h2>Crews</h2>
+      <div class="tabs" id="crewTabs"></div>
+      <div class="wallet"><span class="dot"></span><span id="coinsCrew">0</span> <span style="opacity:.65">coins</span></div>
+      <button class="btn" id="crewBack">Back</button>
+    </div>
+    <div class="crewbody" id="crewBody"></div>
+  </div>
+</div>
 
 <div class="sheet" id="season" hidden>
   <div class="passsheet">
@@ -1627,7 +1663,10 @@ function redeem(raw){
 const ownsBike = i => SAVE.bikes.includes(i);
 const ownsTrick = id => { const t = trickById(id); return !!t && (t.price === 0 || SAVE.tricks.includes(id)); };
 const ownsLid  = i => SAVE.lids.includes(i);
-function earn(n){ S.coinAcc += n; while (S.coinAcc >= 1) { SAVE.coins++; S.coinAcc--; } }
+const CREW_BONUS = 1.5, CREW_PRICE = 50000;
+const inCrew = () => !!(SAVE.crew && SAVE.crew.id);
+const coinMult = () => inCrew() ? CREW_BONUS : 1;
+function earn(n){ S.coinAcc += n * coinMult(); while (S.coinAcc >= 1) { SAVE.coins++; S.coinAcc--; } }
 
 
 /* ============================================================
@@ -1791,7 +1830,7 @@ function mergeSaves(a, b){
     out.tune[id] = t;
   }
 
-  for (const k of ["bike","lid","spot","track","slots","rider","keys","quests"])
+  for (const k of ["bike","lid","spot","track","slots","rider","keys","quests","crew"])
     if (newer[k] !== undefined) out[k] = newer[k];
 
   out.ts = Math.max(a.ts || 0, b.ts || 0);
@@ -1821,6 +1860,7 @@ async function cloudSyncNow(){
   persistLocal();
   try { await cloudPush(); } catch(e){ pushDirty = true; }
   try { await scoresPush(); } catch(e){}
+  try { await crewPull(); } catch(e){}
   syncWallet(); refreshBike();
 }
 
@@ -1921,7 +1961,7 @@ addEventListener("keydown", e => {
   if (keys[k]) return;
   keys[k] = true;
   const playing = S.mode === "street" || S.mode === "ramp";
-  if (k === "escape") { playing ? openMenu() : (S.mode === "shop" ? openMenu() : S.mode === "board" ? closeBoard() : S.mode === "season" ? closeSeason() : 0); return; }
+  if (k === "escape") { playing ? openMenu() : (S.mode === "shop" ? openMenu() : S.mode === "board" ? closeBoard() : S.mode === "season" ? closeSeason() : S.mode === "crew" ? closeCrew() : 0); return; }
   if (k === "enter") { playing ? (S.paused && togglePause()) : startMode("rideout"); return; }
   if (!playing) return;
   const act = actionFor(k);
@@ -4659,6 +4699,12 @@ const elGrid = document.getElementById("shopGrid");
 let shopTab = "bikes";
 
 function money(n){ return n.toLocaleString(); }
+// names come from other players, so they are data and never markup
+function esc(t){
+  return String(t == null ? "" : t)
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+}
 function renderQuests(){
   const list = document.getElementById("questList");
   if (!list) return;
@@ -4730,6 +4776,8 @@ function syncWallet(){
   renderTracks();
   document.getElementById("coinsMenu").textContent = money(SAVE.coins);
   document.getElementById("coinsShop").textContent = money(SAVE.coins);
+  const cc = document.getElementById("coinsCrew");
+  if (cc) cc.textContent = money(SAVE.coins);
   const cs = document.getElementById("coinsSeason");
   if (cs) cs.textContent = money(SAVE.coins);
   document.getElementById("bestStreet").textContent = "BEST " + money(SAVE.best);
@@ -5256,7 +5304,7 @@ function renderWho(){
   }
   if (!AUTH.uid) { el.hidden = true; return; }
   el.hidden = false;
-  el.innerHTML = `<span>Signed in as <b>${(AUTH.name || "rider")}</b></span>
+  el.innerHTML = `<span>Signed in as <b>${esc(AUTH.name || "rider")}</b></span>
                   <span class="sync">· synced</span>`;
   const b = document.createElement("button");
   b.textContent = "Sign out";
@@ -5265,7 +5313,7 @@ function renderWho(){
 }
 function openMenu(){
   S.mode = "menu"; S.paused = false;
-  elShop.hidden = true; elBoard.hidden = true; elSeason.hidden = true; elMenu.hidden = false;
+  elShop.hidden = true; elBoard.hidden = true; elSeason.hidden = true; elCrew.hidden = true; elMenu.hidden = false;
   elExit.classList.remove("on");
   for (const k in keys) keys[k] = false;
   for (const k in touchKeys) touchKeys[k] = false;
@@ -5273,7 +5321,7 @@ function openMenu(){
   audio.mute(!S.sound);
   audio.setStyle("menu");
   sfx.ui();
-  syncWallet(); persist(); renderWho(); renderLevel(); renderSeasonBanner();
+  syncWallet(); persist(); renderWho(); renderLevel(); renderSeasonBanner(); renderCrewLink();
 }
 function openShop(){
   S.mode = "shop"; elMenu.hidden = true; elShop.hidden = false;
@@ -5331,6 +5379,69 @@ function loop(now){
 }
 
 
+
+
+/* ---------- crews ----------
+   Membership lives on the server; a copy is kept in the save so the coin
+   bonus still applies while offline. The server is the source of truth and
+   overwrites the local copy on every sync. */
+const validCrewName = n => /^[A-Za-z0-9][A-Za-z0-9 ._-]{2,17}$/.test(String(n || "").trim());
+
+async function crewPull(){
+  if (!cloudOn() || !AUTH.uid) return null;
+  if (!await freshToken()) return null;
+  const rows = await api("/rest/v1/crew_members?select=crew_id,crews(id,name,tag,owner)&user_id=eq." + AUTH.uid);
+  const m = rows && rows[0];
+  SAVE.crew = m && m.crews ? { id:m.crews.id, name:m.crews.name, tag:m.crews.tag, owner:m.crews.owner } : null;
+  persistLocal();
+  return SAVE.crew;
+}
+async function crewCreate(name, tag){
+  if (!validCrewName(name)) throw new Error("Name must be 3-18 letters, numbers, spaces, dot, dash or underscore");
+  if (SAVE.coins < CREW_PRICE) throw new Error("You need " + money(CREW_PRICE) + " coins to start a crew");
+  if (!await freshToken()) throw new Error("Sign in first");
+  const made = await api("/rest/v1/crews", { method:"POST",
+    headers:{ Prefer:"return=representation" },
+    body:JSON.stringify({ name:name.trim(), tag:(tag || "").trim().slice(0, 4), owner:AUTH.uid }) });
+  const crew = made && made[0];
+  if (!crew) throw new Error("Couldn't create the crew");
+  await api("/rest/v1/crew_members", { method:"POST",
+    headers:{ Prefer:"resolution=merge-duplicates,return=minimal" },
+    body:JSON.stringify({ user_id:AUTH.uid, crew_id:crew.id, username:AUTH.name || "rider" }) });
+  SAVE.coins -= CREW_PRICE;
+  SAVE.crew = { id:crew.id, name:crew.name, tag:crew.tag, owner:crew.owner };
+  persist(); syncWallet();
+  return crew;
+}
+async function crewJoin(id){
+  if (!await freshToken()) throw new Error("Sign in first");
+  await api("/rest/v1/crew_members", { method:"POST",
+    headers:{ Prefer:"resolution=merge-duplicates,return=minimal" },
+    body:JSON.stringify({ user_id:AUTH.uid, crew_id:id, username:AUTH.name || "rider" }) });
+  await crewPull();
+  persist();
+  return SAVE.crew;
+}
+async function crewLeave(){
+  if (!await freshToken()) throw new Error("Sign in first");
+  await api("/rest/v1/crew_members?user_id=eq." + AUTH.uid, { method:"DELETE",
+    headers:{ Prefer:"return=minimal" } });
+  SAVE.crew = null;
+  persist();
+}
+async function crewBoard(){
+  return await api("/rest/v1/crew_board?select=id,name,tag,members,total_best,top_best&order=total_best.desc&limit=50") || [];
+}
+async function crewRoster(id){
+  return await api("/rest/v1/crew_members?select=username,user_id&crew_id=eq." + id + "&limit=60") || [];
+}
+async function crewScores(ids){
+  if (!ids.length) return {};
+  const rows = await api("/rest/v1/scores?select=user_id,username,best&user_id=in.(" + ids.join(",") + ")") || [];
+  const out = {};
+  for (const r of rows) out[r.user_id] = r;
+  return out;
+}
 
 /* ---------- leaderboard ----------
    Scores live in their own world-readable table holding nothing but a name
@@ -5452,6 +5563,173 @@ document.getElementById("authTabUp").addEventListener("click", () => { sfx.ui();
 addEventListener("beforeunload", () => { if (pushDirty) { try { cloudPush(); } catch(e){} } });
 
 
+
+
+/* ---------- crews screen ---------- */
+const elCrew = document.getElementById("crew");
+let crewTab = "mine", crewBusy = false;
+const crewBody = () => document.getElementById("crewBody");
+function crewNote(t){ crewBody().innerHTML = `<div class="crewcard crewnote">${t}</div>`; }
+function renderCrewTabs(){
+  const t = document.getElementById("crewTabs");
+  t.innerHTML = "";
+  for (const [k, label] of [["mine","My crew"],["board","Standings"],["find","Join or start"]]) {
+    const b = document.createElement("button");
+    b.className = "tab";
+    b.setAttribute("aria-selected", crewTab === k);
+    b.textContent = label;
+    b.addEventListener("click", () => { if (crewTab === k) return; crewTab = k; sfx.ui(); showCrew(); });
+    t.appendChild(b);
+  }
+}
+function crewRow(i, name, members, score, extra){
+  return `<div class="crewrow${extra && extra.mine ? " mine" : ""}">
+    <div class="pos">${i === null ? "" : "#" + i}</div>
+    <div class="nm">${esc(name)}</div>
+    <div class="mem">${members === null ? "" : members + (members === 1 ? " rider" : " riders")}</div>
+    <div class="sc">${Number(score || 0).toLocaleString()}</div></div>`;
+}
+async function showCrew(){
+  renderCrewTabs();
+  if (!cloudOn() || !AUTH.uid) return crewNote("Sign in to join a crew.");
+  if (crewBusy) return;
+  crewBusy = true;
+  crewNote("Loading…");
+  try {
+    if (!await freshToken()) { crewNote("Sign in to join a crew."); crewBusy = false; return; }
+
+    if (crewTab === "mine") {
+      await crewPull();
+      if (!inCrew()) {
+        crewNote(`You're not in a crew yet.<br><br>
+          Crew members earn <span class="bonus">${CREW_BONUS}× COINS</span> on every run,
+          and your scores add to your crew's combined total.<br><br>
+          Head to <b>Join or start</b> to find one.`);
+      } else {
+        const roster = await crewRoster(SAVE.crew.id);
+        const map = await crewScores(roster.map(r => r.user_id));
+        const rows = roster.map(r => ({ name:(map[r.user_id] || {}).username || r.username,
+                                        best:(map[r.user_id] || {}).best || 0,
+                                        me:r.user_id === AUTH.uid }))
+                           .sort((a, b) => b.best - a.best);
+        const total = rows.reduce((n, r) => n + r.best, 0);
+        const box = document.createElement("div");
+        box.className = "crewcard";
+        box.innerHTML = `<h3>${esc(SAVE.crew.name)}</h3>
+          <div class="sub">${rows.length} rider${rows.length === 1 ? "" : "s"} ·
+            combined ${total.toLocaleString()} ·
+            <span class="bonus">${CREW_BONUS}× COINS ACTIVE</span></div>`;
+        const list = document.createElement("div");
+        list.className = "crewlist";
+        list.innerHTML = rows.map((r, i) =>
+          crewRow(i + 1, r.name + (r.me ? " (you)" : ""), null, r.best, { mine:r.me })).join("");
+        box.appendChild(list);
+        const leave = document.createElement("button");
+        leave.className = "btn"; leave.style.marginTop = "12px";
+        leave.textContent = "Leave crew";
+        leave.addEventListener("click", async () => {
+          leave.disabled = true;
+          try { await crewLeave(); toast("left the crew"); sfx.ui(); } catch(e){ toast("couldn't leave"); }
+          showCrew();
+        });
+        box.appendChild(leave);
+        crewBody().innerHTML = ""; crewBody().appendChild(box);
+      }
+    }
+
+    else if (crewTab === "board") {
+      const rows = await crewBoard();
+      if (!rows.length) { crewNote("No crews yet. Start the first one."); }
+      else {
+        const list = document.createElement("div");
+        list.className = "crewlist";
+        list.innerHTML = rows.map((c, i) =>
+          crewRow(i + 1, c.name, c.members, c.total_best,
+                  { mine: SAVE.crew && SAVE.crew.id === c.id })).join("");
+        crewBody().innerHTML = ""; crewBody().appendChild(list);
+      }
+    }
+
+    else {
+      crewBody().innerHTML = "";
+      if (inCrew()) {
+        crewBody().innerHTML = `<div class="crewcard crewnote">
+          You're already in <b>${esc(SAVE.crew.name)}</b>. Leave it first to join another.</div>`;
+      } else {
+        const make = document.createElement("div");
+        make.className = "crewcard";
+        make.innerHTML = `<h3>Start a crew</h3>
+          <div class="sub">${money(CREW_PRICE)} coins · you'll be the owner ·
+            everyone who joins earns <span class="bonus">${CREW_BONUS}× COINS</span></div>
+          <div class="crewform">
+            <label class="fld" style="flex:2"><span>Crew name</span>
+              <input id="crewName" maxlength="18" placeholder="3-18 characters" spellcheck="false"></label>
+            <label class="fld" style="flex:1"><span>Tag <i>optional</i></span>
+              <input id="crewTag" maxlength="4" placeholder="e.g. 305" spellcheck="false"></label>
+            <button class="btn pri" id="crewGo">Create · ${money(CREW_PRICE)}</button>
+          </div>
+          <div class="crewnote" id="crewMsg" style="margin-top:8px"></div>`;
+        crewBody().appendChild(make);
+        const msg = t => { const m = document.getElementById("crewMsg"); if (m) m.textContent = t; };
+        document.getElementById("crewGo").addEventListener("click", async () => {
+          const btn = document.getElementById("crewGo");
+          btn.disabled = true; msg("Creating…");
+          try {
+            await crewCreate(document.getElementById("crewName").value,
+                             document.getElementById("crewTag").value);
+            sfx.buy(); toast("crew created"); crewTab = "mine"; showCrew();
+          } catch(e){
+            const t = String(e.message || e);
+            msg(/duplicate|unique/i.test(t) ? "That name is taken" : t);
+            btn.disabled = false;
+          }
+        });
+
+        const rows = await crewBoard();
+        const list = document.createElement("div");
+        list.className = "crewlist";
+        if (!rows.length) list.innerHTML = `<div class="crewrow"><div class="pos"></div>
+          <div class="nm" style="color:var(--dim)">No crews yet</div><div class="mem"></div><div class="sc"></div></div>`;
+        rows.forEach((c, i) => {
+          const d = document.createElement("div");
+          d.className = "crewrow";
+          d.innerHTML = `<div class="pos">#${i + 1}</div><div class="nm">${esc(c.name)}</div>
+            <div class="mem">${c.members} rider${c.members === 1 ? "" : "s"}</div>
+            <div class="sc">${Number(c.total_best || 0).toLocaleString()}</div>`;
+          const b = document.createElement("button");
+          b.className = "btn pri"; b.textContent = "Join";
+          b.addEventListener("click", async () => {
+            b.disabled = true;
+            try { await crewJoin(c.id); sfx.buy(); toast("joined " + c.name); crewTab = "mine"; }
+            catch(e){ toast("couldn't join"); }
+            showCrew();
+          });
+          d.appendChild(b);
+          list.appendChild(d);
+        });
+        crewBody().appendChild(list);
+      }
+    }
+  } catch(e){
+    crewNote("Couldn't load crews.<br>" + String(e.message || e));
+  }
+  crewBusy = false;
+}
+function renderCrewLink(){
+  const el = document.getElementById("openCrew");
+  if (!el) return;
+  el.textContent = inCrew() ? SAVE.crew.name + "  ·  " + CREW_BONUS + "× coins" : "Crews";
+}
+function openCrew(){
+  S.mode = "crew"; S.paused = false;
+  elMenu.hidden = true; elShop.hidden = true; elBoard.hidden = true; elSeason.hidden = true;
+  elCrew.hidden = false;
+  sfx.ui(); syncWallet();
+  showCrew();
+}
+function closeCrew(){ elCrew.hidden = true; openMenu(); }
+document.getElementById("openCrew").addEventListener("click", openCrew);
+document.getElementById("crewBack").addEventListener("click", closeCrew);
 
 /* ---------- season pass screen ---------- */
 const elSeason = document.getElementById("season");
