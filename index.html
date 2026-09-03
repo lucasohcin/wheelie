@@ -1683,9 +1683,9 @@ function redeem(raw){
   const say = (t, ok) => { if (out) { out.textContent = t; out.className = "codemsg " + (ok ? "ok" : "no"); } };
   if (!key) return say("Type a code first", false);
   if (SAVE.codes.includes(key)) return say("That code has already been used", false);
-  if (key === ADMIN_PHRASE) {                 // door, not lock: the server decides
-    SAVE.codes.pop();
-    say("Opening admin...", true);
+  if (key === ADMIN_PHRASE) {                 // door, not lock: the server decides.
+    say("Opening admin...", true);            // never recorded as a used code
+    const inp0 = document.getElementById("codeIn"); if (inp0) inp0.value = "";
     openAdmin();
     return;
   }
