@@ -3678,8 +3678,8 @@ function tickRamp(){
 
   // rider pose
   const air = !grounded;
-  const held = heldTrick();
-  S.trick = air ? held : null;
+  const trick = heldTrick();
+  S.trick = air ? trick : null;
   S.anim = S.trick || (air ? (Math.abs(R.spin) > 1.6 ? "nohand" : "stand") : (leanBack ? "stand" : leanFwd ? "knee" : 1));
   if (air && S.trick) R.trickT++; else if (!air) R.trickT = 0;
 
