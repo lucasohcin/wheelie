@@ -234,6 +234,17 @@
   .exi.on{border-color:var(--neon); background:rgba(16,38,27,.5)}
   .exi .nm{font-family:var(--num); font-weight:700; font-size:14.5px}
   .exi .bl{font-size:11.5px; color:var(--dim); line-height:1.35; margin:2px 0 8px}
+  .engd{display:flex; flex-wrap:wrap; gap:4px 8px; margin:-4px 0 8px; font-size:11px; letter-spacing:.02em}
+  .engd .up{color:var(--neon)}
+  .engd .dn{color:var(--hot)}
+  .keys{display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:10px; align-content:start}
+  .keys .kr{display:flex; align-items:center; gap:10px; border:1px solid var(--edge); border-radius:11px;
+            padding:10px 12px; background:rgba(12,16,22,.55)}
+  .keys .kr .nm{flex:1; font-family:var(--num); font-weight:700; font-size:14.5px}
+  .keys .kr button{min-width:92px; font-family:var(--num); font-weight:700; letter-spacing:.04em}
+  .keys .kr.listening{border-color:var(--amber); background:rgba(48,38,12,.55)}
+  .keyhead{grid-column:1/-1; display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:2px}
+  .keyhead .cap{color:var(--dim); font-size:12.5px; letter-spacing:.14em; text-transform:uppercase}
   .exi .btn{padding:5px 12px; font-size:12px; width:100%}
 
   /* ---------- tricks ---------- */
@@ -358,6 +369,7 @@
         <button class="tab" id="tabLids" aria-selected="false">Helmets</button>
         <button class="tab" id="tabCust" aria-selected="false">Customise</button>
         <button class="tab" id="tabTricks" aria-selected="false">Tricks</button>
+        <button class="tab" id="tabKeys" aria-selected="false">Controls</button>
       </div>
       <div class="wallet"><span class="dot"></span><span id="coinsShop">0</span> <span style="opacity:.65">coins</span></div>
       <button class="btn" id="shopBack">Back</button>
@@ -788,23 +800,32 @@ const BIKES = [
     wheel:{tire:"knobby", spokes:"wire", rim:"#FFC24B", disc:true}, gear:"mx" },
 
   /* ---------- code-unlocked customs ---------- */
-  { name:"CL2 MX", cls:"mx", electric:true, secret:true,
-    limit:120, torque:0.80, sl:1.02, brake:1.30, weight:0.26, bp:21, loop:-42, rpmMax:13600,
-    wb:174, rf:42, rr:40, head:[142,106], grip:[128,124], peg:[62,16], seat:[34,74], lean:68,
-    body:"#12C25A", body2:"#06301A", frame:"#0A2415", fork:"#8DFFB8", rim:"#8DFFB8",
-    seatCol:"#0A2415",
-    shape:{ tank:"wasp", tail:"high", plate:true, guards:true },
-    decal:{ text:"CL2", x:104, y:84, size:14, rot:-0.4, col:"#06301A" },
-    wheel:{tire:"knobby", spokes:"wire", rim:"#8DFFB8", disc:true}, gear:"mx" },
+  { name:"CL2 MX", cls:"mx", pipe:"can", secret:true,
+    limit:120, torque:0.62, sl:1.12, brake:1.16, weight:0.29, bp:26, loop:-34, rpmMax:13000,
+    wb:172, rf:42, rr:40, head:[140,106], grip:[126,124], peg:[62,16], seat:[34,74], lean:68,
+    body:"#4CA64C", body2:"#F4F6F8", frame:"#16181D", fork:"#C6CDD6", rim:"#1A1E26",
+    seatCol:"#14161B",
+    shape:{ tank:"stock", tail:"stock", plate:true, guards:true },
+    decal:{ text:"CL2", x:104, y:86, size:12, rot:-0.42, col:"#F4F6F8" },
+    wheel:{tire:"knobby", spokes:"wire", rim:"#1A1E26", disc:true}, gear:"mx" },
 
   { name:"Eli Custom", cls:"mx", pipe:"can", secret:true,
-    limit:109, torque:0.66, sl:1.10, brake:1.08, weight:0.28, bp:25, loop:-36, rpmMax:12600,
-    wb:172, rf:42, rr:40, head:[141,105], grip:[127,123], peg:[62,16], seat:[34,74], lean:68,
-    body:"#F4F1E6", body2:"#C9A227", frame:"#2A2620", fork:"#E8DCB8", rim:"#C9A227",
-    seatCol:"#1A1712",
-    shape:{ tank:"slim", tail:"stub", cowl:true },
-    decal:{ text:"ELI", x:104, y:80, size:14, rot:-0.36, col:"#C9A227" },
-    wheel:{tire:"knobby", spokes:"wire", rim:"#C9A227", disc:true}, gear:"mx" },
+    limit:109, torque:0.58, sl:1.16, brake:1.02, weight:0.29, bp:27, loop:-32, rpmMax:12400,
+    wb:172, rf:42, rr:40, head:[140,106], grip:[126,124], peg:[62,16], seat:[34,74], lean:68,
+    body:"#F4F1E9", body2:"#B99327", frame:"#1C1E22", fork:"#C6CDD6", rim:"#B99327",
+    seatCol:"#17191D",
+    shape:{ tank:"stock", tail:"stock", plate:true },
+    decal:{ text:"ELI", x:104, y:86, size:12, rot:-0.42, col:"#B99327" },
+    wheel:{tire:"knobby", spokes:"wire", rim:"#B99327", disc:true}, gear:"mx" },
+
+  { name:"Q-Life Spark", cls:"mx", electric:true,
+    limit:134, torque:0.70, sl:1.05, brake:1.10, weight:0.27, bp:24, loop:-35, rpmMax:14000,
+    wb:172, rf:42, rr:40, head:[140,106], grip:[126,124], peg:[62,16], seat:[34,74], lean:68,
+    body:"#17181C", body2:"#22D3EE", frame:"#1E2A33", fork:"#9AA4AE", rim:"#22D3EE",
+    seatCol:"#101216",
+    shape:{ tank:"slim", tail:"stock", plate:true, guards:true },
+    decal:{ text:"Q-LIFE", x:102, y:84, size:11, rot:-0.42, col:"#22D3EE" },
+    wheel:{tire:"knobby", spokes:"wire", rim:"#22D3EE", disc:true}, gear:"mx" },
 ];
 
 const HELMETS = [
@@ -892,7 +913,8 @@ const PRICES  = [0, 900, 2400, 13000, 8000, 7000, 9500, 9000, 8500, 4800, 26000,
                  0, 0, 0, 0, 0, 0,                                    // 34-39: code-unlocked secrets
                  15500, 20500, 11800, 27500, 33000, 14200, 9800, 36000, 41000, 24500,
                  500000,                                            // Apex Omega
-                 0, 0];                                             // 51-52: code-unlocked customs
+                 0, 0,                                              // 51-52: code-unlocked customs
+                 88000];                                            // 53: Q-Life Spark
 const HPRICES = [0, 0, 700, 1500, 2600, 400];
 BIKES.forEach((b, i) => { b.price = PRICES[i] || 0; b.idx = i; });
 HELMETS.forEach((h, i) => { h.price = HPRICES[i] || 0; h.idx = i; });
@@ -981,12 +1003,42 @@ const EXTRAS = [
   { key:"flame",  name:"Exhaust flame", price:1700, blurb:"Backfire out the pipe" },
   { key:"roost",  name:"Roost",        price:700,  blurb:"Rear tyre throws dirt" },
 ];
+
+/* ---------- engine swaps ----------
+   Bolt a different motor into any bike. Each swap trades something away, so
+   none of them is a straight upgrade, and the swap changes how the bike
+   sounds as well as how it pulls. Stored per bike in SAVE.tune[i].eng. */
+const ENGINES = [
+  { key:"stock",  name:"Stock",         price:0,
+    blurb:"How it left the factory",
+    limit:1,    torque:1,    rpm:1,    weight:1,    brake:1 },
+  { key:"bigbore", name:"Big bore kit", price:9000,
+    blurb:"Huge low-end punch, revs out sooner",
+    limit:0.96, torque:1.30, rpm:0.88, weight:1.06, brake:1,    kind:"4t" },
+  { key:"race",   name:"Race head",     price:16000,
+    blurb:"Screams to the moon, softer off the bottom",
+    limit:1.16, torque:0.90, rpm:1.22, weight:0.96, brake:1,    kind:"4t" },
+  { key:"twostroke", name:"250 two-smoke", price:12500,
+    blurb:"Light, savage, and it sings",
+    limit:1.06, torque:1.12, rpm:1.10, weight:0.88, brake:1,    kind:"2t" },
+  { key:"electric", name:"Electric conversion", price:22000,
+    blurb:"Instant torque, silent, heavier pack",
+    limit:1.02, torque:1.24, rpm:0.92, weight:1.10, brake:1.05, kind:"e"  },
+  { key:"turbo",  name:"Turbo",         price:38000,
+    blurb:"Everything, everywhere, all at once",
+    limit:1.28, torque:1.22, rpm:1.06, weight:1.12, brake:1,    kind:"4t" },
+];
+const engineById = k => ENGINES.find(e => e.key === k) || ENGINES[0];
+function engineOf(i){ return engineById((SAVE.tune[i] && SAVE.tune[i].eng) || "stock"); }
+
 function tuneOf(i){
   let t = SAVE.tune[i];
   if (!t) t = SAVE.tune[i] = {};
   if (!t.up)  t.up  = { motor:0, brakes:0, tyres:0, susp:0 };
   if (!t.fx)  t.fx  = {};
   if (!t.own) t.own = {};
+  if (!t.eng) t.eng = "stock";
+  if (!t.engs) t.engs = { stock:1 };
   return t;
 }
 function upPrice(bikeIdx, lvl){
@@ -995,12 +1047,13 @@ function upPrice(bikeIdx, lvl){
 let CUR = null;
 function refreshBike(){
   const B = BIKES[SAVE.bike] || BIKES[0], t = tuneOf(SAVE.bike);
+  const E = engineById(t.eng);
   const C = Object.assign({}, B);
-  C.limit  = Math.round(B.limit  * (1 + 0.07 * t.up.motor));
-  C.torque = B.torque * (1 + 0.09 * t.up.motor);
-  C.rpmMax = B.rpmMax * (1 + 0.04 * t.up.motor);
-  C.brake  = B.brake  * (1 + 0.11 * t.up.brakes);
-  C.weight = B.weight * (1 - 0.055 * t.up.susp);
+  C.limit  = Math.round(B.limit  * (1 + 0.07 * t.up.motor) * E.limit);
+  C.torque = B.torque * (1 + 0.09 * t.up.motor) * E.torque;
+  C.rpmMax = B.rpmMax * (1 + 0.04 * t.up.motor) * E.rpm;
+  C.brake  = B.brake  * (1 + 0.11 * t.up.brakes) * E.brake;
+  C.weight = B.weight * (1 - 0.055 * t.up.susp) * E.weight;
   C.loop   = B.loop   - 4 * t.up.tyres;
   C.gripMul = 1 + 0.20 * t.up.tyres;
   C.landMul = 1 - 0.12 * t.up.susp;
@@ -1011,7 +1064,7 @@ function refreshBike(){
   C.wheel  = Object.assign({}, B.wheel, { rim: t.rim || B.wheel.rim });
   C.decal  = B.decal;
   C.secret = B.secret;
-  C.fx = t.fx; C.tune = t; C.base = B;
+  C.eng = E; C.fx = t.fx; C.tune = t; C.base = B;
   CUR = C;
 }
 function persist(){ try { localStorage.setItem("soflo.save", JSON.stringify(SAVE)); } catch(e){} }
@@ -1032,6 +1085,7 @@ function persist(){ try { localStorage.setItem("soflo.save", JSON.stringify(SAVE
     SAVE.slots = ["stand","knee","drag","nohand","fob","onehand"];
   SAVE.slots = SAVE.slots.map(id => (trickById(id) ? id : null));
   if (!SAVE.rider) SAVE.rider = {};
+  if (!SAVE.keys || typeof SAVE.keys !== "object" || Array.isArray(SAVE.keys)) SAVE.keys = {};
   SAVE.track = SAVE.track | 0;
   if (!Array.isArray(SAVE.codes)) SAVE.codes = [];
   if (!Array.isArray(SAVE.quests)) SAVE.quests = [];
@@ -1137,14 +1191,70 @@ const S = {
 const bike = () => CUR || BIKES[SAVE.bike];
 const helmet = () => HELMETS[SAVE.lid];
 const spot = () => SPOTS[SAVE.spot] || SPOTS[0];
-const engKind = B => (B.cls === "ebike" || B.electric) ? "e" : B.pipe === "chamber" ? "2t" : "4t";
+const engKind = B => (B.eng && B.eng.kind) ? B.eng.kind
+                   : (B.cls === "ebike" || B.electric) ? "e"
+                   : B.pipe === "chamber" ? "2t" : "4t";
+
+
+/* ---------- rebindable controls ----------
+   Every action keeps its original keys as the default, so an existing save
+   with no custom binds plays exactly as before. Escape stays hard-wired to
+   the menu so a bad bind can never lock you out. */
+const ACTIONS = [
+  { key:"throttle", name:"Throttle",     def:["d","arrowright"] },
+  { key:"brake",    name:"Brake",        def:["a","arrowleft"] },
+  { key:"clutch",   name:"Clutch (loft)",def:[" "] },
+  { key:"leanBack", name:"Lean back",    def:["w","arrowup"] },
+  { key:"leanFwd",  name:"Lean forward", def:["s","arrowdown"] },
+  { key:"trick1",   name:"Trick slot 1", def:["1"] },
+  { key:"trick2",   name:"Trick slot 2", def:["2"] },
+  { key:"trick3",   name:"Trick slot 3", def:["3"] },
+  { key:"trick4",   name:"Trick slot 4", def:["4"] },
+  { key:"trick5",   name:"Trick slot 5", def:["5"] },
+  { key:"trick6",   name:"Trick slot 6", def:["6"] },
+  { key:"pause",    name:"Pause",        def:["p"] },
+  { key:"photo",    name:"Photo mode",   def:["k"] },
+  { key:"sound",    name:"Mute sound",   def:["m"] },
+  { key:"music",    name:"Mute music",   def:["n"] },
+  { key:"nextBike", name:"Next bike",    def:["f"] },
+  { key:"prevBike", name:"Previous bike",def:["t"] },
+  { key:"lid",      name:"Cycle helmet", def:["g"] },
+  { key:"spot",     name:"Cycle spot",   def:["b"] },
+];
+const actionByKey = k => ACTIONS.find(a => a.key === k);
+function binds(action){
+  const a = actionByKey(action); if (!a) return [];
+  const c = SAVE.keys && SAVE.keys[action];
+  return (Array.isArray(c) && c.length) ? c : a.def;
+}
+const held = action => binds(action).some(down);
+// which action, if any, owns this physical key
+function actionFor(k){
+  for (const a of ACTIONS) if (binds(a.key).includes(k)) return a.key;
+  return null;
+}
+function setBind(action, k){
+  if (!SAVE.keys) SAVE.keys = {};
+  for (const a of ACTIONS) {                       // a key belongs to one action
+    const cur = binds(a.key);
+    if (cur.includes(k)) {
+      const next = cur.filter(x => x !== k);
+      SAVE.keys[a.key] = next;
+    }
+  }
+  SAVE.keys[action] = [k];
+  persist();
+}
+function resetBinds(){ SAVE.keys = {}; persist(); }
+const keyLabel = k => k === " " ? "Space" : k.length === 1 ? k.toUpperCase()
+  : k.replace("arrow", "").replace(/^./, c => c.toUpperCase());
 
 /* ---------- input ---------- */
 const keys = Object.create(null);
 const touchKeys = Object.create(null);
 const down = k => !!(keys[k] || touchKeys[k]);
-const THROTTLE = () => down("d") || down("arrowright");
-const BRAKE    = () => down("a") || down("arrowleft");
+const THROTTLE = () => held("throttle");
+const BRAKE    = () => held("brake");
 
 addEventListener("keydown", e => {
   if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")) return;
@@ -1156,14 +1266,15 @@ addEventListener("keydown", e => {
   if (k === "escape") { playing ? openMenu() : (S.mode === "shop" ? openMenu() : 0); return; }
   if (k === "enter") { playing ? (S.paused && togglePause()) : startMode("rideout"); return; }
   if (!playing) return;
-  if (k === "p") togglePause();
-  if (k === "k") { S.photo = !S.photo; if (S.photo) { S.pz = 1; S.pox = 0; S.poy = 0; } sfx.ui(); }
-  if (k === "m") { S.sound = !S.sound; S.muteNote = 60; audio.mute(!S.sound); S.muteMsg = S.sound ? "SOUND ON" : "SOUND OFF"; }
-  if (k === "n") { S.music = !S.music; S.muteNote = 60; audio.music(S.music); S.muteMsg = S.music ? "MUSIC ON" : "MUSIC OFF"; }
-  if (k === "f") cycleBike(1);
-  if (k === "t") cycleBike(-1);
-  if (k === "g") cycleLid();
-  if (k === "b") { SAVE.spot = (SAVE.spot + 1) % SPOTS.length; persist(); toast(spot().name); if (S.mode === "street" && S.rideOut) spawnRideOut(); }
+  const act = actionFor(k);
+  if (act === "pause") togglePause();
+  if (act === "photo") { S.photo = !S.photo; if (S.photo) { S.pz = 1; S.pox = 0; S.poy = 0; } sfx.ui(); }
+  if (act === "sound") { S.sound = !S.sound; S.muteNote = 60; audio.mute(!S.sound); S.muteMsg = S.sound ? "SOUND ON" : "SOUND OFF"; }
+  if (act === "music") { S.music = !S.music; S.muteNote = 60; audio.music(S.music); S.muteMsg = S.music ? "MUSIC ON" : "MUSIC OFF"; }
+  if (act === "nextBike") cycleBike(1);
+  if (act === "prevBike") cycleBike(-1);
+  if (act === "lid") cycleLid();
+  if (act === "spot") { SAVE.spot = (SAVE.spot + 1) % SPOTS.length; persist(); toast(spot().name); if (S.mode === "street" && S.rideOut) spawnRideOut(); }
 }, {passive:false});
 addEventListener("keyup", e => { if (e.target && e.target.tagName === "INPUT") return; keys[e.key.toLowerCase()] = false; });
 addEventListener("keydown", e => {
@@ -1218,13 +1329,13 @@ function cycleLid(){
   toast(HELMETS[SAVE.lid].name);
 }
 function heldTrick(){
-  for (let i = 0; i < 6; i++) if (down(String(i + 1))) {
+  for (let i = 0; i < 6; i++) if (held("trick" + (i + 1))) {
     const id = SAVE.slots[i];
     if (id && ownsTrick(id)) return id;
   }
-  const legacy = [["w","arrowup"],["s","arrowdown"],["e"],["r"],["c"]];
+  const legacy = [["e"],["r"],["c"]];
   for (let i = 0; i < legacy.length; i++) if (legacy[i].some(down)) {
-    const id = SAVE.slots[i];
+    const id = SAVE.slots[i + 2];
     if (id && ownsTrick(id)) return id;
   }
   return null;
@@ -1527,7 +1638,7 @@ function tickStreet(){
   if (THROTTLE()) {
     if (S.rpm < B.rpmMax) S.rpm += 1300;
     if (Math.round(S.spd) < B.limit) {
-      if (down(" ")) {
+      if (held("clutch")) {
         S.spd += B.torque * 2 - S.spd / (B.limit * B.sl);
       } else {
         S.av  -= B.torque - S.spd / (B.limit * B.sl * 6);
@@ -3450,8 +3561,8 @@ function tickRamp(){
     return;
   }
 
-  const leanBack = down("w") || down("arrowup");
-  const leanFwd  = down("s") || down("arrowdown");
+  const leanBack = held("leanBack");
+  const leanFwd  = held("leanFwd");
 
   // sub-stepped so the wheel springs stay stable
   const SUB = 4, h = 1 / SUB;
@@ -4098,8 +4209,24 @@ function renderCustom(){
     </div>`;
   }).join("");
 
+  const engHTML = ENGINES.map(e => {
+    const owned = e.key === "stock" || !!t.engs[e.key];
+    const on = t.eng === e.key, can = SAVE.coins >= e.price;
+    const d = k => { const v = e[k]; return v === 1 ? "" :
+      `<span class="${v > 1 ? "up" : "dn"}">${k === "weight" ? (v < 1 ? "lighter" : "heavier")
+        : (v > 1 ? "+" : "") + Math.round((v - 1) * 100) + "% " + k}</span>`; };
+    return `<div class="exi ${on ? "on" : ""}">
+      <div class="nm">${e.name}</div><div class="bl">${e.blurb}</div>
+      <div class="engd">${d("limit")}${d("torque")}${d("rpm")}${d("weight")}${d("brake")}</div>
+      ${on ? `<span class="owned">FITTED</span>`
+           : owned ? `<button class="btn pri" data-eng="${e.key}">Fit</button>`
+           : `<button class="btn${can ? " pri" : ""}" data-buyeng="${e.key}" ${can ? "" : "disabled"}>${money(e.price)}</button>`}
+    </div>`;
+  }).join("");
+
   panel.innerHTML =
-    `<div class="sec"><h4>Paint <button data-reset="1">Reset to stock</button></h4>
+    `<div class="sec"><h4>Engine swap</h4><div class="ex">${engHTML}</div></div>
+     <div class="sec"><h4>Paint <button data-reset="1">Reset to stock</button></h4>
       ${swatchRow("Body",  "body",  B.body)}
       ${swatchRow("Accent","body2", B.body2)}
       ${swatchRow("Rims",  "rim",   B.wheel.rim)}
@@ -4135,6 +4262,16 @@ function renderCustom(){
     if (!e || SAVE.coins < e.price) return;
     SAVE.coins -= e.price; t.own[e.key] = 1; t.fx[e.key] = 1;
     refreshBike(); persist(); sfx.buy(); renderCustom();
+  }));
+  panel.querySelectorAll("[data-buyeng]").forEach(b => b.addEventListener("click", () => {
+    const e = ENGINES.find(x => x.key === b.dataset.buyeng);
+    if (!e || SAVE.coins < e.price) return;
+    SAVE.coins -= e.price; t.engs[e.key] = 1; t.eng = e.key;
+    refreshBike(); persist(); sfx.buy(); renderCustom();
+  }));
+  panel.querySelectorAll("[data-eng]").forEach(b => b.addEventListener("click", () => {
+    t.eng = b.dataset.eng;
+    refreshBike(); persist(); sfx.ui(); renderCustom();
   }));
   panel.querySelectorAll("[data-fx]").forEach(b => b.addEventListener("click", () => {
     const k = b.dataset.fx;
@@ -4201,17 +4338,61 @@ function renderTricks(){
   elGrid.appendChild(grid);
 }
 
+let listenFor = null;
+function renderKeys(){
+  syncWallet();
+  elGrid.className = "keys";
+  elGrid.innerHTML = "";
+  const head = document.createElement("div");
+  head.className = "keyhead";
+  head.innerHTML = `<span class="cap">Click a control, then press the key you want</span>`;
+  const reset = document.createElement("button");
+  reset.className = "btn"; reset.textContent = "Reset to defaults";
+  reset.addEventListener("click", () => { resetBinds(); sfx.ui(); renderKeys(); });
+  head.appendChild(reset);
+  elGrid.appendChild(head);
+
+  for (const a of ACTIONS) {
+    const row = document.createElement("div");
+    row.className = "kr" + (listenFor === a.key ? " listening" : "");
+    const label = binds(a.key).map(keyLabel).join(" / ") || "— unbound —";
+    row.innerHTML = `<span class="nm">${a.name}</span>`;
+    const b = document.createElement("button");
+    b.className = "btn" + (listenFor === a.key ? " pri" : "");
+    b.textContent = listenFor === a.key ? "Press a key…" : label;
+    b.addEventListener("click", () => {
+      listenFor = listenFor === a.key ? null : a.key;
+      sfx.ui(); renderKeys();
+    });
+    row.appendChild(b);
+    elGrid.appendChild(row);
+  }
+}
+// capture the next key press while a control is waiting to be bound
+addEventListener("keydown", e => {
+  if (!listenFor || S.mode !== "shop" || shopTab !== "keys") return;
+  if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")) return;
+  e.preventDefault(); e.stopPropagation();
+  const k = e.key.toLowerCase();
+  if (k === "escape") { listenFor = null; renderKeys(); return; }
+  setBind(listenFor, k);
+  listenFor = null;
+  sfx.buy(); renderKeys();
+}, true);
+
 function setTab(name){
   shopTab = name;
-  for (const [id, key] of [["tabBikes","bikes"],["tabLids","lids"],["tabCust","cust"],["tabTricks","tricks"]])
+  for (const [id, key] of [["tabBikes","bikes"],["tabLids","lids"],["tabCust","cust"],["tabTricks","tricks"],["tabKeys","keys"]])
     document.getElementById(id).setAttribute("aria-selected", key === name ? "true" : "false");
   if (name === "cust") renderCustom();
+  else if (name === "keys") { custCv = null; listenFor = null; renderKeys(); }
   else if (name === "tricks") { custCv = null; renderTricks(); }
   else { elGrid.className = "grid"; custCv = null; renderShop(); }
 }
 
 document.getElementById("tabCust").addEventListener("click", () => { sfx.ui(); setTab("cust"); });
 document.getElementById("tabTricks").addEventListener("click", () => { sfx.ui(); setTab("tricks"); });
+document.getElementById("tabKeys").addEventListener("click", () => { sfx.ui(); setTab("keys"); });
 document.getElementById("tabBikes").addEventListener("click", () => setTab("bikes"));
 document.getElementById("tabLids").addEventListener("click", () => setTab("lids"));
 addEventListener("pointerdown", () => audio.start(), { once:true });
