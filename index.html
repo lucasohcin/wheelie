@@ -313,6 +313,28 @@
   .passbanner .go{flex:none; font-family:var(--num); font-weight:700; font-size:12px;
                   letter-spacing:.12em; color:var(--amber); text-transform:uppercase}
 
+
+  .bcast{width:min(560px,92vw); margin:0 auto 12px; padding:10px 14px; border-radius:12px; text-align:left;
+         background:linear-gradient(96deg, rgba(60,240,140,.14), rgba(14,20,28,.7));
+         border:1px solid rgba(60,240,140,.45); display:flex; gap:10px; align-items:baseline}
+  .bcast .tagline{font-family:var(--num); font-weight:700; font-size:10.5px; letter-spacing:.16em;
+                  text-transform:uppercase; color:var(--neon); flex:none}
+  .bcast .msg{font-size:13.5px; color:var(--text); line-height:1.45}
+  .adminsheet{width:min(900px,96vw); max-height:93vh; display:flex; flex-direction:column; gap:14px}
+  .adminbody{overflow:auto; display:flex; flex-direction:column; gap:14px}
+  .adwho{font-family:var(--num); font-size:12px; letter-spacing:.12em; color:var(--hot); text-transform:uppercase}
+  .adcard{border:1px solid var(--edge); border-radius:14px; background:rgba(10,13,18,.6); padding:16px; text-align:left}
+  .adcard h3{margin:0 0 10px; font-family:var(--display); font-size:18px}
+  .adrow{display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end}
+  .adrow .fld{margin:0; flex:1; min-width:130px}
+  .adrow select{width:100%; padding:11px 13px; border-radius:11px; background:rgba(8,11,16,.75);
+                border:1px solid var(--edge); color:var(--text); font-family:var(--ui); font-size:15px}
+  .admsg{margin-top:9px; font-size:12.5px; color:var(--dim); min-height:17px}
+  .admsg.ok{color:var(--neon)} .admsg.no{color:var(--hot)}
+  .adlist{margin-top:12px; border-top:1px solid var(--edge)}
+  .adlist .b{display:flex; gap:10px; align-items:center; padding:9px 2px; border-bottom:1px solid rgba(42,51,65,.5)}
+  .adlist .b .t{flex:1; font-size:13px; text-align:left}
+  .adlist .b .x{font-size:11px; color:var(--dim); font-family:var(--num)}
   .crewsheet{width:min(860px,96vw); max-height:93vh; display:flex; flex-direction:column; gap:14px}
   .crewbody{overflow:auto; display:flex; flex-direction:column; gap:12px}
   .crewcard{border:1px solid var(--edge); border-radius:14px; background:rgba(10,13,18,.6); padding:16px; text-align:left}
@@ -467,6 +489,7 @@
     <div class="wallet"><span class="dot"></span><span id="coinsMenu">0</span> <span style="opacity:.65">coins</span></div>
     <div class="lvlbar" id="lvlbar"></div>
     <div class="whoami" id="whoami" hidden></div>
+    <div class="bcast" id="bcast" hidden></div>
     <button class="passbanner" id="openSeason"></button>
     <div class="whoami"><button id="openBoard">View the leaderboard</button>
       <span style="opacity:.4">·</span><button id="openCrew">Crews</button></div>
@@ -557,6 +580,18 @@
 
 
 
+
+
+<div class="sheet" id="admin" hidden>
+  <div class="adminsheet">
+    <div class="shophead">
+      <h2>Admin</h2>
+      <span class="adwho" id="adWho"></span>
+      <button class="btn" id="adminBack">Back</button>
+    </div>
+    <div class="adminbody" id="adminBody"></div>
+  </div>
+</div>
 
 <div class="sheet" id="crew" hidden>
   <div class="crewsheet">
@@ -1648,6 +1683,12 @@ function redeem(raw){
   const say = (t, ok) => { if (out) { out.textContent = t; out.className = "codemsg " + (ok ? "ok" : "no"); } };
   if (!key) return say("Type a code first", false);
   if (SAVE.codes.includes(key)) return say("That code has already been used", false);
+  if (key === ADMIN_PHRASE) {                 // door, not lock: the server decides
+    SAVE.codes.pop();
+    say("Opening admin...", true);
+    openAdmin();
+    return;
+  }
   const c = CODES[key];
   if (!c) { sfx.ui(); return say("That code isn't valid", false); }
   SAVE.codes.push(key);
@@ -1861,6 +1902,9 @@ async function cloudSyncNow(){
   try { await cloudPush(); } catch(e){ pushDirty = true; }
   try { await scoresPush(); } catch(e){}
   try { await crewPull(); } catch(e){}
+  try { await adminCheck(); } catch(e){}
+  try { await pullGrants(); } catch(e){}
+  try { await pullBroadcasts(); } catch(e){}
   syncWallet(); refreshBike();
 }
 
@@ -1961,7 +2005,7 @@ addEventListener("keydown", e => {
   if (keys[k]) return;
   keys[k] = true;
   const playing = S.mode === "street" || S.mode === "ramp";
-  if (k === "escape") { playing ? openMenu() : (S.mode === "shop" ? openMenu() : S.mode === "board" ? closeBoard() : S.mode === "season" ? closeSeason() : S.mode === "crew" ? closeCrew() : 0); return; }
+  if (k === "escape") { playing ? openMenu() : (S.mode === "shop" ? openMenu() : S.mode === "board" ? closeBoard() : S.mode === "season" ? closeSeason() : S.mode === "crew" ? closeCrew() : S.mode === "admin" ? closeAdmin() : 0); return; }
   if (k === "enter") { playing ? (S.paused && togglePause()) : startMode("rideout"); return; }
   if (!playing) return;
   const act = actionFor(k);
@@ -5313,7 +5357,8 @@ function renderWho(){
 }
 function openMenu(){
   S.mode = "menu"; S.paused = false;
-  elShop.hidden = true; elBoard.hidden = true; elSeason.hidden = true; elCrew.hidden = true; elMenu.hidden = false;
+  elShop.hidden = true; elBoard.hidden = true; elSeason.hidden = true; elCrew.hidden = true;
+  elAdmin.hidden = true; elMenu.hidden = false;
   elExit.classList.remove("on");
   for (const k in keys) keys[k] = false;
   for (const k in touchKeys) touchKeys[k] = false;
@@ -5322,6 +5367,7 @@ function openMenu(){
   audio.setStyle("menu");
   sfx.ui();
   syncWallet(); persist(); renderWho(); renderLevel(); renderSeasonBanner(); renderCrewLink();
+  renderBroadcast(); pullBroadcasts();
 }
 function openShop(){
   S.mode = "shop"; elMenu.hidden = true; elShop.hidden = false;
@@ -5380,6 +5426,105 @@ function loop(now){
 
 
 
+
+
+/* ---------- admin ----------
+   The passphrase below only reveals the panel. Every action is checked in the
+   database against the admins table, so a player who reads it out of the page
+   source gets a panel where every button is refused by the server. */
+const ADMIN_PHRASE = "adminabuse";
+const ADMIN = { is:false, open:false };
+const BCAST = { list:[], seen:{}, fetched:0 };
+
+async function adminCheck(){
+  if (!cloudOn() || !AUTH.uid) { ADMIN.is = false; return false; }
+  try {
+    if (!await freshToken()) return false;
+    const rows = await api("/rest/v1/admins?select=user_id&user_id=eq." + AUTH.uid);
+    ADMIN.is = !!(rows && rows.length);
+  } catch(e){ ADMIN.is = false; }
+  return ADMIN.is;
+}
+async function findRider(name){
+  const rows = await api("/rest/v1/scores?select=user_id,username&username=ilike." +
+    encodeURIComponent(String(name || "").trim()) + "&limit=1");
+  return (rows && rows[0]) || null;
+}
+async function sendGrant(name, kind, amount, note){
+  const who = await findRider(name);
+  if (!who) throw new Error("No rider called \"" + name + "\" has played yet");
+  await api("/rest/v1/grants", { method:"POST", headers:{ Prefer:"return=minimal" },
+    body:JSON.stringify({ user_id:who.user_id, kind, amount:Math.floor(amount || 0), note:note || "" }) });
+  return who;
+}
+async function sendBroadcast(message, hours){
+  const ms = Math.max(1, Math.min(720, hours || 24)) * 3600000;
+  await api("/rest/v1/broadcasts", { method:"POST", headers:{ Prefer:"return=minimal" },
+    body:JSON.stringify({ message:String(message).slice(0, 240),
+                          expires_at:new Date(Date.now() + ms).toISOString() }) });
+}
+async function listBroadcasts(){
+  const rows = await api("/rest/v1/broadcasts?select=id,message,created_at,expires_at" +
+    "&expires_at=gt." + new Date().toISOString() + "&order=created_at.desc&limit=20");
+  return rows || [];
+}
+async function dropBroadcast(id){
+  await api("/rest/v1/broadcasts?id=eq." + id, { method:"DELETE", headers:{ Prefer:"return=minimal" } });
+}
+
+/* anything an admin sent me, applied once and marked claimed */
+async function pullGrants(){
+  if (!cloudOn() || !AUTH.uid) return 0;
+  if (!await freshToken()) return 0;
+  let rows = [];
+  try {
+    rows = await api("/rest/v1/grants?select=id,kind,amount,note&user_id=eq." +
+      AUTH.uid + "&claimed_at=is.null&limit=50") || [];
+  } catch(e){ return 0; }
+  let n = 0;
+  for (const g of rows) {
+    let what = "";
+    if (g.kind === "coins")      { SAVE.coins += Math.max(0, g.amount | 0); what = money(g.amount) + " coins"; }
+    else if (g.kind === "xp")    { awardXP(Math.max(0, g.amount | 0)); what = money(g.amount) + " XP"; }
+    else if (g.kind === "pass")  { seasonState().prem = true; what = "the premium pass"; }
+    else if (g.kind === "bike")  {
+      const i = g.amount | 0;
+      if (BIKES[i] && !SAVE.bikes.includes(i)) { SAVE.bikes.push(i); what = BIKES[i].name; }
+      else what = "a bike you already had";
+    }
+    else if (g.kind === "trick") {
+      const t = trickById(g.note);
+      if (t && !SAVE.tricks.includes(t.id)) { SAVE.tricks.push(t.id); what = t.name; }
+      else what = "a trick you already had";
+    }
+    try {
+      await api("/rest/v1/grants?id=eq." + g.id, { method:"PATCH",
+        headers:{ Prefer:"return=minimal" },
+        body:JSON.stringify({ claimed_at:new Date().toISOString() }) });
+      n++;
+      toast("ADMIN GIFT — " + what);
+    } catch(e){ /* leave unclaimed, it will retry next sync */ }
+  }
+  if (n) { persist(); syncWallet(); refreshBike(); }
+  return n;
+}
+
+/* broadcasts everyone sees */
+async function pullBroadcasts(){
+  if (!cloudOn()) return;
+  if (Date.now() - BCAST.fetched < 60000) return;
+  BCAST.fetched = Date.now();
+  try { BCAST.list = await listBroadcasts(); } catch(e){}
+  renderBroadcast();
+}
+function renderBroadcast(){
+  const el = document.getElementById("bcast");
+  if (!el) return;
+  const b = BCAST.list[0];
+  if (!b) { el.hidden = true; return; }
+  el.hidden = false;
+  el.innerHTML = `<span class="tagline">Announcement</span><span class="msg">${esc(b.message)}</span>`;
+}
 
 /* ---------- crews ----------
    Membership lives on the server; a copy is kept in the save so the coin
@@ -5564,6 +5709,136 @@ addEventListener("beforeunload", () => { if (pushDirty) { try { cloudPush(); } c
 
 
 
+
+
+/* ---------- admin panel ---------- */
+const elAdmin = document.getElementById("admin");
+function adSay(id, t, cls){
+  const m = document.getElementById(id);
+  if (m) { m.textContent = t || ""; m.className = "admsg " + (cls || ""); }
+}
+async function renderAdmin(){
+  const body = document.getElementById("adminBody");
+  document.getElementById("adWho").textContent = ADMIN.is ? "signed in as admin" : "not an admin";
+  body.innerHTML = "";
+
+  if (!ADMIN.is) {
+    body.innerHTML = `<div class="adcard">
+      <h3>No admin rights on this account</h3>
+      <div class="admsg">Knowing the passphrase is not enough - the database checks who you are.
+      Add your account to the <b>admins</b> table in Supabase to get access.</div></div>`;
+    return;
+  }
+
+  const bc = document.createElement("div");
+  bc.className = "adcard";
+  bc.innerHTML = `<h3>Global announcement</h3>
+    <div class="adrow">
+      <label class="fld" style="flex:3"><span>Message</span>
+        <input id="adMsg" maxlength="240" placeholder="Shown to every player on the menu"></label>
+      <label class="fld" style="flex:1"><span>Hours live</span>
+        <input id="adHrs" type="number" min="1" max="720" value="24"></label>
+      <button class="btn pri" id="adSend">Send</button>
+    </div>
+    <div class="admsg" id="adMsgOut"></div>
+    <div class="adlist" id="adList"></div>`;
+  body.appendChild(bc);
+
+  async function refreshList(){
+    const list = document.getElementById("adList");
+    let rows = [];
+    try { rows = await listBroadcasts(); } catch(e){}
+    BCAST.list = rows; renderBroadcast();
+    list.innerHTML = rows.length ? "" : `<div class="admsg">Nothing live right now.</div>`;
+    for (const b of rows) {
+      const d = document.createElement("div");
+      d.className = "b";
+      d.innerHTML = `<span class="t">${esc(b.message)}</span>
+        <span class="x">until ${new Date(b.expires_at).toLocaleString()}</span>`;
+      const x = document.createElement("button");
+      x.className = "btn"; x.textContent = "Delete";
+      x.addEventListener("click", async () => {
+        x.disabled = true;
+        try { await dropBroadcast(b.id); } catch(e){ adSay("adMsgOut", String(e.message || e), "no"); }
+        refreshList();
+      });
+      d.appendChild(x);
+      list.appendChild(d);
+    }
+  }
+  document.getElementById("adSend").addEventListener("click", async () => {
+    const msg = document.getElementById("adMsg").value.trim();
+    const hrs = +document.getElementById("adHrs").value || 24;
+    if (!msg) return adSay("adMsgOut", "Type a message first", "no");
+    adSay("adMsgOut", "Sending...");
+    try {
+      await sendBroadcast(msg, hrs);
+      document.getElementById("adMsg").value = "";
+      adSay("adMsgOut", "Live now - every player sees it on the menu", "ok");
+      sfx.buy(); refreshList();
+    } catch(e){ adSay("adMsgOut", "Refused: " + String(e.message || e), "no"); }
+  });
+  refreshList();
+
+  const gr = document.createElement("div");
+  gr.className = "adcard";
+  gr.innerHTML = `<h3>Give a rider something</h3>
+    <div class="adrow">
+      <label class="fld"><span>Username</span>
+        <input id="adUser" placeholder="exact username" spellcheck="false"></label>
+      <label class="fld"><span>What</span>
+        <select id="adKind">
+          <option value="coins">Coins</option>
+          <option value="xp">XP</option>
+          <option value="bike">Bike</option>
+          <option value="trick">Trick</option>
+          <option value="pass">Premium pass</option>
+        </select></label>
+      <label class="fld" id="adAmtRow"><span>Amount</span>
+        <input id="adAmt" type="number" value="10000"></label>
+      <label class="fld" id="adBikeRow" hidden><span>Which bike</span>
+        <select id="adBike">${BIKES.map((b, i) => `<option value="${i}">${esc(b.name)}</option>`).join("")}</select></label>
+      <label class="fld" id="adTrickRow" hidden><span>Which trick</span>
+        <select id="adTrick">${TRICKS.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join("")}</select></label>
+      <button class="btn pri" id="adGive">Send it</button>
+    </div>
+    <div class="admsg" id="adGiveOut">They get it the next time their game syncs.</div>`;
+  body.appendChild(gr);
+
+  const kindEl = document.getElementById("adKind");
+  function syncKind(){
+    const k = kindEl.value;
+    document.getElementById("adAmtRow").hidden   = !(k === "coins" || k === "xp");
+    document.getElementById("adBikeRow").hidden  = k !== "bike";
+    document.getElementById("adTrickRow").hidden = k !== "trick";
+  }
+  kindEl.addEventListener("change", syncKind); syncKind();
+
+  document.getElementById("adGive").addEventListener("click", async () => {
+    const name = document.getElementById("adUser").value.trim();
+    const kind = kindEl.value;
+    if (!name) return adSay("adGiveOut", "Type a username", "no");
+    let amount = 0, note = "";
+    if (kind === "coins" || kind === "xp") amount = Math.max(0, +document.getElementById("adAmt").value || 0);
+    if (kind === "bike")  amount = +document.getElementById("adBike").value || 0;
+    if (kind === "trick") note = document.getElementById("adTrick").value;
+    adSay("adGiveOut", "Sending...");
+    try {
+      const who = await sendGrant(name, kind, amount, note);
+      adSay("adGiveOut", "Sent to " + who.username + " - lands on their next sync", "ok");
+      sfx.buy();
+    } catch(e){ adSay("adGiveOut", "Refused: " + String(e.message || e), "no"); }
+  });
+}
+function openAdmin(){
+  S.mode = "admin"; S.paused = false;
+  elMenu.hidden = true; elShop.hidden = true; elBoard.hidden = true;
+  elSeason.hidden = true; elCrew.hidden = true; elAdmin.hidden = false;
+  sfx.ui();
+  adminCheck().then(renderAdmin);
+}
+function closeAdmin(){ elAdmin.hidden = true; openMenu(); }
+document.getElementById("adminBack").addEventListener("click", closeAdmin);
 
 /* ---------- crews screen ---------- */
 const elCrew = document.getElementById("crew");
