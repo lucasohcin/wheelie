@@ -204,6 +204,7 @@
   .btn.pri{background:var(--neon); color:#06110B; border:0}
   .btn:focus-visible{outline:3px solid var(--amber); outline-offset:2px}
 
+  .pass{min-height:0}
   .grid{display:grid; gap:11px; grid-template-columns:repeat(auto-fill,minmax(196px,1fr))}
   .card{
     background:linear-gradient(165deg,rgba(28,35,46,.9),rgba(15,19,26,.95));
@@ -290,6 +291,57 @@
   .tier.locked{opacity:.42}
   .tier .btn{width:100%; padding:6px 4px; font-size:12px}
   .tier .got{font-size:11px; color:var(--neon); letter-spacing:.1em; text-transform:uppercase}
+
+  /* ---------- battle pass ---------- */
+  .pass{display:flex; flex-direction:column; gap:14px; overflow:hidden}
+  .passhead{display:flex; align-items:center; gap:18px; flex-wrap:wrap}
+  .passhead .ttl h3{margin:0; font-family:var(--display); font-size:22px; letter-spacing:.01em}
+  .passhead .ttl .sub{color:var(--dim); font-size:12.5px}
+  .passhead .pbar{flex:1; min-width:220px}
+  .passhead .pnums{display:flex; justify-content:space-between; font-size:12px;
+                   color:var(--dim); font-family:var(--num); margin-bottom:5px; letter-spacing:.06em}
+  .passhead .track{display:block; height:10px; border-radius:6px; background:rgba(255,255,255,.10); overflow:hidden}
+  .passhead .track i{display:block; height:100%; background:linear-gradient(90deg,var(--neon),var(--amber))}
+  .pacts{display:flex; gap:8px; align-items:center}
+  .pacts .owned{font-family:var(--num); font-weight:700; font-size:12px; letter-spacing:.12em;
+                color:var(--neon); border:1px solid var(--neon); border-radius:8px; padding:7px 10px}
+
+  .passwrap{display:flex; gap:10px; min-height:0; overflow:hidden}
+  .lanes{display:flex; flex-direction:column; gap:8px; padding-top:30px; flex:none}
+  .lane{height:150px; display:flex; align-items:center; writing-mode:vertical-rl; transform:rotate(180deg);
+        justify-content:center; font-family:var(--num); font-weight:700; font-size:12px;
+        letter-spacing:.18em; color:var(--dim); border:1px solid var(--edge); border-radius:10px; padding:6px 3px}
+  .lane.prem{color:var(--amber); border-color:rgba(255,194,75,.45)}
+
+  .rail{display:flex; gap:10px; overflow-x:auto; overflow-y:hidden; padding:0 2px 10px; scroll-behavior:smooth}
+  .col{display:flex; flex-direction:column; gap:8px; flex:none; width:172px}
+  .col.big{width:196px}
+  .col .cap{height:22px; display:flex; align-items:center; justify-content:center}
+  .col .cap .tn{font-family:var(--num); font-weight:700; font-size:12px; letter-spacing:.14em;
+                color:var(--dim); border:1px solid var(--edge); border-radius:20px; padding:2px 12px}
+  .col.reached .cap .tn{color:var(--text); border-color:var(--text)}
+  .col.big .cap .tn{color:var(--amber); border-color:rgba(255,194,75,.6)}
+
+  .cell{height:150px; border:1px solid var(--edge); border-radius:13px; background:rgba(12,16,22,.6);
+        display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px; padding:8px;
+        position:relative; overflow:hidden}
+  .cell.p{border-color:rgba(255,194,75,.28); background:rgba(26,20,8,.42)}
+  .cell.ready{border-color:var(--neon); background:rgba(16,38,27,.5)}
+  .cell.got{opacity:.45}
+  .cell.far{opacity:.4}
+  .cell.lk{opacity:.35}
+  .cell .box{flex:1; width:100%; display:flex; align-items:center; justify-content:center; min-height:0}
+  .cell .art{width:100%; height:100%; object-fit:contain}
+  .cell .ico{font-size:34px; line-height:1}
+  .cell .ico.swatch{width:46px; height:46px; border-radius:11px; border:2px solid rgba(255,255,255,.25)}
+  .cell .ico.coin{width:42px; height:42px; border-radius:50%;
+    background:radial-gradient(circle at 34% 30%, #FFE9A8 0%, #FFC24B 45%, #C9962A 100%);
+    box-shadow:inset 0 -2px 5px rgba(0,0,0,.35), 0 0 12px rgba(255,194,75,.25)}
+  .cell .rw{font-family:var(--num); font-weight:700; font-size:12.5px; text-align:center; line-height:1.2}
+  .cell .btn{padding:5px 14px; font-size:12px}
+  .cell .tag{font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--dim)}
+  .cell .tag.done{color:var(--neon)}
+
 
   .up{display:grid; grid-template-columns:1fr auto auto; gap:6px 12px; align-items:center; padding:8px 0}
   .up + .up{border-top:1px solid rgba(255,255,255,.06)}
@@ -938,6 +990,55 @@ const BIKES = [
     shape:{ tank:"slim", tail:"stock", plate:true, guards:true },
     decal:{ text:"Q-LIFE", x:102, y:84, size:11, rot:-0.42, col:"#22D3EE" },
     wheel:{tire:"knobby", spokes:"wire", rim:"#22D3EE", disc:true}, gear:"mx" },
+
+  /* ---------- season pass bikes ---------- */
+  { name:"Dade County SX", cls:"mx", pipe:"can", secret:true,
+    limit:104, torque:0.60, sl:1.12, brake:0.92, weight:0.29, bp:27, loop:-33, rpmMax:12600,
+    wb:172, rf:42, rr:40, head:[140,106], grip:[126,124], peg:[62,16], seat:[34,74], lean:68,
+    body:"#1D4ED8", body2:"#F4F6F8", frame:"#12161C", fork:"#C6CDD6", rim:"#F4F6F8",
+    seatCol:"#14161B", shape:{ tank:"stock", tail:"stock", plate:true },
+    decal:{ text:"DADE", x:104, y:86, size:12, rot:-0.42, col:"#F4F6F8" },
+    wheel:{tire:"knobby", spokes:"wire", rim:"#F4F6F8", disc:true}, gear:"mx" },
+
+  { name:"Palmetto 450", cls:"mx", pipe:"can", secret:true,
+    limit:110, torque:0.63, sl:1.10, brake:0.95, weight:0.30, bp:26, loop:-33, rpmMax:12400,
+    wb:174, rf:42, rr:40, head:[142,106], grip:[128,124], peg:[62,16], seat:[34,74], lean:68,
+    body:"#B91C1C", body2:"#0E0E10", frame:"#1A1A1D", fork:"#C6CDD6", rim:"#0E0E10",
+    seatCol:"#121214", shape:{ tank:"stock", tail:"high", plate:true, guards:true },
+    decal:{ text:"PALMETTO", x:100, y:88, size:9, rot:-0.4, col:"#F4F6F8" },
+    wheel:{tire:"knobby", spokes:"wire", rim:"#0E0E10", disc:true}, gear:"mx" },
+
+  { name:"Biscayne Blvd", cls:"mx", electric:true, secret:true,
+    limit:118, torque:0.68, sl:1.08, brake:1.00, weight:0.28, bp:25, loop:-34, rpmMax:13200,
+    wb:172, rf:42, rr:40, head:[140,106], grip:[126,124], peg:[62,16], seat:[34,74], lean:68,
+    body:"#F5F2EA", body2:"#EC4899", frame:"#1B1B22", fork:"#C6CDD6", rim:"#EC4899",
+    seatCol:"#16161C", shape:{ tank:"slim", tail:"stock", plate:true },
+    decal:{ text:"BISCAYNE", x:101, y:84, size:10, rot:-0.42, col:"#EC4899" },
+    wheel:{tire:"knobby", spokes:"wire", rim:"#EC4899", disc:true}, gear:"mx" },
+
+  { name:"Sawgrass 300", cls:"mx", pipe:"chamber", secret:true,
+    limit:99, torque:0.56, sl:1.16, brake:0.88, weight:0.28, bp:29, loop:-32, rpmMax:12900,
+    wb:170, rf:42, rr:40, head:[139,105], grip:[125,123], peg:[61,16], seat:[33,74], lean:68,
+    body:"#3F6212", body2:"#D9F99D", frame:"#14180F", fork:"#C6CDD6", rim:"#D9F99D",
+    seatCol:"#12150E", shape:{ tank:"stock", tail:"flat", cowl:true, guards:true },
+    decal:{ text:"SAWGRASS", x:100, y:86, size:9, rot:-0.4, col:"#D9F99D" },
+    wheel:{tire:"knobby", spokes:"wire", rim:"#D9F99D", disc:true}, gear:"mx" },
+
+  { name:"Overtown 250", cls:"mx", pipe:"chamber", secret:true,
+    limit:102, torque:0.58, sl:1.14, brake:0.90, weight:0.27, bp:28, loop:-33, rpmMax:13400,
+    wb:171, rf:42, rr:40, head:[140,106], grip:[126,124], peg:[62,16], seat:[34,74], lean:68,
+    body:"#7C3AED", body2:"#FDE68A", frame:"#15121F", fork:"#C6CDD6", rim:"#FDE68A",
+    seatCol:"#131020", shape:{ tank:"wasp", tail:"high", plate:true },
+    decal:{ text:"OVERTOWN", x:100, y:85, size:9, rot:-0.42, col:"#FDE68A" },
+    wheel:{tire:"knobby", spokes:"wire", rim:"#FDE68A", disc:true}, gear:"mx" },
+
+  { name:"Ocean Drive GP", cls:"mx", electric:true, secret:true,
+    limit:140, torque:0.76, sl:1.02, brake:1.14, weight:0.26, bp:22, loop:-37, rpmMax:14400,
+    wb:174, rf:42, rr:40, head:[142,107], grip:[128,125], peg:[62,16], seat:[34,75], lean:68,
+    body:"#0B1020", body2:"#38BDF8", frame:"#C0C6CE", fork:"#38BDF8", rim:"#38BDF8",
+    seatCol:"#0A0D18", shape:{ tank:"wasp", tail:"high", plate:true, guards:true },
+    decal:{ text:"OCEAN DRIVE", x:99, y:85, size:9, rot:-0.42, col:"#38BDF8" },
+    wheel:{tire:"knobby", spokes:"wire", rim:"#38BDF8", disc:true}, gear:"mx" },
 ];
 
 const HELMETS = [
@@ -1026,7 +1127,8 @@ const PRICES  = [0, 900, 2400, 13000, 8000, 7000, 9500, 9000, 8500, 4800, 26000,
                  15500, 20500, 11800, 27500, 33000, 14200, 9800, 36000, 41000, 24500,
                  500000,                                            // Apex Omega
                  0, 0,                                              // 51-52: code-unlocked customs
-                 88000];                                            // 53: Q-Life Spark
+                 88000,                                             // 53: Q-Life Spark
+                 0, 0, 0, 0, 0, 0];                                 // 54-59: season pass bikes
 const HPRICES = [0, 0, 700, 1500, 2600, 400];
 BIKES.forEach((b, i) => { b.price = PRICES[i] || 0; b.idx = i; });
 HELMETS.forEach((h, i) => { h.price = HPRICES[i] || 0; h.idx = i; });
@@ -1206,7 +1308,9 @@ const PAINT_PRO = [
 ];
 const paintLocked = col => {
   const p = PAINT_PRO.find(x => x.col.toLowerCase() === String(col).toLowerCase());
-  return p ? riderLevel().lvl < p.lvl : false;
+  if (!p) return false;
+  if (Array.isArray(SAVE.paints) && SAVE.paints.includes(p.col)) return false;  // won from the pass
+  return riderLevel().lvl < p.lvl;
 };
 // two extra trick slots, earned
 const SLOT_LEVELS = [0, 0, 0, 0, 0, 0, 10, 20];   // level needed per slot index
@@ -1242,34 +1346,109 @@ function seasonNow(){
 function seasonState(){
   const now = seasonNow();
   if (!SAVE.season || SAVE.season.id !== now.id)
-    SAVE.season = { id:now.id, xp:0, claimed:[] };
+    SAVE.season = { id:now.id, xp:0, claimed:[], prem:false };
   if (!Array.isArray(SAVE.season.claimed)) SAVE.season.claimed = [];
+  if (!Array.isArray(SAVE.paints)) SAVE.paints = [];
   return SAVE.season;
 }
 const seasonTier = () => Math.min(SEASON_TIERS, Math.floor((seasonState().xp || 0) / SEASON_XP_PER_TIER));
-// what each tier hands over. Cosmetics and coins only - nothing pay-to-win.
-function seasonReward(tier){
-  if (tier % 10 === 0) return { kind:"coins", n:12000, label:"12,000 coins" };
-  if (tier % 5 === 0)  return { kind:"coins", n:5000,  label:"5,000 coins" };
-  if (tier % 3 === 0)  return { kind:"coins", n:2200,  label:"2,200 coins" };
-  return { kind:"coins", n:900, label:"900 coins" };
+/* ---------- the pass ----------
+   Two tracks. The free one everyone rides; the premium one is bought with
+   coins you earned in game, never money, so it is a coin sink rather than a
+   payment. Rewards are bikes, paint, engines, tricks and coins - none of it
+   makes you faster than someone who did not buy it, because the premium
+   bikes sit alongside the free ones rather than above them. */
+const PASS_PRICE = 60000;
+const SEASON_BIKES = [54, 55, 56, 57, 58, 59];      // one every five tiers
+const PASS_PAINT = ["#00E5FF","#FF6FD8","#B0FF3B","#FF2E00","#7DF9FF","#FFB800",
+                    "#9D4EDD","#00FFA3","#FF004D","#E8E2D0","#1B1B3A","#C0C0C0"];
+
+function rewardLabel(r){
+  if (!r) return "";
+  if (r.kind === "coins")  return r.n.toLocaleString() + " coins";
+  if (r.kind === "bike")   return (BIKES[r.n] || {}).name || "Bike";
+  if (r.kind === "paint")  return "Paint";
+  if (r.kind === "engine") return (ENGINES.find(e => e.key === r.n) || {}).name || "Engine";
+  if (r.kind === "trick")  return (trickById(r.n) || {}).name || "Trick";
+  return "";
 }
-function claimTier(tier){
+// what sits on each tier of each track
+function tierReward(tier, prem){
+  const fifth = tier % 5 === 0;
+  if (prem) {
+    if (fifth) return { kind:"bike", n:SEASON_BIKES[(tier / 5 | 0) - 1] };
+    if (tier % 10 === 3) return { kind:"engine", n:["bigbore","race","twostroke"][((tier/10)|0) % 3] };
+    if (tier % 4 === 2)  return { kind:"paint", n:PASS_PAINT[(tier * 3) % PASS_PAINT.length] };
+    return { kind:"coins", n:2500 + 250 * tier };
+  }
+  if (tier === 12) return { kind:"trick", n:"cancan" };
+  if (tier === 24) return { kind:"trick", n:"nofoot" };
+  if (tier % 10 === 0) return { kind:"coins", n:12000 };
+  if (tier % 5 === 0)  return { kind:"coins", n:5000 };
+  if (tier % 4 === 1)  return { kind:"paint", n:PASS_PAINT[(tier * 5) % PASS_PAINT.length] };
+  if (tier % 3 === 0)  return { kind:"coins", n:2200 };
+  return { kind:"coins", n:900 };
+}
+const passOwned = () => !!seasonState().prem;
+function buyPass(){
   const st = seasonState();
-  if (tier < 1 || tier > seasonTier() || st.claimed.includes(tier)) return false;
-  const r = seasonReward(tier);
-  st.claimed.push(tier);
-  if (r.kind === "coins") SAVE.coins += r.n;
+  if (st.prem || SAVE.coins < PASS_PRICE) return false;
+  SAVE.coins -= PASS_PRICE; st.prem = true;
   persist(); syncWallet();
   return true;
 }
-function claimAllTiers(){
-  let n = 0, got = 0;
-  for (let t = 1; t <= seasonTier(); t++) {
-    const r = seasonReward(t);
-    if (claimTier(t)) { n++; got += (r.kind === "coins" ? r.n : 0); }
+// hand a reward over. Anything already owned turns into coins instead of
+// silently vanishing.
+function giveReward(r){
+  if (!r) return "";
+  if (r.kind === "coins")  { SAVE.coins += r.n; return r.n.toLocaleString() + " coins"; }
+  if (r.kind === "bike") {
+    if (SAVE.bikes.includes(r.n)) { SAVE.coins += 15000; return "15,000 coins (bike already owned)"; }
+    SAVE.bikes.push(r.n); qMax("bikesOwned", SAVE.bikes.length);
+    return (BIKES[r.n] || {}).name || "bike";
   }
-  return { n, got };
+  if (r.kind === "paint") {
+    if (!Array.isArray(SAVE.paints)) SAVE.paints = [];
+    if (SAVE.paints.includes(r.n)) { SAVE.coins += 1500; return "1,500 coins (paint already owned)"; }
+    SAVE.paints.push(r.n); return "new paint";
+  }
+  if (r.kind === "engine") {
+    const t = tuneOf(SAVE.bike);
+    if (t.engs[r.n]) { SAVE.coins += 6000; return "6,000 coins (engine already owned)"; }
+    t.engs[r.n] = 1; return (ENGINES.find(e => e.key === r.n) || {}).name || "engine";
+  }
+  if (r.kind === "trick") {
+    if (SAVE.tricks.includes(r.n)) { SAVE.coins += 3000; return "3,000 coins (trick already owned)"; }
+    SAVE.tricks.push(r.n); return (trickById(r.n) || {}).name || "trick";
+  }
+  return "";
+}
+const claimKey = (tier, prem) => (prem ? "p" : "f") + tier;
+function tierClaimable(tier, prem){
+  const st = seasonState();
+  if (tier < 1 || tier > seasonTier()) return false;
+  if (prem && !st.prem) return false;
+  return !st.claimed.includes(claimKey(tier, prem));
+}
+function claimTier(tier, prem){
+  if (!tierClaimable(tier, prem)) return false;
+  const st = seasonState();
+  st.claimed.push(claimKey(tier, prem));
+  giveReward(tierReward(tier, prem));
+  persist(); syncWallet(); refreshBike();
+  return true;
+}
+function claimAllTiers(){
+  let n = 0;
+  for (let t = 1; t <= seasonTier(); t++)
+    for (const p of [false, true]) if (claimTier(t, p)) n++;
+  return { n };
+}
+function unclaimedCount(){
+  let n = 0;
+  for (let t = 1; t <= seasonTier(); t++)
+    for (const p of [false, true]) if (tierClaimable(t, p)) n++;
+  return n;
 }
 
 /* ---------- earning ---------- */
@@ -1541,6 +1720,7 @@ function mergeSaves(a, b){
   const sa = a.season, sb = b.season;
   if (sa && sb && sa.id === sb.id) {
     out.season = { id:sa.id, xp:Math.max(sa.xp || 0, sb.xp || 0),
+                   prem: !!(sa.prem || sb.prem),
                    claimed:Array.from(new Set([].concat(sa.claimed || [], sb.claimed || []))) };
   } else {
     const pick = (sb && (!sa || sb.id > sa.id)) ? sb : sa;
@@ -1554,6 +1734,7 @@ function mergeSaves(a, b){
   out.codes  = uni("codes");
   out.tricks = uni("tricks");
   out.qdone  = uni("qdone");
+  out.paints = uni("paints");
 
   out.qp = Object.assign({}, a.qp || {});
   for (const k in (b.qp || {})) out.qp[k] = Math.max(out.qp[k] || 0, b.qp[k] || 0);
@@ -4815,64 +4996,130 @@ function renderTricks(){
 }
 
 
+function rewardArt(r, box){
+  // a small canvas per reward so bikes actually show the bike
+  if (r.kind === "bike") {
+    const c = document.createElement("canvas");
+    c.width = 300; c.height = 150; c.className = "art";
+    box.appendChild(c);
+    try { thumbBike(c, BIKES[r.n]); } catch(e){}
+    return;
+  }
+  const d = document.createElement("div");
+  d.className = "ico";
+  if (r.kind === "coins")  { d.className = "ico coin"; }
+  else if (r.kind === "paint")  { d.className = "ico swatch"; d.style.background = r.n; }
+  else if (r.kind === "engine") { d.textContent = "⚙️"; }
+  else if (r.kind === "trick")  { d.textContent = "🤸"; }
+  box.appendChild(d);
+}
+
 function renderSeason(){
   syncWallet();
-  elGrid.className = "seas";
+  elGrid.className = "pass";
   elGrid.innerHTML = "";
-  const st = seasonState(), now = seasonNow();
-  const tier = seasonTier();
+  const st = seasonState(), now = seasonNow(), tier = seasonTier();
   const into = (st.xp || 0) - tier * SEASON_XP_PER_TIER;
   const pct = tier >= SEASON_TIERS ? 100 : Math.round(into / SEASON_XP_PER_TIER * 100);
-  const unclaimed = [];
-  for (let t = 1; t <= tier; t++) if (!st.claimed.includes(t)) unclaimed.push(t);
+  const waiting = unclaimedCount();
 
+  /* ---- header: season, timer, xp bar ---- */
   const head = document.createElement("div");
-  head.className = "seashead";
+  head.className = "passhead";
   head.innerHTML =
-    `<h3>Season ${now.id + 1}</h3>
-     <span class="sub">${now.daysLeft} day${now.daysLeft === 1 ? "" : "s"} left ·
-       tier ${tier} / ${SEASON_TIERS} ·
-       ${tier >= SEASON_TIERS ? "track complete" : (SEASON_XP_PER_TIER - into).toLocaleString() + " XP to next"}</span>`;
-  if (unclaimed.length) {
+    `<div class="ttl"><h3>Season ${now.id + 1}</h3>
+       <span class="sub">${now.daysLeft} day${now.daysLeft === 1 ? "" : "s"} left</span></div>
+     <div class="pbar">
+       <div class="pnums"><span>Tier ${tier} / ${SEASON_TIERS}</span>
+         <span>${tier >= SEASON_TIERS ? "TRACK COMPLETE"
+            : into.toLocaleString() + " / " + SEASON_XP_PER_TIER.toLocaleString() + " XP"}</span></div>
+       <span class="track"><i style="width:${pct}%"></i></span>
+     </div>`;
+  const acts = document.createElement("div");
+  acts.className = "pacts";
+  if (!st.prem) {
     const b = document.createElement("button");
-    b.className = "btn pri";
-    b.textContent = "Claim all (" + unclaimed.length + ")";
+    b.className = "btn" + (SAVE.coins >= PASS_PRICE ? " pri" : "");
+    b.disabled = SAVE.coins < PASS_PRICE;
+    b.innerHTML = `Unlock Premium · ${money(PASS_PRICE)}`;
     b.addEventListener("click", () => {
-      const r = claimAllTiers();
-      if (r.n) { sfx.buy(); toast("claimed " + r.got.toLocaleString() + " coins"); }
+      if (buyPass()) { sfx.buy(); toast("premium pass unlocked"); }
       renderSeason();
     });
-    head.appendChild(b);
+    acts.appendChild(b);
+  } else {
+    acts.insertAdjacentHTML("beforeend", `<span class="owned">PREMIUM ACTIVE</span>`);
   }
+  const ca = document.createElement("button");
+  ca.className = "btn" + (waiting ? " pri" : "");
+  ca.disabled = !waiting;
+  ca.textContent = waiting ? "Claim all (" + waiting + ")" : "Nothing to claim";
+  ca.addEventListener("click", () => {
+    const r = claimAllTiers();
+    if (r.n) { sfx.buy(); toast("claimed " + r.n + " reward" + (r.n === 1 ? "" : "s")); }
+    renderSeason();
+  });
+  acts.appendChild(ca);
+  head.appendChild(acts);
   elGrid.appendChild(head);
 
-  const bar = document.createElement("div");
-  bar.className = "lvlbar";
-  bar.innerHTML = `<span class="lv">Tier ${tier}</span>
-    <span class="track"><i style="width:${pct}%"></i></span>
-    <span class="xp">${(st.xp || 0).toLocaleString()} season XP</span>`;
-  elGrid.appendChild(bar);
+  /* ---- the track ---- */
+  const wrap = document.createElement("div");
+  wrap.className = "passwrap";
+  const rail = document.createElement("div");
+  rail.className = "rail";
 
-  const grid = document.createElement("div");
-  grid.className = "tiers";
+  const lanes = document.createElement("div");
+  lanes.className = "lanes";
+  lanes.innerHTML = `<div class="lane">FREE</div>
+                     <div class="lane prem">PREMIUM${st.prem ? "" : " 🔒"}</div>`;
+
   for (let t = 1; t <= SEASON_TIERS; t++) {
-    const r = seasonReward(t);
-    const got = st.claimed.includes(t), ready = t <= tier && !got;
-    const d = document.createElement("div");
-    d.className = "tier" + (got ? " claimed" : ready ? " ready" : t > tier ? " locked" : "");
-    d.innerHTML = `<div class="n">Tier ${t}</div><div class="rw">${r.label}</div>`;
-    if (got) d.insertAdjacentHTML("beforeend", `<div class="got">Claimed</div>`);
-    else if (ready) {
-      const b = document.createElement("button");
-      b.className = "btn pri"; b.textContent = "Claim";
-      b.addEventListener("click", () => { if (claimTier(t)) sfx.buy(); renderSeason(); });
-      d.appendChild(b);
-    } else {
-      d.insertAdjacentHTML("beforeend", `<div class="n">${(t * SEASON_XP_PER_TIER).toLocaleString()} XP</div>`);
+    const col = document.createElement("div");
+    col.className = "col" + (t <= tier ? " reached" : "") + (t % 5 === 0 ? " big" : "");
+    const cap = document.createElement("div");
+    cap.className = "cap";
+    cap.innerHTML = `<span class="tn">${t}</span>`;
+    col.appendChild(cap);
+
+    for (const prem of [false, true]) {
+      const r = tierReward(t, prem);
+      const got = st.claimed.includes(claimKey(t, prem));
+      const ready = tierClaimable(t, prem);
+      const locked = prem && !st.prem;
+      const cell = document.createElement("div");
+      cell.className = "cell" + (prem ? " p" : "") + (got ? " got" : "") +
+                       (ready ? " ready" : "") + (t > tier ? " far" : "") + (locked ? " lk" : "");
+      const box = document.createElement("div");
+      box.className = "box";
+      rewardArt(r, box);
+      cell.appendChild(box);
+      cell.insertAdjacentHTML("beforeend", `<div class="rw">${rewardLabel(r)}</div>`);
+      if (got) cell.insertAdjacentHTML("beforeend", `<div class="tag done">Claimed</div>`);
+      else if (ready) {
+        const b = document.createElement("button");
+        b.className = "btn pri"; b.textContent = "Claim";
+        b.addEventListener("click", () => {
+          if (claimTier(t, prem)) { sfx.buy(); toast(rewardLabel(r) + " claimed"); }
+          renderSeason();
+        });
+        cell.appendChild(b);
+      } else if (locked && t <= tier) {
+        cell.insertAdjacentHTML("beforeend", `<div class="tag">Premium</div>`);
+      }
+      col.appendChild(cell);
     }
-    grid.appendChild(d);
+    rail.appendChild(col);
   }
-  elGrid.appendChild(grid);
+  wrap.appendChild(lanes);
+  wrap.appendChild(rail);
+  elGrid.appendChild(wrap);
+
+  // open on the tier you are actually at
+  requestAnimationFrame(() => {
+    const target = rail.children[Math.max(0, Math.min(SEASON_TIERS - 1, tier - 1))];
+    if (target) rail.scrollLeft = Math.max(0, target.offsetLeft - 140);
+  });
 }
 
 let listenFor = null;
