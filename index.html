@@ -525,6 +525,12 @@
         <span>Endless randomised track. Send jumps, flip, don't land on your head.</span>
         <div class="rec" id="bestRamp">BEST 0 m</div>
       </button>
+      <button class="mode" id="mVersus">
+        <div class="ic">🏆</div>
+        <b>Versus</b>
+        <span>Two riders, one keyboard. P1 on A / D / Space, P2 on the arrow keys.</span>
+        <div class="rec">LOCAL 2 PLAYER</div>
+      </button>
       <button class="mode shop" id="mShop">
         <div class="ic">🔧</div>
         <b>Garage</b>
@@ -696,6 +702,7 @@
 
 const cv  = document.getElementById("game");
 let ctx = cv.getContext("2d");
+let target = cv;          // which canvas renderStreet is currently filling
 function withCtx(c, fn){ const old = ctx; ctx = c; try { fn(); } finally { ctx = old; } }
 const H = 540, GROUND = 470, TICK = 1000 / 30;
 const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -1360,6 +1367,54 @@ const ENGINES = [
     blurb:"Everything, everywhere, all at once",
     limit:1.28, torque:1.22, rpm:1.06, weight:1.12, brake:1,    kind:"4t" },
 ];
+
+/* ---------- bolt-on parts ----------
+   The upgrade pips make a bike strictly better. Parts do not: every one of
+   these trades something away, so the choice is about how you want to ride
+   rather than how much you have spent. Stored per bike alongside the engine. */
+const PART_SLOTS = [
+  { key:"gearing", name:"Gearing", blurb:"Where the drive is aimed" },
+  { key:"susp",    name:"Suspension", blurb:"How the chassis settles" },
+  { key:"tyres",   name:"Tyres",   blurb:"What the rear will take" },
+];
+const PARTS = {
+  gearing: [
+    { key:"stock", name:"Stock sprockets", price:0,
+      blurb:"How it left the crate", limit:1, torque:1, rpm:1, weight:1, brake:1, loop:0, bp:0 },
+    { key:"short", name:"Short gearing", price:5200,
+      blurb:"Lifts the front on a thought, gives up top end",
+      limit:0.88, torque:1.26, rpm:1.04, weight:1, brake:1, loop:0, bp:-3 },
+    { key:"tall",  name:"Tall gearing", price:6400,
+      blurb:"Long legs, lazy off the bottom",
+      limit:1.18, torque:0.84, rpm:0.94, weight:1, brake:1, loop:0, bp:3 },
+  ],
+  susp: [
+    { key:"stock", name:"Stock shock", price:0,
+      blurb:"How it left the crate", limit:1, torque:1, rpm:1, weight:1, brake:1, loop:0, bp:0 },
+    { key:"soft",  name:"Soft springs", price:5800,
+      blurb:"Squats and holds the balance point, wallows on landings",
+      limit:1, torque:1, rpm:1, weight:0.92, brake:0.94, loop:-5, bp:-2 },
+    { key:"stiff", name:"Stiff race shock", price:7600,
+      blurb:"Planted and precise, punishing if you get it wrong",
+      limit:1, torque:1, rpm:1, weight:1.08, brake:1.12, loop:4, bp:2 },
+  ],
+  tyres: [
+    { key:"stock", name:"Stock rubber", price:0,
+      blurb:"How it left the crate", limit:1, torque:1, rpm:1, weight:1, brake:1, loop:0, bp:0 },
+    { key:"paddle", name:"Paddle tyre", price:6900,
+      blurb:"Enormous loop-out margin, drags on the tarmac",
+      limit:0.94, torque:1.10, rpm:1, weight:1.04, brake:0.96, loop:-9, bp:0 },
+    { key:"slick",  name:"Track slick", price:8800,
+      blurb:"Stops hard and runs fast, no margin at the top",
+      limit:1.09, torque:0.98, rpm:1, weight:0.96, brake:1.18, loop:7, bp:0 },
+  ],
+};
+const partById = (slot, k) => (PARTS[slot] || []).find(x => x.key === k) || (PARTS[slot] || [])[0];
+function partsOf(i){
+  const t = tuneOf(i);
+  return PART_SLOTS.map(sl => partById(sl.key, t.parts && t.parts[sl.key]));
+}
+
 const engineById = k => ENGINES.find(e => e.key === k) || ENGINES[0];
 function engineOf(i){ return engineById((SAVE.tune[i] && SAVE.tune[i].eng) || "stock"); }
 
@@ -1371,22 +1426,29 @@ function tuneOf(i){
   if (!t.own) t.own = {};
   if (!t.eng) t.eng = "stock";
   if (!t.engs) t.engs = { stock:1 };
+  if (!t.parts) t.parts = { gearing:"stock", susp:"stock", tyres:"stock" };
+  if (!t.owns)  t.owns  = {};
   return t;
 }
 function upPrice(bikeIdx, lvl){
   return Math.max(450, Math.round((PRICES[bikeIdx] || 1200) * (0.11 + 0.07 * lvl)) );
 }
 let CUR = null;
-function refreshBike(){
-  const B = BIKES[SAVE.bike] || BIKES[0], t = tuneOf(SAVE.bike);
+function refreshBike(){ CUR = buildBike(SAVE.bike); }
+function buildBike(idx){
+  const B = BIKES[idx] || BIKES[0], t = tuneOf(idx);
   const E = engineById(t.eng);
+  const P = PART_SLOTS.map(sl => partById(sl.key, t.parts && t.parts[sl.key]));
+  const pm = k => P.reduce((n, x) => n * (x[k] === undefined ? 1 : x[k]), 1);
+  const pa = k => P.reduce((n, x) => n + (x[k] || 0), 0);
   const C = Object.assign({}, B);
-  C.limit  = Math.round(B.limit  * (1 + 0.07 * t.up.motor) * E.limit);
-  C.torque = B.torque * (1 + 0.09 * t.up.motor) * E.torque;
-  C.rpmMax = B.rpmMax * (1 + 0.04 * t.up.motor) * E.rpm;
-  C.brake  = B.brake  * (1 + 0.11 * t.up.brakes) * E.brake;
-  C.weight = B.weight * (1 - 0.055 * t.up.susp) * E.weight;
-  C.loop   = B.loop   - 4 * t.up.tyres;
+  C.limit  = Math.round(B.limit  * (1 + 0.07 * t.up.motor) * E.limit * pm("limit"));
+  C.torque = B.torque * (1 + 0.09 * t.up.motor) * E.torque * pm("torque");
+  C.rpmMax = B.rpmMax * (1 + 0.04 * t.up.motor) * E.rpm * pm("rpm");
+  C.brake  = B.brake  * (1 + 0.11 * t.up.brakes) * E.brake * pm("brake");
+  C.weight = B.weight * (1 - 0.055 * t.up.susp) * E.weight * pm("weight");
+  C.loop   = B.loop   - 4 * t.up.tyres + pa("loop");
+  C.bp     = Math.max(14, B.bp + pa("bp"));
   C.gripMul = 1 + 0.20 * t.up.tyres;
   C.landMul = 1 - 0.12 * t.up.susp;
   C.body   = t.body  || B.body;
@@ -1396,8 +1458,8 @@ function refreshBike(){
   C.wheel  = Object.assign({}, B.wheel, { rim: t.rim || B.wheel.rim });
   C.decal  = B.decal;
   C.secret = B.secret;
-  C.eng = E; C.fx = t.fx; C.tune = t; C.base = B;
-  CUR = C;
+  C.eng = E; C.parts = P; C.fx = t.fx; C.tune = t; C.base = B;
+  return C;
 }
 /* ============================================================
    RIDER LEVEL + SEASON TRACK
@@ -1674,11 +1736,11 @@ function questCheck(){
   if (done) { fillQuests(); persist(); renderQuests(); syncWallet(); }
   return done;
 }
-function qMax(key, v){
+function qMax(key, v){ if (VS.on) return;
   if (!(v > (SAVE.qp[key] || 0))) return;
   SAVE.qp[key] = v; questCheck(); checkChallenges();
 }
-function qAdd(key, v){
+function qAdd(key, v){ if (VS.on) return;
   SAVE.qp[key] = (SAVE.qp[key] || 0) + v; questCheck(); checkChallenges();
 }
 function checkChallenges(){
@@ -1723,7 +1785,7 @@ const ownsLid  = i => SAVE.lids.includes(i);
 const CREW_BONUS = 1.5, CREW_PRICE = 50000;
 const inCrew = () => !!(SAVE.crew && SAVE.crew.id);
 const coinMult = () => inCrew() ? CREW_BONUS : 1;
-function earn(n){ S.coinAcc += n * coinMult(); while (S.coinAcc >= 1) { SAVE.coins++; S.coinAcc--; } }
+function earn(n){ if (VS.on) return; S.coinAcc += n * coinMult(); while (S.coinAcc >= 1) { SAVE.coins++; S.coinAcc--; } }
 
 
 /* ============================================================
@@ -1930,8 +1992,9 @@ async function cloudSyncNow(){
 }
 
 
+
 /* ---------- state ---------- */
-const S = {
+let S = {
   mode:"menu",           // menu · street · ramp · shop
   coinAcc:0,
   paused:false, over:false, rideOut:false,
@@ -1945,11 +2008,152 @@ const S = {
   wheelieT:0, dragT:0, cleared:0, crashWhy:"looped out", coach:true,
   levelUp:null, lastXP:0, bcast:null,
   trick:null, lastTrick:null, combo:0, comboT:0, stopT:0,
+  style:0, styleMul:1, styleT:0, styleBank:0, styleFlash:0, styleBest:0,
   photo:false, pz:1, pox:0, poy:0,
   parts:[], toast:null, toastT:0,
   sound:true, music:true, muteNote:0, muteMsg:"",
 };
 const bike = () => CUR || BIKES[SAVE.bike];
+
+/* ============================================================
+   VERSUS - two riders, one keyboard
+   ------------------------------------------------------------
+   Each rider gets a full independent simulation. Rather than rewrite the
+   renderer for two viewports, each player's scene is drawn at full size into
+   its own offscreen canvas and then blitted into one half of the screen, so
+   every existing draw routine works untouched.
+   Party mode: it deliberately pays no coins, XP or records, because two
+   people are sharing one account.
+   ============================================================ */
+const S_BLANK = JSON.parse(JSON.stringify(S));
+const VS = { on:false, p2:null, pose2:null, cur2:null, bike2:0, canvas:[null, null], ready:false };
+
+// fixed layout so nobody has to configure anything to play on the sofa
+const VS_KEYS = {
+  1: { throttle:["d"], brake:["a"], clutch:[" "], t1:["1"], t2:["2"] },
+  2: { throttle:["arrowright"], brake:["arrowleft"], clutch:["arrowup"], t1:["."], t2:[","] },
+};
+let vsSide = 1;                                   // whose input is being read
+const vsDown = list => list.some(down);
+
+function vsMakeState(){
+  const st = JSON.parse(JSON.stringify(S_BLANK));
+  st.mode = "street"; st.paused = false; st.over = false;
+  st.dir = 90; st.spd = 0; st.av = 0; st.rpm = 0; st.score = 0;
+  st.coach = false;
+  return st;
+}
+function vsCanvas(i){
+  if (!VS.canvas[i]) {
+    const c = document.createElement("canvas");
+    VS.canvas[i] = c;
+  }
+  const c = VS.canvas[i];
+  if (c.width !== W || c.height !== H) { c.width = W; c.height = H; }
+  return c;
+}
+
+function startVersus(){
+  VS.on = true;
+  VS.p2 = vsMakeState();
+  VS.pose2 = null;
+  // rider two takes the next bike you own, so the two are told apart at a glance
+  const owned = SAVE.bikes.slice().sort((a, b) => a - b);
+  VS.bike2 = owned.find(i => i !== SAVE.bike);
+  if (VS.bike2 === undefined) VS.bike2 = SAVE.bike;
+  VS.cur2 = buildBike(VS.bike2);
+
+  S.mode = "street"; S.rideOut = false; S.paused = false; S.photo = false;
+  S.score = 0; S.spd = 0; S.dir = 90; S.av = 0; S.rpm = 0; S.scroll = 0;
+  S.over = false; S.coach = false;
+  dropStyle();
+  elMenu.hidden = true; elShop.hidden = true; elBoard.hidden = true;
+  elSeason.hidden = true; elCrew.hidden = true; elAdmin.hidden = true;
+  refreshBike();
+  audio.start(); audio.setStyle("street");
+}
+function endVersus(){
+  VS.on = false; VS.p2 = null; VS.cur2 = null;
+  S.mode = "menu";
+  openMenu();
+}
+
+/* run one tick for a rider with the globals pointed at them */
+function vsTick(side){
+  const oldS = S, oldPose = POSE, oldCur = CUR;
+  vsSide = side;
+  if (side === 2) { S = VS.p2; POSE = VS.pose2; CUR = VS.cur2; }
+  try { tickStreet(); }
+  finally {
+    if (side === 2) { VS.p2 = S; VS.pose2 = POSE; }
+    S = oldS; POSE = oldPose; CUR = oldCur;
+    vsSide = 1;
+  }
+}
+/* draw one rider's whole scene into their offscreen canvas */
+function vsRender(side){
+  const c = vsCanvas(side - 1);
+  const oldS = S, oldPose = POSE, oldCur = CUR, oldCtx = ctx, oldTarget = target;
+  const oS = SCALE, oD = DPR, oX = OFFX, oY = OFFY;
+  vsSide = side;
+  if (side === 2) { S = VS.p2; POSE = VS.pose2; CUR = VS.cur2; }
+  ctx = c.getContext("2d"); target = c;
+  SCALE = 1; DPR = 1; OFFX = 0; OFFY = 0;
+  try { renderStreet(); }
+  finally {
+    if (side === 2) { VS.pose2 = POSE; }
+    S = oldS; POSE = oldPose; CUR = oldCur; ctx = oldCtx; target = oldTarget;
+    SCALE = oS; DPR = oD; OFFX = oX; OFFY = oY;
+    vsSide = 1;
+  }
+  return c;
+}
+/* stack the two views and label them */
+function renderVersus(){
+  const a = vsRender(1), b = vsRender(2);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = "#05070A";
+  ctx.fillRect(0, 0, cv.width, cv.height);
+
+  const vw = cv.width, vh = cv.height, half = vh / 2;
+  // Take a slice of each view whose shape already matches the half, anchored
+  // to the bottom so the road, the bike and the HUD all survive the crop.
+  // Only the empty sky is lost.
+  let sh = Math.min(H, W * half / vw);
+  let sy = H - sh;
+  const dw = vw, dh = sh * (vw / W);
+  const dy = half - dh;                      // bottom aligned inside the half
+
+  for (let i = 0; i < 2; i++) {
+    const src = i === 0 ? a : b;
+    const top = i * half;
+    ctx.save();
+    ctx.beginPath(); ctx.rect(0, top, vw, half); ctx.clip();
+    ctx.drawImage(src, 0, sy, W, sh, 0, top + dy, dw, dh);
+    ctx.restore();
+  }
+
+  // divider and player tags
+  ctx.fillStyle = "rgba(6,9,13,.92)";
+  ctx.fillRect(0, half - 2, vw, 4);
+  const px = 14 * DPR, py = 22 * DPR;
+  ctx.font = `700 ${13 * DPR}px "Saira Condensed", sans-serif`;
+  ctx.textAlign = "left";
+  for (let i = 0; i < 2; i++) {
+    const st = i === 0 ? S : VS.p2;
+    const nm = i === 0 ? "P1" : "P2";
+    const top = i * half;
+    ctx.fillStyle = "rgba(6,9,13,.75)";
+    rr(px, top + py - 14 * DPR, 116 * DPR, 21 * DPR, 7 * DPR); ctx.fill();
+    ctx.fillStyle = i === 0 ? "#3CF08C" : "#FFC24B";
+    ctx.fillText(nm, px + 8 * DPR, top + py);
+    ctx.fillStyle = "#F2F6FA";
+    ctx.fillText(Math.floor(st.score).toLocaleString(), px + 34 * DPR, top + py);
+  }
+  ctx.textAlign = "left";
+}
+
+
 const helmet = () => HELMETS[SAVE.lid];
 const spot = () => SPOTS[SAVE.spot] || SPOTS[0];
 const engKind = B => (B.eng && B.eng.kind) ? B.eng.kind
@@ -2016,8 +2220,8 @@ const keyLabel = k => k === " " ? "Space" : k.length === 1 ? k.toUpperCase()
 const keys = Object.create(null);
 const touchKeys = Object.create(null);
 const down = k => !!(keys[k] || touchKeys[k]);
-const THROTTLE = () => held("throttle");
-const BRAKE    = () => held("brake");
+const THROTTLE = () => VS.on ? vsDown(VS_KEYS[vsSide].throttle) : held("throttle");
+const BRAKE    = () => VS.on ? vsDown(VS_KEYS[vsSide].brake)    : held("brake");
 
 addEventListener("keydown", e => {
   if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")) return;
@@ -2026,6 +2230,7 @@ addEventListener("keydown", e => {
   if (keys[k]) return;
   keys[k] = true;
   const playing = S.mode === "street" || S.mode === "ramp";
+  if (k === "escape" && VS.on) { endVersus(); return; }
   if (k === "escape") { playing ? openMenu() : (S.mode === "shop" ? openMenu() : S.mode === "board" ? closeBoard() : S.mode === "season" ? closeSeason() : S.mode === "crew" ? closeCrew() : S.mode === "admin" ? closeAdmin() : 0); return; }
   if (k === "enter") { playing ? (S.paused && togglePause()) : startMode("rideout"); return; }
   if (!playing) return;
@@ -2092,6 +2297,12 @@ function cycleLid(){
   toast(HELMETS[SAVE.lid].name);
 }
 function heldTrick(){
+  if (VS.on) {                                  // two tricks each, no config needed
+    const k = VS_KEYS[vsSide];
+    if (vsDown(k.t1)) { const id = SAVE.slots[0]; if (id && ownsTrick(id)) return id; }
+    if (vsDown(k.t2)) { const id = SAVE.slots[1]; if (id && ownsTrick(id)) return id; }
+    return null;
+  }
   const open = slotsUnlocked();
   for (let i = 0; i < open; i++) if (held("trick" + (i + 1))) {
     const id = SAVE.slots[i];
@@ -2357,13 +2568,24 @@ function tickStreet(){
     if (S.lastTrick && S.trick !== S.lastTrick && easy > 15) {
       S.combo = Math.min(9, S.combo + 1); S.comboT = 110;
       const cb = 140 * S.combo;
-      S.score += cb; earn(cb / 15);
-      toast("combo ×" + S.combo + "  +" + cb); sfx.flip(1);
+      styleAdd(cb, "combo x" + S.combo);
+      sfx.flip(1);
     }
     S.lastTrick = S.trick;
   }
   if (easy < 10) { S.combo = 0; S.lastTrick = null; }
   if (S.comboT > 0) S.comboT--;
+
+  /* ---- style chain ----
+     Everything you earn while the wheel is up rides on the chain instead of
+     going straight to the bank. Set the front down and it pays out, multiplied.
+     Crash and it is gone. */
+  if (S.style > 0) {
+    const alive = easy > 8 || S.stopT > 0.2;
+    if (alive) { S.styleT = 90; }
+    else if (--S.styleT <= 0) bankStyle("landed");
+  }
+  if (S.styleFlash > 0) S.styleFlash--;
 
   const TK = trickById(S.trick), cmul = 1 + S.combo * 0.22;
   if (TK && TK.window) { if (easy > TK.window[0] && easy < TK.window[1]) S.mult += TK.flat * cmul; else S.mult = 1; }
@@ -2402,7 +2624,7 @@ function tickStreet(){
   if (THROTTLE()) {
     if (S.rpm < B.rpmMax) S.rpm += 1300;
     if (Math.round(S.spd) < B.limit) {
-      if (held("clutch")) {
+      if (VS.on ? vsDown(VS_KEYS[vsSide].clutch) : held("clutch")) {
         S.spd += B.torque * 2 - S.spd / (B.limit * B.sl);
       } else {
         S.av  -= B.torque - S.spd / (B.limit * B.sl * 6);
@@ -2414,8 +2636,7 @@ function tickStreet(){
 
   if (easy > 2 && S.spd > 1) {
     const gain = 0.01 * easy * S.spd * S.mult;
-    S.score += gain;
-    earn(gain / 15);
+    styleAdd(gain);
     const bk = S.rideOut ? "bestRide" : "best";
     if (S.score > SAVE[bk]) SAVE[bk] = Math.floor(S.score);
     S.wheelieT += 1 / 30;
@@ -2431,7 +2652,7 @@ function tickStreet(){
   const st = Math.max(0, S.dir - 90);
   if (st > 3 && S.spd > 8) {
     const g = 0.013 * st * S.spd * S.mult;
-    S.score += g; earn(g / 15);
+    styleAdd(g);
     const bk3 = S.rideOut ? "bestRide" : "best";
     if (S.score > SAVE[bk3]) SAVE[bk3] = Math.floor(S.score);
     S.stopT += 1 / 30;
@@ -2467,7 +2688,40 @@ function tickStreet(){
   stepParts();
 }
 
+
+/* ---------- style chain ----------
+   A run used to be a string of separate scoring moments. The chain keeps them
+   all in the air: points ride on it while the wheel is up, the multiplier
+   climbs as you hold, and it only becomes score when you set the front down.
+   Crashing loses the lot. */
+const STYLE_STEP = 2200;                    // banked points per multiplier step
+function styleMul(){ return 1 + Math.min(9, Math.floor(S.style / STYLE_STEP)) * 0.5; }
+function styleAdd(n, why){
+  if (!(n > 0)) return;
+  S.style += n;
+  S.styleT = 90;
+  const m = styleMul();
+  if (m > S.styleMul) { S.styleMul = m; S.styleFlash = 26; sfx.coin(); }
+  if (why) toast(why + "  +" + Math.round(n));
+}
+function bankStyle(why){
+  const n = Math.floor(S.style * S.styleMul);
+  if (n > 0) {
+    S.score += n;
+    earn(n / 15);
+    if (!VS.on && S.score > SAVE[S.rideOut ? "bestRide" : "best"]) SAVE[S.rideOut ? "bestRide" : "best"] = Math.floor(S.score);
+    if (n > (S.styleBest || 0)) S.styleBest = n;
+    qMax("styleBank", n);
+    toast((why || "banked") + "  +" + n.toLocaleString() + (S.styleMul > 1 ? "  x" + S.styleMul.toFixed(1) : ""));
+    sfx.quest();
+  }
+  S.style = 0; S.styleMul = 1; S.styleT = 0;
+}
+function dropStyle(){ S.style = 0; S.styleMul = 1; S.styleT = 0; }
+
 function crash(why){
+  if (S.style > 0) toast("lost " + Math.floor(S.style * S.styleMul).toLocaleString() + " unbanked");
+  dropStyle();
   S.over = true; S.crashT = 46; S.crashSpin = 0;
   S.crashWhy = why || "looped out";
   S.shake = REDUCED ? 0 : 12; S.flash = 8;
@@ -2475,12 +2729,12 @@ function crash(why){
   dust(22);
   S.lastScore = Math.floor(S.score);
   const bk2 = S.rideOut ? "bestRide" : "best";
-  if (S.lastScore > SAVE[bk2]) SAVE[bk2] = S.lastScore;
+  if (!VS.on && S.lastScore > SAVE[bk2]) SAVE[bk2] = S.lastScore;
   S.lastXP = awardXP(runXP(S.lastScore, S.wheelieT));
   persist();
   S.score = 0; S.mult = 1; S.spd = 0; S.av = 0; S.rpm = 0; S.wheelieT = 0;
 }
-function respawn(){ S.over = false; S.dir = 90; S.av = 0; S.spd = 0; S.sag = 0; S.sagV = 0; S.crashSpin = 0; }
+function respawn(){ dropStyle(); S.over = false; S.dir = 90; S.av = 0; S.spd = 0; S.sag = 0; S.sagV = 0; S.crashSpin = 0; }
 
 /* ---------- particles ---------- */
 function stepParts(){
@@ -4010,6 +4264,53 @@ function drawGauge(){
   ctx.textAlign = "left";
 }
 
+
+/* the chain, front and centre: what is riding on it and what it pays */
+function drawStyle(){
+  if (S.style <= 0) return;
+  const pend = Math.floor(S.style * S.styleMul);
+  const cx = W / 2, y = 118;
+  const w = 250, h = 40;
+  const pulse = S.styleFlash > 0 ? 1 + S.styleFlash / 90 : 1;
+
+  ctx.save();
+  ctx.translate(cx, y);
+  ctx.scale(pulse, pulse);
+  ctx.translate(-cx, -y);
+
+  ctx.fillStyle = "rgba(8,12,17,.80)";
+  rr(cx - w/2, y - h/2, w, h, 13); ctx.fill();
+  ctx.strokeStyle = S.styleMul > 1 ? "rgba(255,194,75,.85)" : "rgba(60,240,140,.6)";
+  ctx.lineWidth = 1.5;
+  rr(cx - w/2, y - h/2, w, h, 13); ctx.stroke();
+
+  // fill toward the next multiplier step
+  const into = (S.style % STYLE_STEP) / STYLE_STEP;
+  ctx.fillStyle = "rgba(255,255,255,.09)";
+  rr(cx - w/2 + 8, y + 8, w - 16, 5, 3); ctx.fill();
+  ctx.fillStyle = S.styleMul > 1 ? "#FFC24B" : "#3CF08C";
+  rr(cx - w/2 + 8, y + 8, Math.max(3, (w - 16) * into), 5, 3); ctx.fill();
+
+  ctx.textAlign = "left";
+  ctx.font = '700 10.5px "Barlow Condensed", sans-serif';
+  ctx.fillStyle = "rgba(231,237,243,.55)";
+  ctx.fillText("STYLE", cx - w/2 + 12, y - 8);
+
+  ctx.textAlign = "right";
+  ctx.font = '700 21px "Saira Condensed", sans-serif';
+  ctx.fillStyle = "#F2F6FA";
+  ctx.fillText(pend.toLocaleString(), cx + w/2 - 12, y - 1);
+
+  if (S.styleMul > 1) {
+    ctx.textAlign = "left";
+    ctx.font = '700 17px "Saira Condensed", sans-serif';
+    ctx.fillStyle = "#FFC24B";
+    ctx.fillText("x" + S.styleMul.toFixed(1), cx - w/2 + 54, y - 1);
+  }
+  ctx.textAlign = "left";
+  ctx.restore();
+}
+
 function drawHUD(){
   const B = bike();
   ctx.textBaseline = "alphabetic";
@@ -4032,6 +4333,7 @@ function drawHUD(){
     ctx.textAlign = "center"; ctx.fillText("×" + S.mult.toFixed(2), 240-w/2, 69); ctx.textAlign = "left";
   }
 
+  drawStyle();
   drawGauge();
 
   panel(18, H-96, 214, 78);
@@ -4151,7 +4453,7 @@ function drawPause(){
 function renderStreet(){
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.fillStyle = "#07090D";
-  ctx.fillRect(0, 0, cv.width, cv.height);
+  ctx.fillRect(0, 0, target.width, target.height);
   ctx.setTransform(SCALE*DPR, 0, 0, SCALE*DPR, OFFX*DPR, OFFY*DPR);
   ctx.beginPath(); ctx.rect(0, 0, W, H); ctx.clip();
 
@@ -5024,8 +5326,31 @@ function renderCustom(){
     </div>`;
   }).join("");
 
+  const partHTML = PART_SLOTS.map(sl => {
+    const fitted = (t.parts && t.parts[sl.key]) || "stock";
+    const cards = PARTS[sl.key].map(pt => {
+      const owned = pt.key === "stock" || !!(t.owns && t.owns[sl.key + ":" + pt.key]);
+      const on = fitted === pt.key, can = SAVE.coins >= pt.price;
+      const d = (k, lab) => { const v = pt[k]; return v === 1 || v === undefined ? "" :
+        `<span class="${v > 1 ? "up" : "dn"}">${(v > 1 ? "+" : "") + Math.round((v - 1) * 100)}% ${lab}</span>`; };
+      const add = (k, lab, good) => { const v = pt[k] || 0; return !v ? "" :
+        `<span class="${(v < 0) === good ? "up" : "dn"}">${v > 0 ? "+" : ""}${v}&deg; ${lab}</span>`; };
+      return `<div class="exi ${on ? "on" : ""}">
+        <div class="nm">${pt.name}</div><div class="bl">${pt.blurb}</div>
+        <div class="engd">${d("limit","top")}${d("torque","lift")}${d("rpm","revs")}${d("brake","brake")}
+          ${d("weight","weight")}${add("loop","loop margin",true)}${add("bp","balance point",true)}</div>
+        ${on ? `<span class="owned">FITTED</span>`
+             : owned ? `<button class="btn pri" data-fit="${sl.key}:${pt.key}">Fit</button>`
+             : `<button class="btn${can ? " pri" : ""}" data-buypart="${sl.key}:${pt.key}" ${can ? "" : "disabled"}>${money(pt.price)}</button>`}
+      </div>`;
+    }).join("");
+    return `<div class="sec"><h4>${sl.name} <small style="color:var(--dim);font-weight:400">${sl.blurb}</small></h4>
+              <div class="ex">${cards}</div></div>`;
+  }).join("");
+
   panel.innerHTML =
     `<div class="sec"><h4>Engine swap</h4><div class="ex">${engHTML}</div></div>
+     ${partHTML}
      <div class="sec"><h4>Paint <button data-reset="1">Reset to stock</button></h4>
       ${swatchRow("Body",  "body",  B.body)}
       ${swatchRow("Accent","body2", B.body2)}
@@ -5062,6 +5387,20 @@ function renderCustom(){
     if (!e || SAVE.coins < e.price) return;
     SAVE.coins -= e.price; t.own[e.key] = 1; t.fx[e.key] = 1;
     refreshBike(); persist(); sfx.buy(); renderCustom();
+  }));
+  panel.querySelectorAll("[data-buypart]").forEach(b => b.addEventListener("click", () => {
+    const [slot, key] = b.dataset.buypart.split(":");
+    const pt = partById(slot, key);
+    if (!pt || SAVE.coins < pt.price) return;
+    SAVE.coins -= pt.price;
+    t.owns[slot + ":" + key] = 1;
+    t.parts[slot] = key;
+    refreshBike(); persist(); sfx.buy(); renderCustom();
+  }));
+  panel.querySelectorAll("[data-fit]").forEach(b => b.addEventListener("click", () => {
+    const [slot, key] = b.dataset.fit.split(":");
+    t.parts[slot] = key;
+    refreshBike(); persist(); sfx.ui(); renderCustom();
   }));
   panel.querySelectorAll("[data-buyeng]").forEach(b => b.addEventListener("click", () => {
     const e = ENGINES.find(x => x.key === b.dataset.buyeng);
@@ -5378,6 +5717,7 @@ function renderWho(){
   el.appendChild(b);
 }
 function openMenu(){
+  VS.on = false;
   S.mode = "menu"; S.paused = false;
   elShop.hidden = true; elBoard.hidden = true; elSeason.hidden = true; elCrew.hidden = true;
   elAdmin.hidden = true; elMenu.hidden = false;
@@ -5435,7 +5775,11 @@ function loop(now){
   if (playing) {
     acc += dt;
     let guard = 0;
-    while (acc >= TICK && guard++ < 6) { S.mode === "street" ? tickStreet() : tickRamp(); acc -= TICK; }
+    while (acc >= TICK && guard++ < 6) {
+      if (VS.on) { vsTick(1); vsTick(2); }
+      else S.mode === "street" ? tickStreet() : tickRamp();
+      acc -= TICK;
+    }
     const B = bike();
     if (S.mode === "street") audio.set(S.rpm, B.rpmMax, S.spd, S.trick === "drag" || S.dir < 26, engKind(B));
     else {
@@ -5444,7 +5788,8 @@ function loop(now){
     }
   } else acc = 0;
 
-  if (S.mode === "ramp") renderRamp();
+  if (VS.on) renderVersus();
+  else if (S.mode === "ramp") renderRamp();
   else renderStreet();
   if (S.mode === "ramp" && !S.photo) drawBroadcast();
   if (cloudOn() && AUTH.uid) pullBroadcasts();      // throttled to once a minute inside
