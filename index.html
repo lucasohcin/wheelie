@@ -178,6 +178,23 @@
   .whoami .sync{color:var(--neon)}
   .whoami .sync.off{color:var(--dim)}
 
+  .boardwrap{width:min(720px,96vw); max-height:92vh; display:flex; flex-direction:column; gap:14px}
+  .lbbody{overflow:auto; border:1px solid var(--edge); border-radius:14px; background:rgba(10,13,18,.55)}
+  .lbrow{display:grid; grid-template-columns:58px 1fr auto; align-items:center; gap:12px;
+         padding:11px 16px; border-bottom:1px solid rgba(42,51,65,.6)}
+  .lbrow:last-child{border-bottom:0}
+  .lbrow .pos{font-family:var(--num); font-weight:700; font-size:17px; color:var(--dim); text-align:right}
+  .lbrow .who{font-family:var(--num); font-weight:700; font-size:16px; letter-spacing:.02em;
+              text-align:left; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .lbrow .sc{font-family:var(--num); font-weight:700; font-size:18px; color:var(--amber)}
+  .lbrow.me{background:rgba(16,38,27,.55)}
+  .lbrow.me .pos{color:var(--neon)}
+  .lbrow.gold .pos{color:#FFD24B} .lbrow.silver .pos{color:#D6DCE4} .lbrow.bronze .pos{color:#D89A5C}
+  .lbnote{padding:26px 18px; text-align:center; color:var(--dim); font-size:14px; line-height:1.6}
+  .lbmine{display:flex; justify-content:center; gap:10px; align-items:center; color:var(--dim); font-size:13px}
+  .lbmine b{color:var(--text); font-family:var(--num); font-size:15px}
+
+
   .btn{
     font-family:var(--num); font-weight:700; font-size:14px; letter-spacing:.1em; text-transform:uppercase;
     background:var(--ink3); border:1px solid var(--edge); color:var(--text);
@@ -329,6 +346,7 @@
     <p class="tag">Feather the throttle. Find the balance point. Don't loop out.</p>
     <div class="wallet"><span class="dot"></span><span id="coinsMenu">0</span> <span style="opacity:.65">coins</span></div>
     <div class="whoami" id="whoami" hidden></div>
+    <div class="whoami"><button id="openBoard">View the leaderboard</button></div>
     <div class="modes">
       <button class="mode" id="mStreet">
         <div class="ic">🌴</div>
@@ -411,6 +429,18 @@
       <button class="btn pri big" id="authGo" type="submit">Sign in</button>
     </form>
     <div class="authfoot" id="authFoot"></div>
+  </div>
+</div>
+
+
+<div class="sheet" id="board" hidden>
+  <div class="boardwrap">
+    <div class="shophead">
+      <h2>Leaderboard</h2>
+      <div class="tabs" id="lbTabs"></div>
+      <button class="btn" id="lbBack">Back</button>
+    </div>
+    <div class="lbbody" id="lbBody"></div>
   </div>
 </div>
 
@@ -1400,6 +1430,7 @@ function cloudMark(){                       // called whenever the save changes
     if (!pushDirty) return;
     pushDirty = false;
     try { await cloudPush(); } catch(e){ pushDirty = true; }
+    try { await scoresPush(); } catch(e){}   // board is secondary; never risk the save
   }, 4000);
 }
 async function cloudSyncNow(){
@@ -1411,6 +1442,7 @@ async function cloudSyncNow(){
   normaliseSave();
   persistLocal();
   try { await cloudPush(); } catch(e){ pushDirty = true; }
+  try { await scoresPush(); } catch(e){}
   syncWallet(); refreshBike();
 }
 
@@ -1507,7 +1539,7 @@ addEventListener("keydown", e => {
   if (keys[k]) return;
   keys[k] = true;
   const playing = S.mode === "street" || S.mode === "ramp";
-  if (k === "escape") { playing ? openMenu() : (S.mode === "shop" ? openMenu() : 0); return; }
+  if (k === "escape") { playing ? openMenu() : (S.mode === "shop" ? openMenu() : S.mode === "board" ? closeBoard() : 0); return; }
   if (k === "enter") { playing ? (S.paused && togglePause()) : startMode("rideout"); return; }
   if (!playing) return;
   const act = actionFor(k);
@@ -4677,7 +4709,7 @@ function renderWho(){
 }
 function openMenu(){
   S.mode = "menu"; S.paused = false;
-  elShop.hidden = true; elMenu.hidden = false;
+  elShop.hidden = true; elBoard.hidden = true; elMenu.hidden = false;
   elExit.classList.remove("on");
   for (const k in keys) keys[k] = false;
   for (const k in touchKeys) touchKeys[k] = false;
@@ -4742,6 +4774,47 @@ function loop(now){
   if (S.mode === "shop" && shopTab === "cust") drawCustomPreview();
 }
 
+
+
+/* ---------- leaderboard ----------
+   Scores live in their own world-readable table holding nothing but a name
+   and three numbers. The private save table is never exposed. */
+const LB_BOARDS = [
+  { key:"best",      name:"Street",   pick:s => s.best     || 0 },
+  { key:"best_ride", name:"Ride Out", pick:s => s.bestRide || 0 },
+  { key:"ramp_best", name:"Ramp",     pick:s => s.rampBest || 0 },
+];
+let lbCache = {}, lbTab = "best", lbBusy = false;
+
+async function scoresPush(){
+  if (!cloudOn() || !AUTH.uid) return false;
+  if (!await freshToken()) return false;
+  await api("/rest/v1/scores", { method:"POST",
+    headers:{ "Prefer":"resolution=merge-duplicates,return=minimal" },
+    body:JSON.stringify({
+      user_id: AUTH.uid,
+      username: AUTH.name || "rider",
+      best:      Math.max(0, Math.floor(SAVE.best     || 0)),
+      best_ride: Math.max(0, Math.floor(SAVE.bestRide || 0)),
+      ramp_best: Math.max(0, Math.floor(SAVE.rampBest || 0)),
+    }) });
+  return true;
+}
+async function scoresTop(col){
+  const rows = await api("/rest/v1/scores?select=username," + col +
+    "&order=" + col + ".desc&limit=50&" + col + "=gt.0");
+  return rows || [];
+}
+async function myRank(col){
+  if (!AUTH.uid) return null;
+  const mine = Math.floor((col === "best" ? SAVE.best : col === "best_ride" ? SAVE.bestRide : SAVE.rampBest) || 0);
+  if (mine <= 0) return null;
+  const r = await fetch(CLOUD.url + "/rest/v1/scores?select=user_id&" + col + "=gt." + mine, {
+    headers:{ apikey:CLOUD.key, Authorization:"Bearer " + AUTH.token, Prefer:"count=exact", Range:"0-0" } });
+  const cr = r.headers.get("content-range") || "";
+  const total = parseInt(cr.split("/")[1], 10);
+  return isFinite(total) ? total + 1 : null;
+}
 
 /* ---------- sign-in screen ---------- */
 const elAuth = document.getElementById("auth");
@@ -4821,6 +4894,79 @@ document.getElementById("authForm").addEventListener("submit", authSubmit);
 document.getElementById("authTabIn").addEventListener("click", () => { sfx.ui(); setAuthMode("in"); });
 document.getElementById("authTabUp").addEventListener("click", () => { sfx.ui(); setAuthMode("up"); });
 addEventListener("beforeunload", () => { if (pushDirty) { try { cloudPush(); } catch(e){} } });
+
+
+/* ---------- leaderboard screen ---------- */
+const elBoard = document.getElementById("board");
+function lbNote(t){ document.getElementById("lbBody").innerHTML = `<div class="lbnote">${t}</div>`; }
+function renderLbTabs(){
+  const t = document.getElementById("lbTabs");
+  t.innerHTML = "";
+  for (const b of LB_BOARDS) {
+    const btn = document.createElement("button");
+    btn.className = "tab";
+    btn.setAttribute("aria-selected", lbTab === b.key);
+    btn.textContent = b.name;
+    btn.addEventListener("click", () => { if (lbTab === b.key) return; lbTab = b.key; sfx.ui(); showBoard(); });
+    t.appendChild(btn);
+  }
+}
+async function showBoard(){
+  renderLbTabs();
+  if (!cloudOn() || !AUTH.uid) return lbNote("Sign in to see the leaderboard.");
+  if (lbBusy) return;
+  lbBusy = true;
+  lbNote("Loading…");
+  const board = LB_BOARDS.find(b => b.key === lbTab) || LB_BOARDS[0];
+  try {
+    if (!await freshToken()) { lbNote("Sign in to see the leaderboard."); lbBusy = false; return; }
+    const rows = await scoresTop(board.key);
+    lbCache[board.key] = rows;
+    const body = document.getElementById("lbBody");
+    if (!rows.length) {
+      lbNote("Nobody has set a score here yet.<br>Go be first.");
+    } else {
+      body.innerHTML = "";
+      rows.forEach((r, i) => {
+        const d = document.createElement("div");
+        const mine = (r.username || "") === (AUTH.name || "");
+        d.className = "lbrow" + (mine ? " me" : "") +
+          (i === 0 ? " gold" : i === 1 ? " silver" : i === 2 ? " bronze" : "");
+        const pos = document.createElement("div"); pos.className = "pos"; pos.textContent = "#" + (i + 1);
+        const who = document.createElement("div"); who.className = "who"; who.textContent = r.username || "rider";
+        const sc  = document.createElement("div"); sc.className  = "sc";
+        sc.textContent = Number(r[board.key] || 0).toLocaleString();
+        d.append(pos, who, sc);
+        body.appendChild(d);
+      });
+    }
+    // where you sit, even if you are off the bottom of the top 50
+    const mineScore = Math.floor(board.pick(SAVE));
+    const foot = document.createElement("div");
+    foot.className = "lbrow lbmine";
+    if (mineScore > 0) {
+      const rank = await myRank(board.key);
+      foot.innerHTML = `Your best <b>${mineScore.toLocaleString()}</b>` +
+        (rank ? ` · rank <b>#${rank}</b>` : "");
+    } else {
+      foot.innerHTML = `You haven't set a score in ${board.name} yet`;
+    }
+    document.getElementById("lbBody").appendChild(foot);
+  } catch(e){
+    lbNote("Couldn't load the leaderboard.<br>" + String(e.message || e));
+  }
+  lbBusy = false;
+}
+function openBoard(){
+  S.mode = "board"; S.paused = false;
+  elMenu.hidden = true; elShop.hidden = true; elBoard.hidden = false;
+  sfx.ui();
+  scoresPush().catch(() => {});     // make sure your own record is up there first
+  showBoard();
+}
+function closeBoard(){ elBoard.hidden = true; openMenu(); }
+document.getElementById("openBoard").addEventListener("click", openBoard);
+document.getElementById("lbBack").addEventListener("click", closeBoard);
 
 syncWallet();
 renderStreet();
