@@ -151,6 +151,33 @@
   }
   .tab[aria-selected="true"]{background:var(--text); color:#0B0F14; border-color:var(--text)}
   .tab:focus-visible{outline:3px solid var(--amber); outline-offset:2px}
+
+  .authbox{width:min(420px,94vw); text-align:left}
+  .authbox .logo{text-align:center}
+  .authbox .tag{text-align:center}
+  .authtabs{display:flex; gap:8px; justify-content:center; margin-bottom:16px}
+  .fld{display:block; margin-bottom:12px}
+  .fld[hidden]{display:none}
+  .fld span{display:block; font-size:12px; letter-spacing:.14em; text-transform:uppercase;
+            color:var(--dim); margin-bottom:5px}
+  .fld span i{font-style:normal; text-transform:none; letter-spacing:0; opacity:.7}
+  .fld input{width:100%; padding:11px 13px; border-radius:11px; background:rgba(8,11,16,.75);
+             border:1px solid var(--edge); color:var(--text); font-family:var(--ui); font-size:15px}
+  .fld input:focus{outline:none; border-color:var(--neon)}
+  .btn.big{width:100%; padding:13px; font-size:16px; margin-top:4px}
+  .authmsg{min-height:19px; font-size:13px; margin:2px 0 8px; color:var(--hot)}
+  .authmsg.ok{color:var(--neon)}
+  .authfoot{margin-top:14px; text-align:center; font-size:12.5px; color:var(--dim); line-height:1.5}
+  .authfoot button{background:none; border:0; color:var(--amber); cursor:pointer;
+                   font:inherit; text-decoration:underline; padding:0}
+  .whoami{display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--dim)}
+  .whoami b{color:var(--text); font-family:var(--num); letter-spacing:.02em}
+  .whoami{justify-content:center; margin:-12px 0 16px}
+  .whoami button{background:none; border:0; color:var(--amber); cursor:pointer; font:inherit;
+                 text-decoration:underline; padding:0}
+  .whoami .sync{color:var(--neon)}
+  .whoami .sync.off{color:var(--dim)}
+
   .btn{
     font-family:var(--num); font-weight:700; font-size:14px; letter-spacing:.1em; text-transform:uppercase;
     background:var(--ink3); border:1px solid var(--edge); color:var(--text);
@@ -301,6 +328,7 @@
     <h1 class="logo">SoFlo Wheelie Life</h1>
     <p class="tag">Feather the throttle. Find the balance point. Don't loop out.</p>
     <div class="wallet"><span class="dot"></span><span id="coinsMenu">0</span> <span style="opacity:.65">coins</span></div>
+    <div class="whoami" id="whoami" hidden></div>
     <div class="modes">
       <button class="mode" id="mStreet">
         <div class="ic">🌴</div>
@@ -357,6 +385,32 @@
       <div><kbd>Esc</kbd> menu &middot; <kbd>M</kbd> sfx &middot; <kbd>N</kbd> music</div>
     </div>
     <p class="mini">Right side of the screen = throttle &middot; left = brake &middot; buttons for tricks</p>
+  </div>
+</div>
+
+
+<div class="sheet" id="auth" hidden>
+  <div class="authbox">
+    <h1 class="logo">SoFlo Wheelie Life</h1>
+    <p class="tag" id="authTag">Sign in to save your garage to the cloud</p>
+    <div class="authtabs">
+      <button class="tab" id="authTabIn" aria-selected="true">Sign in</button>
+      <button class="tab" id="authTabUp" aria-selected="false">Create account</button>
+    </div>
+    <form id="authForm" autocomplete="on">
+      <label class="fld"><span>Username</span>
+        <input id="authUser" name="username" autocomplete="username" maxlength="20"
+               placeholder="3-20 letters or numbers" spellcheck="false"></label>
+      <label class="fld"><span>Password</span>
+        <input id="authPass" name="password" type="password" autocomplete="current-password"
+               maxlength="72" placeholder="at least 8 characters"></label>
+      <label class="fld" id="authMailRow" hidden><span>Recovery email <i>optional</i></span>
+        <input id="authMail" name="email" type="email" autocomplete="email"
+               placeholder="so you can get back in if you forget"></label>
+      <div class="authmsg" id="authMsg"></div>
+      <button class="btn pri big" id="authGo" type="submit">Sign in</button>
+    </form>
+    <div class="authfoot" id="authFoot"></div>
   </div>
 </div>
 
@@ -1067,14 +1121,15 @@ function refreshBike(){
   C.eng = E; C.fx = t.fx; C.tune = t; C.base = B;
   CUR = C;
 }
-function persist(){ try { localStorage.setItem("soflo.save", JSON.stringify(SAVE)); } catch(e){} }
-(function load(){
-  try {
-    const j = JSON.parse(localStorage.getItem("soflo.save") || "null");
-    if (j) Object.assign(SAVE, j);
-    const legacy = +(localStorage.getItem("soflo.best") || 0);
-    if (legacy > SAVE.best) SAVE.best = legacy;
-  } catch(e){}
+function persistLocal(){
+  SAVE.ts = Date.now();
+  try { localStorage.setItem("soflo.save", JSON.stringify(SAVE)); } catch(e){}
+}
+function persist(){ persistLocal(); cloudMark(); }
+function normaliseSave(){
+  if (!Array.isArray(SAVE.bikes) || !SAVE.bikes.length) SAVE.bikes = [0];
+  if (!Array.isArray(SAVE.lids)  || !SAVE.lids.length)  SAVE.lids  = [0,1];
+  if (!SAVE.tune || typeof SAVE.tune !== "object") SAVE.tune = {};
   if (!SAVE.bikes.includes(SAVE.bike)) SAVE.bike = SAVE.bikes[0] ?? 0;
   if (!SAVE.lids.includes(SAVE.lid))   SAVE.lid  = SAVE.lids[0] ?? 0;
   if (!SAVE.qp) SAVE.qp = {};
@@ -1092,6 +1147,15 @@ function persist(){ try { localStorage.setItem("soflo.save", JSON.stringify(SAVE
   if (!Array.isArray(SAVE.qdone))  SAVE.qdone  = [];
   fillQuests();
   refreshBike();
+}
+(function load(){
+  try {
+    const j = JSON.parse(localStorage.getItem("soflo.save") || "null");
+    if (j) Object.assign(SAVE, j);
+    const legacy = +(localStorage.getItem("soflo.best") || 0);
+    if (legacy > SAVE.best) SAVE.best = legacy;
+  } catch(e){}
+  normaliseSave();
 })();
 
 function fillQuests(){
@@ -1169,6 +1233,186 @@ const ownsBike = i => SAVE.bikes.includes(i);
 const ownsTrick = id => { const t = trickById(id); return !!t && (t.price === 0 || SAVE.tricks.includes(id)); };
 const ownsLid  = i => SAVE.lids.includes(i);
 function earn(n){ S.coinAcc += n; while (S.coinAcc >= 1) { SAVE.coins++; S.coinAcc--; } }
+
+
+/* ============================================================
+   CLOUD SAVES — Supabase accounts
+   ------------------------------------------------------------
+   Fill CLOUD.url and CLOUD.key with your Supabase project's URL and its
+   "anon public" key. The anon key is meant to be public; row level security
+   in the database is what actually protects each player's data.
+
+   Usernames are mapped to a deterministic internal address, because Supabase
+   auth is email based. Players never see it.
+
+   The game stays offline first: localStorage is what gameplay reads and
+   writes, and the cloud is a sync layer over the top. If the network is down
+   you keep playing and it pushes when it comes back.
+   ============================================================ */
+const CLOUD = {
+  url: "",                     // e.g. https://abcdefgh.supabase.co
+  key: "",                     // anon public key
+  domain: "wheelie.local",     // internal address space for usernames
+};
+const cloudOn = () => !!(CLOUD.url && CLOUD.key);
+
+const AUTH = { token:null, refresh:null, uid:null, name:null, exp:0, busy:false, err:"" };
+const TOKKEY = "soflo.auth";
+
+function authSave(){
+  try {
+    localStorage.setItem(TOKKEY, JSON.stringify({
+      token:AUTH.token, refresh:AUTH.refresh, uid:AUTH.uid, name:AUTH.name, exp:AUTH.exp }));
+  } catch(e){}
+}
+function authLoad(){
+  try {
+    const j = JSON.parse(localStorage.getItem(TOKKEY) || "null");
+    if (j && j.refresh) Object.assign(AUTH, j);
+  } catch(e){}
+}
+function authClear(){
+  AUTH.token = AUTH.refresh = AUTH.uid = AUTH.name = null; AUTH.exp = 0;
+  try { localStorage.removeItem(TOKKEY); } catch(e){}
+}
+const userMail = u => u.trim().toLowerCase().replace(/[^a-z0-9_.-]/g, "") + "@" + CLOUD.domain;
+const validUser = u => /^[A-Za-z0-9_.-]{3,20}$/.test(String(u || "").trim());
+
+async function api(path, opts){
+  const o = opts || {};
+  const h = Object.assign({ "apikey": CLOUD.key, "Content-Type": "application/json" }, o.headers || {});
+  if (o.auth !== false && AUTH.token) h["Authorization"] = "Bearer " + AUTH.token;
+  const r = await fetch(CLOUD.url + path, { method:o.method || "GET", headers:h, body:o.body });
+  const txt = await r.text();
+  let data = null; try { data = txt ? JSON.parse(txt) : null; } catch(e){ data = txt; }
+  if (!r.ok) {
+    const msg = (data && (data.error_description || data.msg || data.message || data.error)) || ("HTTP " + r.status);
+    throw new Error(msg);
+  }
+  return data;
+}
+function takeSession(d, name){
+  AUTH.token = d.access_token; AUTH.refresh = d.refresh_token;
+  AUTH.uid = d.user && d.user.id;
+  AUTH.name = name || (d.user && d.user.user_metadata && d.user.user_metadata.username) || AUTH.name;
+  AUTH.exp = Date.now() + (d.expires_in ? d.expires_in * 1000 : 3600000) - 60000;
+  authSave();
+}
+async function freshToken(){
+  if (!AUTH.refresh) return false;
+  if (AUTH.token && Date.now() < AUTH.exp) return true;
+  try {
+    const d = await api("/auth/v1/token?grant_type=refresh_token",
+      { method:"POST", auth:false, body:JSON.stringify({ refresh_token:AUTH.refresh }) });
+    takeSession(d); return true;
+  } catch(e){ authClear(); return false; }
+}
+async function signUp(user, pass, mail){
+  const meta = { username:user.trim() };
+  if (mail && mail.trim()) meta.recovery_email = mail.trim();
+  const d = await api("/auth/v1/signup", { method:"POST", auth:false,
+    body:JSON.stringify({ email:userMail(user), password:pass, data:meta }) });
+  if (!d.access_token) {                       // confirmations on: sign straight in
+    return signIn(user, pass);
+  }
+  takeSession(d, user.trim());
+  return d;
+}
+async function signIn(user, pass){
+  const d = await api("/auth/v1/token?grant_type=password", { method:"POST", auth:false,
+    body:JSON.stringify({ email:userMail(user), password:pass }) });
+  takeSession(d, user.trim());
+  return d;
+}
+async function cloudPull(){
+  if (!await freshToken()) return null;
+  const rows = await api("/rest/v1/saves?select=data&user_id=eq." + AUTH.uid);
+  return (rows && rows[0] && rows[0].data) || null;
+}
+async function cloudPush(){
+  if (!cloudOn() || !AUTH.uid) return false;
+  if (!await freshToken()) return false;
+  await api("/rest/v1/saves", { method:"POST",
+    headers:{ "Prefer":"resolution=merge-duplicates,return=minimal" },
+    body:JSON.stringify({ user_id:AUTH.uid, data:SAVE, updated_at:new Date().toISOString() }) });
+  return true;
+}
+
+/* ---------- merge ----------
+   Two devices that both played offline produce two real saves. Taking the
+   newer one wholesale would quietly delete whatever the other one earned, so
+   every field is merged on its own terms: bests take the higher number,
+   anything owned is unioned, and preferences follow whichever save is newer. */
+function mergeSaves(a, b){
+  if (!a) return b; if (!b) return a;
+  const newer = (b.ts || 0) >= (a.ts || 0) ? b : a;   // for preference-style fields
+  const out = Object.assign({}, a, b);
+  const max = k => Math.max(a[k] || 0, b[k] || 0);
+  const uni = k => Array.from(new Set([].concat(a[k] || [], b[k] || [])));
+
+  out.coins    = max("coins");
+  out.best     = max("best");
+  out.rampBest = max("rampBest");
+  out.bestRide = max("bestRide");
+  out.bikes  = uni("bikes");
+  out.lids   = uni("lids");
+  out.codes  = uni("codes");
+  out.tricks = uni("tricks");
+  out.qdone  = uni("qdone");
+
+  out.qp = Object.assign({}, a.qp || {});
+  for (const k in (b.qp || {})) out.qp[k] = Math.max(out.qp[k] || 0, b.qp[k] || 0);
+
+  // per-bike tuning: upgrades keep the higher level, parts owned are unioned,
+  // paint and fitted engine follow the newer save
+  out.tune = {};
+  const ids = new Set([...Object.keys(a.tune || {}), ...Object.keys(b.tune || {})]);
+  for (const id of ids) {
+    const ta = (a.tune || {})[id] || {}, tb = (b.tune || {})[id] || {};
+    const tn = (newer === b ? tb : ta), t = Object.assign({}, ta, tb);
+    t.up = {};
+    for (const k of ["motor","brakes","tyres","susp"])
+      t.up[k] = Math.max((ta.up || {})[k] || 0, (tb.up || {})[k] || 0);
+    t.own  = Object.assign({}, ta.own  || {}, tb.own  || {});
+    t.engs = Object.assign({}, ta.engs || {}, tb.engs || {});
+    t.fx   = Object.assign({}, tn.fx || {});
+    t.eng  = tn.eng || t.eng || "stock";
+    for (const c of ["body","body2","rim","frame","fork"]) {
+      if (tn[c]) t[c] = tn[c]; else delete t[c];
+    }
+    out.tune[id] = t;
+  }
+
+  for (const k of ["bike","lid","spot","track","slots","rider","keys","quests"])
+    if (newer[k] !== undefined) out[k] = newer[k];
+
+  out.ts = Math.max(a.ts || 0, b.ts || 0);
+  return out;
+}
+
+let pushT = null, pushDirty = false;
+function cloudMark(){                       // called whenever the save changes
+  if (!cloudOn() || !AUTH.uid) return;
+  pushDirty = true;
+  if (pushT) return;
+  pushT = setTimeout(async () => {
+    pushT = null;
+    if (!pushDirty) return;
+    pushDirty = false;
+    try { await cloudPush(); } catch(e){ pushDirty = true; }
+  }, 4000);
+}
+async function cloudSyncNow(){
+  if (!cloudOn() || !AUTH.uid) return;
+  let remote = null;
+  try { remote = await cloudPull(); } catch(e){ return; }
+  const merged = mergeSaves(remote, Object.assign({}, SAVE));
+  Object.assign(SAVE, merged);
+  normaliseSave();
+  persistLocal();
+  try { await cloudPush(); } catch(e){ pushDirty = true; }
+  syncWallet(); refreshBike();
+}
 
 /* ---------- state ---------- */
 const S = {
@@ -4414,6 +4658,23 @@ document.getElementById("mRamp").addEventListener("click", () => startMode("ramp
 const elExit = document.getElementById("exit");
 elExit.addEventListener("click", openMenu);
 
+function renderWho(){
+  const el = document.getElementById("whoami");
+  if (!el) return;
+  if (!cloudOn()) {
+    el.hidden = false;
+    el.innerHTML = `<span class="sync off">Cloud saves not set up - progress stays on this device</span>`;
+    return;
+  }
+  if (!AUTH.uid) { el.hidden = true; return; }
+  el.hidden = false;
+  el.innerHTML = `<span>Signed in as <b>${(AUTH.name || "rider")}</b></span>
+                  <span class="sync">· synced</span>`;
+  const b = document.createElement("button");
+  b.textContent = "Sign out";
+  b.addEventListener("click", () => { sfx.ui(); signOut(); });
+  el.appendChild(b);
+}
 function openMenu(){
   S.mode = "menu"; S.paused = false;
   elShop.hidden = true; elMenu.hidden = false;
@@ -4424,7 +4685,7 @@ function openMenu(){
   audio.mute(!S.sound);
   audio.setStyle("menu");
   sfx.ui();
-  syncWallet(); persist();
+  syncWallet(); persist(); renderWho();
 }
 function openShop(){
   S.mode = "shop"; elMenu.hidden = true; elShop.hidden = false;
@@ -4481,8 +4742,89 @@ function loop(now){
   if (S.mode === "shop" && shopTab === "cust") drawCustomPreview();
 }
 
+
+/* ---------- sign-in screen ---------- */
+const elAuth = document.getElementById("auth");
+let authMode = "in";
+function authMsg(t, ok){
+  const m = document.getElementById("authMsg");
+  if (m) { m.textContent = t || ""; m.className = "authmsg" + (ok ? " ok" : ""); }
+}
+function setAuthMode(m){
+  authMode = m;
+  document.getElementById("authTabIn").setAttribute("aria-selected", m === "in");
+  document.getElementById("authTabUp").setAttribute("aria-selected", m === "up");
+  document.getElementById("authMailRow").hidden = m !== "up";
+  document.getElementById("authGo").textContent = m === "up" ? "Create account" : "Sign in";
+  document.getElementById("authPass").autocomplete = m === "up" ? "new-password" : "current-password";
+  document.getElementById("authTag").textContent = m === "up"
+    ? "Your garage follows you to any device you sign in on"
+    : "Sign in to load your garage";
+  document.getElementById("authFoot").innerHTML = m === "up"
+    ? "No email means no way to reset a forgotten password, so add one if you want a way back in."
+    : "";
+  authMsg("");
+}
+function openAuth(){
+  S.mode = "auth"; S.paused = false;   // paused draws its overlay behind the sheet
+  elMenu.hidden = true; elShop.hidden = true; elAuth.hidden = false;
+  setAuthMode("in");
+  const u = document.getElementById("authUser");
+  if (u) setTimeout(() => u.focus(), 30);
+}
+async function authSubmit(ev){
+  if (ev) ev.preventDefault();
+  if (AUTH.busy) return;
+  const user = document.getElementById("authUser").value.trim();
+  const pass = document.getElementById("authPass").value;
+  const mail = document.getElementById("authMail").value;
+  if (!validUser(user)) return authMsg("Username must be 3-20 letters, numbers, dot, dash or underscore");
+  if (!pass || pass.length < 8) return authMsg("Password must be at least 8 characters");
+  AUTH.busy = true;
+  document.getElementById("authGo").disabled = true;
+  authMsg(authMode === "up" ? "Creating your account…" : "Signing in…", true);
+  try {
+    if (authMode === "up") await signUp(user, pass, mail);
+    else await signIn(user, pass);
+    authMsg("Loading your garage…", true);
+    await cloudSyncNow();
+    document.getElementById("authPass").value = "";
+    elAuth.hidden = true;
+    openMenu();
+  } catch(e){
+    const m = String(e.message || e);
+    authMsg(/already|registered|exists/i.test(m) ? "That username is taken"
+      : /invalid|credential|grant/i.test(m) ? "Wrong username or password"
+      : /weak|password/i.test(m) ? "Pick a stronger password"
+      : /fetch|network/i.test(m) ? "Can't reach the server - check your connection"
+      : m);
+  } finally {
+    AUTH.busy = false;
+    document.getElementById("authGo").disabled = false;
+  }
+}
+function signOut(){
+  authClear();
+  openAuth();
+}
+async function bootAuth(){
+  if (!cloudOn()) return openMenu();       // not configured: play offline, don't brick the game
+  authLoad();
+  if (AUTH.refresh && await freshToken()) {
+    openMenu();
+    cloudSyncNow();
+  } else {
+    openAuth();
+  }
+}
+document.getElementById("authForm").addEventListener("submit", authSubmit);
+document.getElementById("authTabIn").addEventListener("click", () => { sfx.ui(); setAuthMode("in"); });
+document.getElementById("authTabUp").addEventListener("click", () => { sfx.ui(); setAuthMode("up"); });
+addEventListener("beforeunload", () => { if (pushDirty) { try { cloudPush(); } catch(e){} } });
+
 syncWallet();
 renderStreet();
+bootAuth();
 requestAnimationFrame(loop);
 })();
 </script>
