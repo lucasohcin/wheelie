@@ -265,6 +265,32 @@
   .sw button{width:21px; height:21px; border-radius:6px; border:2px solid rgba(255,255,255,.14); cursor:pointer; padding:0}
   .sw button.on{border-color:var(--text); transform:scale(1.15)}
   .sw button:focus-visible{outline:2px solid var(--amber); outline-offset:2px}
+
+  .sw button.lk{opacity:.28; cursor:not-allowed; border-style:dashed}
+  .slot.lk{opacity:.45; cursor:not-allowed}
+  .slot.lk b{color:var(--amber)}
+  /* rider level + season */
+  .lvlbar{display:flex; align-items:center; gap:10px; justify-content:center; margin:-8px 0 14px}
+  .lvlbar .lv{font-family:var(--num); font-weight:700; font-size:14px; color:var(--text)}
+  .lvlbar .ti{font-size:12px; color:var(--amber); letter-spacing:.1em; text-transform:uppercase}
+  .lvlbar .track{width:min(280px,50vw); height:8px; border-radius:5px; background:rgba(255,255,255,.10); overflow:hidden}
+  .lvlbar .track i{display:block; height:100%; background:linear-gradient(90deg,var(--neon),var(--amber))}
+  .lvlbar .xp{font-size:11.5px; color:var(--dim); font-family:var(--num)}
+  .seas{display:flex; flex-direction:column; gap:14px}
+  .seashead{display:flex; align-items:center; gap:14px; flex-wrap:wrap}
+  .seashead h3{margin:0; font-family:var(--display); font-size:20px; letter-spacing:.01em}
+  .seashead .sub{color:var(--dim); font-size:12.5px}
+  .tiers{display:grid; grid-template-columns:repeat(auto-fill,minmax(112px,1fr)); gap:9px}
+  .tier{border:1px solid var(--edge); border-radius:12px; padding:10px 8px; text-align:center;
+        background:rgba(12,16,22,.55); position:relative}
+  .tier .n{font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--dim)}
+  .tier .rw{font-family:var(--num); font-weight:700; font-size:14px; margin:4px 0 8px}
+  .tier.ready{border-color:var(--neon); background:rgba(16,38,27,.5)}
+  .tier.claimed{opacity:.5}
+  .tier.locked{opacity:.42}
+  .tier .btn{width:100%; padding:6px 4px; font-size:12px}
+  .tier .got{font-size:11px; color:var(--neon); letter-spacing:.1em; text-transform:uppercase}
+
   .up{display:grid; grid-template-columns:1fr auto auto; gap:6px 12px; align-items:center; padding:8px 0}
   .up + .up{border-top:1px solid rgba(255,255,255,.06)}
   .up .nm{font-family:var(--num); font-weight:700; font-size:16px}
@@ -345,6 +371,7 @@
     <h1 class="logo">SoFlo Wheelie Life</h1>
     <p class="tag">Feather the throttle. Find the balance point. Don't loop out.</p>
     <div class="wallet"><span class="dot"></span><span id="coinsMenu">0</span> <span style="opacity:.65">coins</span></div>
+    <div class="lvlbar" id="lvlbar"></div>
     <div class="whoami" id="whoami" hidden></div>
     <div class="whoami"><button id="openBoard">View the leaderboard</button></div>
     <div class="modes">
@@ -453,6 +480,7 @@
         <button class="tab" id="tabLids" aria-selected="false">Helmets</button>
         <button class="tab" id="tabCust" aria-selected="false">Customise</button>
         <button class="tab" id="tabTricks" aria-selected="false">Tricks</button>
+        <button class="tab" id="tabSeason" aria-selected="false">Season</button>
         <button class="tab" id="tabKeys" aria-selected="false">Controls</button>
       </div>
       <div class="wallet"><span class="dot"></span><span id="coinsShop">0</span> <span style="opacity:.65">coins</span></div>
@@ -1151,6 +1179,129 @@ function refreshBike(){
   C.eng = E; C.fx = t.fx; C.tune = t; C.base = B;
   CUR = C;
 }
+/* ============================================================
+   RIDER LEVEL + SEASON TRACK
+   ------------------------------------------------------------
+   Every run pays XP whether or not it beat a record, so a bad run still
+   moves something. Lifetime XP drives your rider level; the same XP also
+   fills a season track that rotates on its own clock, no server needed.
+   ============================================================ */
+const XP_BASE = 320, XP_STEP = 190, MAX_LEVEL = 60;
+// XP needed to go from level n to n+1
+const xpForLevel = n => XP_BASE + XP_STEP * (n - 1);
+function levelFromXp(xp){
+  let lvl = 1, need = xpForLevel(1), left = Math.max(0, xp | 0);
+  while (lvl < MAX_LEVEL && left >= need) { left -= need; lvl++; need = xpForLevel(lvl); }
+  return { lvl, into:left, need, done: lvl >= MAX_LEVEL };
+}
+const riderLevel = () => levelFromXp(SAVE.xp || 0);
+
+// paint that has to be earned. The original 16 stay free so nobody's
+// existing bike suddenly uses a locked colour.
+const PAINT_PRO = [
+  { col:"#00E5FF", lvl:3  }, { col:"#FF6FD8", lvl:5  }, { col:"#B0FF3B", lvl:7  },
+  { col:"#FF2E00", lvl:9  }, { col:"#7DF9FF", lvl:12 }, { col:"#FFB800", lvl:15 },
+  { col:"#9D4EDD", lvl:18 }, { col:"#00FFA3", lvl:22 }, { col:"#FF004D", lvl:26 },
+  { col:"#E8E2D0", lvl:30 }, { col:"#1B1B3A", lvl:35 }, { col:"#C0C0C0", lvl:40 },
+];
+const paintLocked = col => {
+  const p = PAINT_PRO.find(x => x.col.toLowerCase() === String(col).toLowerCase());
+  return p ? riderLevel().lvl < p.lvl : false;
+};
+// two extra trick slots, earned
+const SLOT_LEVELS = [0, 0, 0, 0, 0, 0, 10, 20];   // level needed per slot index
+const MAX_SLOTS = 8;
+const slotsUnlocked = () => {
+  const l = riderLevel().lvl;
+  let n = 0;
+  for (let i = 0; i < MAX_SLOTS; i++) if (l >= SLOT_LEVELS[i]) n = i + 1;
+  return n;
+};
+
+const TITLES = [
+  { lvl:1, name:"Rookie" },      { lvl:5, name:"Curb Hopper" },
+  { lvl:10, name:"Balance Point" }, { lvl:16, name:"Twelve O'Clock" },
+  { lvl:24, name:"A1A Regular" },   { lvl:32, name:"Loop-Out King" },
+  { lvl:42, name:"Street Legend" }, { lvl:55, name:"SoFlo Icon" },
+];
+const titleFor = l => (TITLES.filter(t => t.lvl <= l).pop() || TITLES[0]).name;
+
+/* ---------- season ----------
+   Seasons roll over on their own from the clock, so there is nothing to
+   schedule and nothing to maintain. */
+const SEASON_START = Date.UTC(2026, 0, 5);        // first season began Mon 5 Jan 2026
+const SEASON_DAYS  = 42;                           // six weeks
+const SEASON_TIERS = 30;
+const SEASON_XP_PER_TIER = 900;
+function seasonNow(){
+  const ms = SEASON_DAYS * 86400000;
+  const id = Math.max(0, Math.floor((Date.now() - SEASON_START) / ms));
+  const ends = SEASON_START + (id + 1) * ms;
+  return { id, ends, daysLeft: Math.max(0, Math.ceil((ends - Date.now()) / 86400000)) };
+}
+function seasonState(){
+  const now = seasonNow();
+  if (!SAVE.season || SAVE.season.id !== now.id)
+    SAVE.season = { id:now.id, xp:0, claimed:[] };
+  if (!Array.isArray(SAVE.season.claimed)) SAVE.season.claimed = [];
+  return SAVE.season;
+}
+const seasonTier = () => Math.min(SEASON_TIERS, Math.floor((seasonState().xp || 0) / SEASON_XP_PER_TIER));
+// what each tier hands over. Cosmetics and coins only - nothing pay-to-win.
+function seasonReward(tier){
+  if (tier % 10 === 0) return { kind:"coins", n:12000, label:"12,000 coins" };
+  if (tier % 5 === 0)  return { kind:"coins", n:5000,  label:"5,000 coins" };
+  if (tier % 3 === 0)  return { kind:"coins", n:2200,  label:"2,200 coins" };
+  return { kind:"coins", n:900, label:"900 coins" };
+}
+function claimTier(tier){
+  const st = seasonState();
+  if (tier < 1 || tier > seasonTier() || st.claimed.includes(tier)) return false;
+  const r = seasonReward(tier);
+  st.claimed.push(tier);
+  if (r.kind === "coins") SAVE.coins += r.n;
+  persist(); syncWallet();
+  return true;
+}
+function claimAllTiers(){
+  let n = 0, got = 0;
+  for (let t = 1; t <= seasonTier(); t++) {
+    const r = seasonReward(t);
+    if (claimTier(t)) { n++; got += (r.kind === "coins" ? r.n : 0); }
+  }
+  return { n, got };
+}
+
+/* ---------- earning ---------- */
+function awardXP(n){
+  n = Math.max(0, Math.round(n));
+  if (!n) return 0;
+  const before = riderLevel().lvl;
+  SAVE.xp = (SAVE.xp || 0) + n;
+  const st = seasonState();
+  const tierBefore = seasonTier();
+  st.xp = (st.xp || 0) + n;
+  const after = riderLevel().lvl;
+  if (after > before) {
+    S.levelUp = { from:before, to:after, t:150 };
+    sfx.quest();
+    const gained = [];
+    for (const p of PAINT_PRO) if (p.lvl > before && p.lvl <= after) gained.push("new paint");
+    for (let i = 0; i < MAX_SLOTS; i++)
+      if (SLOT_LEVELS[i] > before && SLOT_LEVELS[i] <= after) gained.push("trick slot " + (i + 1));
+    toast("LEVEL " + after + (gained.length ? " — " + gained[0] + " unlocked" : ""));
+  } else if (seasonTier() > tierBefore) {
+    toast("SEASON TIER " + seasonTier());
+    sfx.coin();
+  }
+  return n;
+}
+// a run always pays something, so a bad run still moves the bar
+function runXP(score, secs){
+  return 25 + Math.floor((score || 0) / 45) + Math.floor((secs || 0) * 1.5);
+}
+
+
 function persistLocal(){
   SAVE.ts = Date.now();
   try { localStorage.setItem("soflo.save", JSON.stringify(SAVE)); } catch(e){}
@@ -1166,9 +1317,12 @@ function normaliseSave(){
   SAVE.spot = Math.max(0, Math.min(SPOTS.length - 1, SAVE.spot | 0));
   SAVE.bestRide = SAVE.bestRide || 0;
   if (!Array.isArray(SAVE.tricks)) SAVE.tricks = [];
-  if (!Array.isArray(SAVE.slots) || SAVE.slots.length !== 6)
+  if (!Array.isArray(SAVE.slots) || !SAVE.slots.length)
     SAVE.slots = ["stand","knee","drag","nohand","fob","onehand"];
-  SAVE.slots = SAVE.slots.map(id => (trickById(id) ? id : null));
+  SAVE.slots = SAVE.slots.slice(0, MAX_SLOTS).map(id => (trickById(id) ? id : null));
+  while (SAVE.slots.length < MAX_SLOTS) SAVE.slots.push(null);   // earned slots start empty
+  SAVE.xp = Math.max(0, SAVE.xp | 0);
+  seasonState();
   if (!SAVE.rider) SAVE.rider = {};
   if (!SAVE.keys || typeof SAVE.keys !== "object" || Array.isArray(SAVE.keys)) SAVE.keys = {};
   SAVE.track = SAVE.track | 0;
@@ -1381,6 +1535,17 @@ function mergeSaves(a, b){
   const uni = k => Array.from(new Set([].concat(a[k] || [], b[k] || [])));
 
   out.coins    = max("coins");
+  out.xp       = max("xp");
+  // same season: keep the better progress and every tier either side claimed.
+  // different season: the newer one wins, an old season is over anyway.
+  const sa = a.season, sb = b.season;
+  if (sa && sb && sa.id === sb.id) {
+    out.season = { id:sa.id, xp:Math.max(sa.xp || 0, sb.xp || 0),
+                   claimed:Array.from(new Set([].concat(sa.claimed || [], sb.claimed || []))) };
+  } else {
+    const pick = (sb && (!sa || sb.id > sa.id)) ? sb : sa;
+    out.season = pick || null;
+  }
   out.best     = max("best");
   out.rampBest = max("rampBest");
   out.bestRide = max("bestRide");
@@ -1446,6 +1611,7 @@ async function cloudSyncNow(){
   syncWallet(); refreshBike();
 }
 
+
 /* ---------- state ---------- */
 const S = {
   mode:"menu",           // menu · street · ramp · shop
@@ -1459,6 +1625,7 @@ const S = {
   sag:0, sagV:0,
   shake:0, crashT:0, crashSpin:0, flash:0,
   wheelieT:0, dragT:0, cleared:0, crashWhy:"looped out", coach:true,
+  levelUp:null, lastXP:0,
   trick:null, lastTrick:null, combo:0, comboT:0, stopT:0,
   photo:false, pz:1, pox:0, poy:0,
   parts:[], toast:null, toastT:0,
@@ -1488,6 +1655,8 @@ const ACTIONS = [
   { key:"trick4",   name:"Trick slot 4", def:["4"] },
   { key:"trick5",   name:"Trick slot 5", def:["5"] },
   { key:"trick6",   name:"Trick slot 6", def:["6"] },
+  { key:"trick7",   name:"Trick slot 7", def:["7"] },
+  { key:"trick8",   name:"Trick slot 8", def:["8"] },
   { key:"pause",    name:"Pause",        def:["p"] },
   { key:"photo",    name:"Photo mode",   def:["k"] },
   { key:"sound",    name:"Mute sound",   def:["m"] },
@@ -1605,7 +1774,8 @@ function cycleLid(){
   toast(HELMETS[SAVE.lid].name);
 }
 function heldTrick(){
-  for (let i = 0; i < 6; i++) if (held("trick" + (i + 1))) {
+  const open = slotsUnlocked();
+  for (let i = 0; i < open; i++) if (held("trick" + (i + 1))) {
     const id = SAVE.slots[i];
     if (id && ownsTrick(id)) return id;
   }
@@ -1988,6 +2158,7 @@ function crash(why){
   S.lastScore = Math.floor(S.score);
   const bk2 = S.rideOut ? "bestRide" : "best";
   if (S.lastScore > SAVE[bk2]) SAVE[bk2] = S.lastScore;
+  S.lastXP = awardXP(runXP(S.lastScore, S.wheelieT));
   persist();
   S.score = 0; S.mult = 1; S.spd = 0; S.av = 0; S.rpm = 0; S.wheelieT = 0;
 }
@@ -3584,6 +3755,20 @@ function drawHUD(){
     ctx.fillText("COMBO ×" + S.combo, W/2, 218);
     ctx.textAlign = "left";
   }
+  if (S.levelUp && S.levelUp.t > 0) {
+    const u = S.levelUp; u.t--;
+    const a = Math.min(1, u.t / 30);
+    ctx.globalAlpha = a;
+    ctx.textAlign = "center";
+    ctx.font = '700 46px "Archivo Black", sans-serif';
+    ctx.fillStyle = "#FFC24B";
+    ctx.fillText("LEVEL " + u.to, W/2, 150);
+    ctx.font = '600 17px "Barlow Condensed", sans-serif';
+    ctx.fillStyle = "rgba(231,237,243,.9)";
+    ctx.fillText(titleFor(u.to).toUpperCase(), W/2, 174);
+    ctx.textAlign = "left"; ctx.globalAlpha = 1;
+    if (u.t <= 0) S.levelUp = null;
+  }
   if (S.toastT > 0 && S.toast) {
     ctx.globalAlpha = Math.min(1, S.toastT/20);
     ctx.font = '700 32px "Saira Condensed", sans-serif'; ctx.fillStyle = "#F2F6FA";
@@ -4000,6 +4185,7 @@ function rampDie(why){
   S.shake = REDUCED ? 0 : 12;
   sfx.crash();
   if (Math.floor(R.dist) > SAVE.rampBest) { SAVE.rampBest = Math.floor(R.dist); }
+  S.lastXP = awardXP(runXP(Math.floor(R.dist) * 6, 0));
   persist();
   rampMsg(why);
   R.crashMsg = true;
@@ -4438,8 +4624,17 @@ function drawCustomPreview(){
 }
 
 function swatchRow(label, field, cur){
+  const one = (col, lockLvl) => {
+    const on = col.toLowerCase() === String(cur).toLowerCase();
+    const locked = !!lockLvl && riderLevel().lvl < lockLvl;
+    return `<button style="background:${col}" data-c="${col}" ${locked ? "disabled" : ""}
+      class="${on ? "on" : ""}${locked ? " lk" : ""}"
+      title="${locked ? "Unlocks at level " + lockLvl : col}"
+      aria-label="${label} ${col}${locked ? ", locked until level " + lockLvl : ""}"></button>`;
+  };
   return `<div class="paint"><span class="lbl">${label}</span><span class="sw" data-f="${field}">` +
-    PAINT.map(col => `<button style="background:${col}" data-c="${col}" class="${col.toLowerCase() === String(cur).toLowerCase() ? "on" : ""}" aria-label="${label} ${col}"></button>`).join("") +
+    PAINT.map(c => one(c, 0)).join("") +
+    PAINT_PRO.map(p => one(p.col, p.lvl)).join("") +
     `</span></div>`;
 }
 
@@ -4570,12 +4765,17 @@ function renderTricks(){
   const bar = document.createElement("div");
   bar.className = "slotbar";
   bar.innerHTML = `<div class="cap">Loadout — pick a slot, then tap a trick</div>`;
-  for (let i = 0; i < 6; i++) {
+  const open = slotsUnlocked();
+  for (let i = 0; i < MAX_SLOTS; i++) {
     const id = SAVE.slots[i], t = trickById(id);
+    const locked = i >= open;
     const b = document.createElement("button");
-    b.className = "slot" + (i === pickSlot ? " on" : "");
-    b.innerHTML = `<span>Key ${i + 1}</span><b>${t ? t.name : "— empty —"}</b>`;
-    b.addEventListener("click", () => { pickSlot = i; sfx.ui(); renderTricks(); });
+    b.className = "slot" + (i === pickSlot && !locked ? " on" : "") + (locked ? " lk" : "");
+    b.innerHTML = locked
+      ? `<span>Slot ${i + 1}</span><b>Level ${SLOT_LEVELS[i]}</b>`
+      : `<span>Key ${i + 1}</span><b>${t ? t.name : "— empty —"}</b>`;
+    if (locked) b.disabled = true;
+    else b.addEventListener("click", () => { pickSlot = i; sfx.ui(); renderTricks(); });
     bar.appendChild(b);
   }
   elGrid.appendChild(bar);
@@ -4610,6 +4810,67 @@ function renderTricks(){
       }
       persist(); renderTricks();
     });
+  }
+  elGrid.appendChild(grid);
+}
+
+
+function renderSeason(){
+  syncWallet();
+  elGrid.className = "seas";
+  elGrid.innerHTML = "";
+  const st = seasonState(), now = seasonNow();
+  const tier = seasonTier();
+  const into = (st.xp || 0) - tier * SEASON_XP_PER_TIER;
+  const pct = tier >= SEASON_TIERS ? 100 : Math.round(into / SEASON_XP_PER_TIER * 100);
+  const unclaimed = [];
+  for (let t = 1; t <= tier; t++) if (!st.claimed.includes(t)) unclaimed.push(t);
+
+  const head = document.createElement("div");
+  head.className = "seashead";
+  head.innerHTML =
+    `<h3>Season ${now.id + 1}</h3>
+     <span class="sub">${now.daysLeft} day${now.daysLeft === 1 ? "" : "s"} left ·
+       tier ${tier} / ${SEASON_TIERS} ·
+       ${tier >= SEASON_TIERS ? "track complete" : (SEASON_XP_PER_TIER - into).toLocaleString() + " XP to next"}</span>`;
+  if (unclaimed.length) {
+    const b = document.createElement("button");
+    b.className = "btn pri";
+    b.textContent = "Claim all (" + unclaimed.length + ")";
+    b.addEventListener("click", () => {
+      const r = claimAllTiers();
+      if (r.n) { sfx.buy(); toast("claimed " + r.got.toLocaleString() + " coins"); }
+      renderSeason();
+    });
+    head.appendChild(b);
+  }
+  elGrid.appendChild(head);
+
+  const bar = document.createElement("div");
+  bar.className = "lvlbar";
+  bar.innerHTML = `<span class="lv">Tier ${tier}</span>
+    <span class="track"><i style="width:${pct}%"></i></span>
+    <span class="xp">${(st.xp || 0).toLocaleString()} season XP</span>`;
+  elGrid.appendChild(bar);
+
+  const grid = document.createElement("div");
+  grid.className = "tiers";
+  for (let t = 1; t <= SEASON_TIERS; t++) {
+    const r = seasonReward(t);
+    const got = st.claimed.includes(t), ready = t <= tier && !got;
+    const d = document.createElement("div");
+    d.className = "tier" + (got ? " claimed" : ready ? " ready" : t > tier ? " locked" : "");
+    d.innerHTML = `<div class="n">Tier ${t}</div><div class="rw">${r.label}</div>`;
+    if (got) d.insertAdjacentHTML("beforeend", `<div class="got">Claimed</div>`);
+    else if (ready) {
+      const b = document.createElement("button");
+      b.className = "btn pri"; b.textContent = "Claim";
+      b.addEventListener("click", () => { if (claimTier(t)) sfx.buy(); renderSeason(); });
+      d.appendChild(b);
+    } else {
+      d.insertAdjacentHTML("beforeend", `<div class="n">${(t * SEASON_XP_PER_TIER).toLocaleString()} XP</div>`);
+    }
+    grid.appendChild(d);
   }
   elGrid.appendChild(grid);
 }
@@ -4658,10 +4919,11 @@ addEventListener("keydown", e => {
 
 function setTab(name){
   shopTab = name;
-  for (const [id, key] of [["tabBikes","bikes"],["tabLids","lids"],["tabCust","cust"],["tabTricks","tricks"],["tabKeys","keys"]])
+  for (const [id, key] of [["tabBikes","bikes"],["tabLids","lids"],["tabCust","cust"],["tabTricks","tricks"],["tabSeason","season"],["tabKeys","keys"]])
     document.getElementById(id).setAttribute("aria-selected", key === name ? "true" : "false");
   if (name === "cust") renderCustom();
   else if (name === "keys") { custCv = null; listenFor = null; renderKeys(); }
+  else if (name === "season") { custCv = null; renderSeason(); }
   else if (name === "tricks") { custCv = null; renderTricks(); }
   else { elGrid.className = "grid"; custCv = null; renderShop(); }
 }
@@ -4669,6 +4931,7 @@ function setTab(name){
 document.getElementById("tabCust").addEventListener("click", () => { sfx.ui(); setTab("cust"); });
 document.getElementById("tabTricks").addEventListener("click", () => { sfx.ui(); setTab("tricks"); });
 document.getElementById("tabKeys").addEventListener("click", () => { sfx.ui(); setTab("keys"); });
+document.getElementById("tabSeason").addEventListener("click", () => { sfx.ui(); setTab("season"); });
 document.getElementById("tabBikes").addEventListener("click", () => setTab("bikes"));
 document.getElementById("tabLids").addEventListener("click", () => setTab("lids"));
 addEventListener("pointerdown", () => audio.start(), { once:true });
@@ -4690,6 +4953,19 @@ document.getElementById("mRamp").addEventListener("click", () => startMode("ramp
 const elExit = document.getElementById("exit");
 elExit.addEventListener("click", openMenu);
 
+function renderLevel(){
+  const el = document.getElementById("lvlbar");
+  if (!el) return;
+  const L = riderLevel(), st = seasonState(), now = seasonNow();
+  const pct = L.done ? 100 : Math.round(L.into / L.need * 100);
+  const tier = seasonTier();
+  el.innerHTML =
+    `<span class="lv">LVL ${L.lvl}</span>
+     <span class="ti">${titleFor(L.lvl)}</span>
+     <span class="track"><i style="width:${pct}%"></i></span>
+     <span class="xp">${L.done ? "MAX" : L.into.toLocaleString() + " / " + L.need.toLocaleString() + " XP"}
+       · season tier ${tier}/${SEASON_TIERS} · ${now.daysLeft}d left</span>`;
+}
 function renderWho(){
   const el = document.getElementById("whoami");
   if (!el) return;
@@ -4717,7 +4993,7 @@ function openMenu(){
   audio.mute(!S.sound);
   audio.setStyle("menu");
   sfx.ui();
-  syncWallet(); persist(); renderWho();
+  syncWallet(); persist(); renderWho(); renderLevel();
 }
 function openShop(){
   S.mode = "shop"; elMenu.hidden = true; elShop.hidden = false;
