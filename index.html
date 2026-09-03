@@ -1778,7 +1778,12 @@ async function api(path, opts){
   let data = null; try { data = txt ? JSON.parse(txt) : null; } catch(e){ data = txt; }
   if (!r.ok) {
     const msg = (data && (data.error_description || data.msg || data.message || data.error)) || ("HTTP " + r.status);
-    throw new Error(msg);
+    const err = new Error(msg);
+    err.status = r.status;
+    err.code = data && data.code;
+    err.detail = data && (data.details || data.hint);
+    err.path = path.split("?")[0];
+    throw err;
   }
   return data;
 }
@@ -5485,6 +5490,7 @@ async function sendGrant(name, kind, amount, note){
   return who;
 }
 async function sendBroadcast(message, hours){
+  if (!await freshToken()) throw new Error("Session expired - sign in again");
   const ms = Math.max(1, Math.min(720, hours || 24)) * 3600000;
   await api("/rest/v1/broadcasts", { method:"POST", headers:{ Prefer:"return=minimal" },
     body:JSON.stringify({ message:String(message).slice(0, 240),
@@ -5873,7 +5879,9 @@ async function renderAdmin(){
       BCAST.fetched = 0; await pullBroadcasts();
       refreshList();
     } catch(e){
-      adSay("adMsgOut", "Server refused it: " + String(e.message || e), "no");
+      const bits = ["HTTP " + (e.status || "?"), e.code ? "code " + e.code : "", e.message || String(e), e.detail || ""];
+      adSay("adMsgOut", "Refused - " + bits.filter(Boolean).join(" · "), "no");
+      try { console.error("broadcast insert failed", e); } catch(_){}
     }
   }
   document.getElementById("adSend").addEventListener("click", doSend);
