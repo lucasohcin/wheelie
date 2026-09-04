@@ -29,9 +29,30 @@ create table if not exists public.profiles (
   streak       integer not null default 0 check (streak >= 0 and streak <= 100000),
   paint        jsonb   not null default '{}'::jsonb
                  check (char_length(paint::text) <= 400),
+  badges       text[]  not null default '{}'::text[],
+  badge_count  integer not null default 0,
   created_at   timestamptz not null default now(),
   updated_at   timestamptz not null default now()
 );
+
+-- Badges came later than the rest of the card. These two are safe to run on a
+-- table that already exists, and the game copes with a database that has not
+-- had them yet by filing everything except the badges.
+alter table public.profiles add column if not exists badges      text[]  not null default '{}'::text[];
+alter table public.profiles add column if not exists badge_count integer not null default 0;
+
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'profiles_badges_ok') then
+    alter table public.profiles add constraint profiles_badges_ok
+      check (coalesce(array_length(badges, 1), 0) <= 3
+         and length(array_to_string(badges, ',')) <= 200);
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'profiles_badge_count_ok') then
+    alter table public.profiles add constraint profiles_badge_count_ok
+      check (badge_count >= 0 and badge_count <= 9999);
+  end if;
+end $$;
 
 -- profiles are opened by name, so names must be unique and findable
 create unique index if not exists profiles_username_lower on public.profiles (lower(username));

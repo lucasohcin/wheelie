@@ -6,7 +6,7 @@ Everything a fresh session needs to pick this up. Written 3 Sep 2026.
 
 ## What this is
 
-A wheelie game. One file: **`index.html`**, ~7,350 lines, no build step, no
+A wheelie game. One file: **`index.html`**, ~7,600 lines, no build step, no
 dependencies. HTML + CSS + one big IIFE of JavaScript, rendered to a canvas.
 
 - **Repo:** https://github.com/lucasohcin/wheelie
@@ -53,7 +53,7 @@ fields, so **adding** fields is free.
 
 It happened on 3 Sep: a second session committed the same feature concurrently
 (`30d9ab4`). Nothing was lost that time, by luck. Two sessions editing a single
-7,350-line file will overwrite each other.
+7,600-line file will overwrite each other.
 
 ---
 
@@ -72,6 +72,7 @@ It happened on 3 Sep: a second session committed the same feature concurrently
 | Daily seed run | `startDaily()` / `dailyFinish()` / `dailyStop()`, plan in `dailyPlan(day)` |
 | Rider profiles | `openProfile(name, from)` / `profileFetch()` / `renderProfile()` / `profilePush()` |
 | Rivals | `rivalFetch()` on run start, `rivalCheck(live)` once a frame, `drawRival()` in both HUDs |
+| Badges | `BADGES` catalogue, `badgeCheck()` on every `persist()`, case in `renderProfileCase()` |
 
 **Stat pipeline order:** base bike → upgrade pips → engine swap → fitted parts.
 All multiplicative except `loop`/`bp`, which are additive offsets.
@@ -90,6 +91,22 @@ is stored anywhere and every rider computes the same setup independently. The
 loaner is `buildBike(idx, DAILY_STOCK)`, which skips the player's upgrades.
 `DAILY.on` also locks `rtrack()`, blocks `cycleBike()`, keeps the crash from
 respawning at a checkpoint, and keeps the run out of `SAVE.rampBest`.
+
+**Badges** are predicates over the save, nothing more. `badgeCheck()` runs
+inside `persist()`, which is every point at which the save changed in a way
+worth writing down, so a badge cannot be missed by a code path that forgot to
+call something and no new per-run tracking was needed - `SAVE.qp` was already
+counting flips, air, hang time and the rest for quests.
+Three rules for the catalogue: **append freely, never change an id** (it is
+what a save and a pinned slot refer to), and **never delete one**, or you take
+a badge off somebody who earned it. A predicate that throws is caught per
+badge so one bad entry cannot cost you the rest.
+A save made before badges existed qualifies for a pile at once, so the first
+pass is a silent backfill with a single line rather than a wall of toasts.
+That line is drawn by the riding HUD and most badges land while you are on the
+menu, where it is invisible - which is why the menu's profile link carries the
+count instead. Same lesson as the announcement bug: a message nobody is in a
+position to see is not a message.
 
 **Rivals** put a name on the number you are riding against: the handful of
 riders sitting just above you on the board for the mode you are in, fetched
@@ -146,7 +163,7 @@ level security is what actually protects data.
 | `broadcasts` | public | admins only |
 | `grants` | own + admins | insert admins, claim own |
 | `daily` | public | own row only, **insert only** — no update policy, so one attempt a day is enforced by the database |
-| `profiles` | public | own row only, plus `is_admin()` for taking a bio down |
+| `profiles` | public | own row only, plus `is_admin()` for taking a bio down. `badges` / `badge_count` were added later; re-run `profiles.sql` for them |
 
 SQL lives in `supabase-setup.sql`, `leaderboard.sql`, `crews.sql`, `admin.sql`,
 `daily.sql`, `profiles.sql`.
@@ -179,6 +196,7 @@ curl -s -X POST -H "apikey: $KEY" -H "Content-Type: application/json" \
 | Daily seed run | `DAILY_EPOCH`, `DAILY_FLEET`, `STOCK_TUNE`, reward in `dailyReward()` |
 | Rider profiles | `PROF_NAME_MAX 24`, `PROF_BIO_MAX 200`, `COLOUR_OK` |
 | Rivals | how many are queued up: `limit=8` on a board, `limit=12` in the daily |
+| Badges | `BADGE_PINS 3`, the `BADGES` array (30 of them), tiers 1-3 |
 
 Seasons roll over from the clock — no scheduling, no server job. So does the
 daily seed, off a **UTC** day number, which means it turns over at 20:00 in
@@ -249,6 +267,12 @@ bike, or asserting on a stub that a live fetch had replaced.
   pays normally and the board tab says so in plain words rather than dying.
 - **Profiles need `profiles.sql` run**, and it depends on `is_admin()` from
   `admin.sql`. Until it is, the profile screen says so and nothing else breaks.
+- **Badges added two columns to `profiles`**, so `profiles.sql` needs running
+  again. It is idempotent and the `alter table ... add column if not exists`
+  lines are safe on the live table. Until it is run, `profilePush()` notices
+  the rejected column and re-files the card without the badge fields, so a
+  card never goes stale waiting on the SQL - but nobody else can see your
+  pinned three.
 - **A bio is the only free text one player writes for another to read.** It is
   capped at 200 characters and escaped, and the admin panel has a *Moderate a
   profile* card that clears a name and bio, but there is no automatic

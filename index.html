@@ -377,6 +377,29 @@
   .pedit textarea:focus{outline:none; border-color:var(--neon)}
   .pmsg{min-height:18px; font-size:13px; color:var(--hot); margin-top:4px}
   .pmsg.ok{color:var(--neon)}
+  .pbadges{display:flex; gap:7px; flex-wrap:wrap; margin-top:13px}
+  .bdg{display:inline-flex; align-items:center; gap:7px; padding:5px 11px 5px 9px; border-radius:999px;
+       border:1px solid var(--edge); background:rgba(8,11,16,.5); font-size:12.5px}
+  .bdg .ic{font-size:15px; line-height:1}
+  .bdg .nm{font-family:var(--num); font-weight:700; letter-spacing:.02em}
+  .bdg.t2{border-color:rgba(214,220,228,.42)}
+  .bdg.t3{border-color:rgba(255,194,75,.6); background:rgba(255,194,75,.10); color:var(--amber)}
+  .bdg.more{color:var(--dim); font-family:var(--num); letter-spacing:.04em}
+  .bcase{margin-top:16px; border-top:1px solid var(--edge); padding-top:15px}
+  .bcase h4{margin:0 0 4px; font-family:var(--num); font-size:16px; letter-spacing:.02em}
+  .bcase .sub{font-size:12.5px; color:var(--dim); margin-bottom:12px; line-height:1.5}
+  .bgrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(168px,1fr)); gap:9px}
+  .bcell{display:flex; gap:10px; align-items:flex-start; padding:10px 12px; border-radius:12px;
+         border:1px solid var(--edge); background:rgba(8,11,16,.45)}
+  .bcell .ic{font-size:19px; line-height:1.15; flex:none; filter:grayscale(1) opacity(.6)}
+  .bcell.got{cursor:pointer}
+  .bcell.got .ic{filter:none}
+  .bcell.got:hover{border-color:#3E4C5E}
+  .bcell.locked{opacity:.5}
+  .bcell.pinned{border-color:var(--neon); background:rgba(60,240,140,.10)}
+  .bcell b{display:block; font-family:var(--num); font-weight:700; font-size:13.5px; letter-spacing:.02em}
+  .bcell em{display:block; font-style:normal; font-size:11.5px; color:var(--dim);
+            line-height:1.35; margin-top:2px}
   .lbrow.click, .crewrow.click{cursor:pointer}
   .lbrow.click:hover, .crewrow.click:hover{background:rgba(60,240,140,.09)}
 
@@ -1404,7 +1427,7 @@ const CODES = {
 const SAVE = { coins:0, codes:[], bikes:[0], lids:[0,1], bike:0, lid:0, best:0, rampBest:0,
                quests:[], qp:{}, qdone:[], tune:{}, spot:0, bestRide:0,
                tricks:[], slots:["stand","knee","drag","nohand","fob","onehand"],
-               rider:{}, track:0, daily:{}, dailyBest:0, profile:{} };
+               rider:{}, track:0, daily:{}, dailyBest:0, profile:{}, badges:[], pins:[] };
 
 /* ---------- tuning ---------- */
 const PAINT = ["#FF6A13","#E01B24","#D0111B","#1D5FD8","#2452D8","#2FBF6B","#00C2C7",
@@ -1747,7 +1770,7 @@ function persistLocal(){
   SAVE.ts = Date.now();
   try { localStorage.setItem("soflo.save", JSON.stringify(SAVE)); } catch(e){}
 }
-function persist(){ persistLocal(); cloudMark(); }
+function persist(){ badgeCheck(); persistLocal(); cloudMark(); }
 function normaliseSave(){
   if (!Array.isArray(SAVE.bikes) || !SAVE.bikes.length) SAVE.bikes = [0];
   if (!Array.isArray(SAVE.lids)  || !SAVE.lids.length)  SAVE.lids  = [0,1];
@@ -1769,6 +1792,8 @@ function normaliseSave(){
   SAVE.track = SAVE.track | 0;
   if (!SAVE.daily || typeof SAVE.daily !== "object" || Array.isArray(SAVE.daily)) SAVE.daily = {};
   if (!SAVE.profile || typeof SAVE.profile !== "object" || Array.isArray(SAVE.profile)) SAVE.profile = {};
+  if (!Array.isArray(SAVE.badges)) SAVE.badges = [];
+  if (!Array.isArray(SAVE.pins))   SAVE.pins   = [];
   SAVE.dailyBest = Math.max(0, SAVE.dailyBest | 0);
   if (!Array.isArray(SAVE.codes)) SAVE.codes = [];
   if (!Array.isArray(SAVE.quests)) SAVE.quests = [];
@@ -2035,6 +2060,7 @@ function mergeSaves(a, b){
   out.codes  = uni("codes");
   out.tricks = uni("tricks");
   out.qdone  = uni("qdone");
+  out.badges = uni("badges");                  // earned on either device is earned
   out.paints = uni("paints");
 
   out.qp = Object.assign({}, a.qp || {});
@@ -2060,7 +2086,7 @@ function mergeSaves(a, b){
     out.tune[id] = t;
   }
 
-  for (const k of ["bike","lid","spot","track","slots","rider","keys","quests","crew","profile"])
+  for (const k of ["bike","lid","spot","track","slots","rider","keys","quests","crew","profile","pins"])
     if (newer[k] !== undefined) out[k] = newer[k];
 
   out.ts = Math.max(a.ts || 0, b.ts || 0);
@@ -4689,6 +4715,7 @@ function rivalCheck(live){
   }
   if (!passed) return;
   RIV.flash = 48;
+  qAdd("rivalsPassed", n);
   sfx.quest();
   toast(n > 1 ? "PASSED " + n + " RIDERS" : "PASSED " + passed);
   if (RIV.top) toast("NOBODY LEFT ABOVE YOU");
@@ -4898,6 +4925,148 @@ function renderDailyCard(){
       else done(false);
     } catch(e){ done(false); }
   });
+}
+
+/* ============================================================
+   BADGES
+   ------------------------------------------------------------
+   A collection loop hung off numbers the save was already keeping. Every
+   badge is a predicate over the save, checked on each persist, so nothing
+   new is tracked during a run and a badge cannot be missed by a code path
+   that forgot to call something.
+   Three can be pinned to your profile card, which is the whole point: the
+   card had a shelf and nothing to put on it.
+   Append to BADGES freely. Never change an id - it is what a save and a
+   pinned slot refer to - and never delete one, or you take a badge off
+   somebody who earned it.
+   ============================================================ */
+const BADGE_PINS = 3;
+const bq = k => (SAVE.qp && SAVE.qp[k]) || 0;
+const BADGES = [
+  // --- the street ---
+  { id:"up",        ic:"\u{1F6DE}", tier:1, name:"Front Wheel Up",  need:"Hold a wheelie for 5 seconds",
+    got:() => bq("wheelieHold") >= 5 },
+  { id:"minute",    ic:"⏱️", tier:3, name:"Sixty Seconds", need:"Hold a wheelie for a full minute",
+    got:() => bq("wheelieHold") >= 60 },
+  { id:"twelve",    ic:"\u{1F550}", tier:2, name:"Twelve O'Clock",  need:"Get past 95° and save it",
+    got:() => bq("angle") >= 95 },
+  { id:"ton",       ic:"\u{1F4A8}", tier:2, name:"Ton Up",          need:"Hit 100 mph on the street",
+    got:() => bq("mph") >= 100 },
+  { id:"sixfig",    ic:"\u{1F3D9}️", tier:3, name:"Six Figures", need:"Bank 100,000 on the street",
+    got:() => (SAVE.best | 0) >= 100000 },
+  { id:"chain",     ic:"✨", tier:2, name:"Chain Banker",       need:"Bank a 5,000 point style chain",
+    got:() => bq("styleBank") >= 5000 },
+  { id:"combo",     ic:"\u{1F3AF}", tier:2, name:"Six Chain",       need:"Chain a ×6 trick combo",
+    got:() => bq("combo") >= 6 },
+  { id:"stoppie",   ic:"\u{1F6D1}", tier:1, name:"Nose Down",       need:"Hold a stoppie for 2 seconds",
+    got:() => bq("stoppieTime") >= 2 },
+  { id:"drag",      ic:"\u{1F590}️", tier:1, name:"Hand Drag", need:"Hand drag for 2 seconds",
+    got:() => bq("dragTime") >= 2 },
+
+  // --- ride out ---
+  { id:"pack",      ic:"\u{1F6F5}", tier:2, name:"Pack Leader",     need:"Pass 90 riders in the pack",
+    got:() => bq("passed") >= 90 },
+  { id:"potholes",  ic:"\u{1F573}️", tier:2, name:"Pothole Proof", need:"Clear 50 obstacles on the wheel",
+    got:() => bq("cleared") >= 50 },
+  { id:"ride50k",   ic:"\u{1F6E3}️", tier:3, name:"Road Owner", need:"Bank 50,000 on a ride out",
+    got:() => (SAVE.bestRide | 0) >= 50000 },
+
+  // --- the ramp ---
+  { id:"flip1",     ic:"\u{1F504}", tier:1, name:"First Flip",      need:"Land a flip",
+    got:() => bq("flips") >= 1 },
+  { id:"flip50",    ic:"\u{1F300}", tier:2, name:"Fifty Flips",     need:"Land 50 flips",
+    got:() => bq("flips") >= 50 },
+  { id:"triple",    ic:"\u{1F3A1}", tier:3, name:"Triple",          need:"Land a triple flip",
+    got:() => bq("bigFlip") >= 3 },
+  { id:"hang",      ic:"\u{1FA82}", tier:2, name:"Hang Time",       need:"Stay airborne for 5 seconds",
+    got:() => bq("air") >= 5 },
+  { id:"far",       ic:"\u{1F3D4}️", tier:2, name:"Long Hauler", need:"Ride 2,000 m in ramp mode",
+    got:() => (SAVE.rampBest | 0) >= 2000 },
+  { id:"sweeper",   ic:"\u{1FA99}", tier:2, name:"Coin Sweeper",    need:"Grab 500 track coins",
+    got:() => bq("coinsGot") >= 500 },
+
+  // --- the daily ---
+  { id:"seed1",     ic:"\u{1F4C5}", tier:1, name:"First Seed",      need:"Finish a daily seed run",
+    got:() => (SAVE.daily && SAVE.daily.last | 0) > 0 },
+  { id:"seed7",     ic:"\u{1F525}", tier:2, name:"Seven Days",      need:"Keep a 7 day daily streak",
+    got:() => dailyStreak() >= 7 },
+  { id:"seed30",    ic:"\u{1F5D3}️", tier:3, name:"Thirty Days", need:"Keep a 30 day daily streak",
+    got:() => dailyStreak() >= 30 },
+  { id:"seedbest",  ic:"⚡", tier:3, name:"Seed Master",        need:"Score 5,000 on a daily seed",
+    got:() => (SAVE.dailyBest | 0) >= 5000 },
+
+  // --- rivals ---
+  { id:"rival1",    ic:"\u{1F440}", tier:1, name:"Caught One",      need:"Pass a rider you were chasing",
+    got:() => bq("rivalsPassed") >= 1 },
+  { id:"rival25",   ic:"\u{1F396}️", tier:2, name:"Serial Passer", need:"Pass 25 riders you were chasing",
+    got:() => bq("rivalsPassed") >= 25 },
+
+  // --- the long game ---
+  { id:"garage10",  ic:"\u{1F527}", tier:2, name:"Ten Bikes",       need:"Own 10 bikes",
+    got:() => (SAVE.bikes || []).length >= 10 },
+  { id:"garageall", ic:"\u{1F3C6}", tier:3, name:"Full Garage",     need:"Own every bike in the game",
+    got:() => (SAVE.bikes || []).length >= BIKES.length },
+  { id:"lvl25",     ic:"⭐", tier:2, name:"Level 25",           need:"Reach rider level 25",
+    got:() => riderLevel().lvl >= 25 },
+  { id:"lvl50",     ic:"\u{1F31F}", tier:3, name:"Level 50",        need:"Reach rider level 50",
+    got:() => riderLevel().lvl >= 50 },
+  { id:"quests20",  ic:"\u{1F4CB}", tier:2, name:"Twenty Quests",   need:"Finish 20 quests",
+    got:() => (SAVE.qdone || []).length >= 20 },
+  { id:"crew",      ic:"\u{1F91D}", tier:1, name:"Crew Rider",      need:"Join a crew",
+    got:() => inCrew() },
+];
+const badgeById = id => BADGES.find(b => b.id === id) || null;
+function badgeState(){
+  if (!Array.isArray(SAVE.badges)) SAVE.badges = [];
+  if (!Array.isArray(SAVE.pins))   SAVE.pins   = [];
+  return SAVE;
+}
+const badgeHas = id => badgeState().badges.indexOf(id) >= 0;
+// only ever the ones that are real, earned, and still in the catalogue
+const badgePins = () => badgeState().pins
+  .filter(id => badgeById(id) && badgeHas(id)).slice(0, BADGE_PINS);
+
+let badgeBusy = false;
+/* Runs on every persist, which is every point at which the save changed in a
+   way worth writing down. A save made before badges existed qualifies for a
+   pile of them at once, so the first pass is silent apart from one line. */
+function badgeCheck(){
+  if (badgeBusy) return 0;
+  badgeBusy = true;
+  badgeState();
+  const first = !SAVE.badgeInit;
+  const won = [];
+  try {
+    for (const b of BADGES) {
+      if (SAVE.badges.indexOf(b.id) >= 0) continue;
+      let hit = false;
+      try { hit = !!b.got(); } catch(e){ hit = false; }   // a bad predicate must not stop the rest
+      if (hit) { SAVE.badges.push(b.id); won.push(b); }
+    }
+  } finally { badgeBusy = false; }
+  SAVE.badgeInit = true;
+  if (!won.length) return 0;
+  if (first) toast(won.length + (won.length === 1 ? " BADGE UNLOCKED" : " BADGES UNLOCKED"));
+  else {
+    const b = won[won.length - 1];
+    toast("BADGE  " + b.name.toUpperCase() + (won.length > 1 ? "  +" + (won.length - 1) + " MORE" : ""));
+    sfx.quest();
+  }
+  return won.length;
+}
+function badgePin(id){
+  badgeState();
+  if (!badgeById(id) || !badgeHas(id)) return false;
+  const at = SAVE.pins.indexOf(id);
+  if (at >= 0) SAVE.pins.splice(at, 1);
+  else if (SAVE.pins.length >= BADGE_PINS) return false;
+  else SAVE.pins.push(id);
+  persist();
+  return true;
+}
+function badgeChip(b){
+  return `<span class="bdg t${b.tier}"><span class="ic">${b.ic}</span>` +
+         `<span class="nm">${esc(b.name)}</span></span>`;
 }
 
 /* ============================================================
@@ -6113,6 +6282,12 @@ function renderLevel(){
      <span class="xp">${L.done ? "MAX" : L.into.toLocaleString() + " / " + L.need.toLocaleString() + " XP"}
        · season tier ${tier}/${SEASON_TIERS} · ${now.daysLeft}d left</span>`;
 }
+function renderProfileLink(){
+  const b = document.getElementById("openMyProfile");
+  if (!b) return;
+  const n = badgeState().badges.length;
+  b.textContent = n ? "Your profile \u00b7 " + n + " badge" + (n === 1 ? "" : "s") : "Your profile";
+}
 function renderWho(){
   const el = document.getElementById("whoami");
   if (!el) return;
@@ -6145,7 +6320,7 @@ function openMenu(){
   audio.setStyle("menu");
   sfx.ui();
   syncWallet(); persist(); renderWho(); renderLevel(); renderSeasonBanner(); renderCrewLink();
-  renderDailyCard();
+  renderDailyCard(); renderProfileLink();
   renderBroadcast(); pullBroadcasts();
 }
 function openShop(){
@@ -7120,7 +7295,7 @@ document.getElementById("lbBack").addEventListener("click", closeBoard);
    ============================================================ */
 const elProfile = document.getElementById("profile");
 const PROF_NAME_MAX = 24, PROF_BIO_MAX = 200;
-const PROF = { open:null, from:"menu", busy:false, edit:false };
+const PROF = { open:null, from:"menu", busy:false, edit:false, case:false };
 const COLOUR_OK = /^#[0-9a-f]{3,8}$/i;
 
 const profSave = () => {
@@ -7155,6 +7330,7 @@ function myProfileRow(){
     bio:          profClean(p.bio,  PROF_BIO_MAX),
     bike: SAVE.bike | 0, lid: SAVE.lid | 0, spot: SAVE.spot | 0,
     level: riderLevel().lvl, streak: dailyStreak(), paint: paintOf(SAVE.bike),
+    badges: badgePins(), badge_count: badgeState().badges.length,
   };
 }
 // username is deliberately not sent: the table's trigger takes it off the
@@ -7162,9 +7338,18 @@ function myProfileRow(){
 async function profilePush(){
   if (!cloudOn() || !AUTH.uid) return false;
   if (!await freshToken()) return false;
-  await api("/rest/v1/profiles", { method:"POST",
+  const row = myProfileRow();
+  const post = body => api("/rest/v1/profiles", { method:"POST",
     headers:{ "Prefer":"resolution=merge-duplicates,return=minimal" },
-    body:JSON.stringify(myProfileRow()) });
+    body:JSON.stringify(body) });
+  try { await post(row); }
+  catch(e){
+    // a database that predates badges rejects the two new columns; file the
+    // rest rather than losing the whole card until the SQL is run
+    if (!/badge/i.test(String(e.message || "")) ) throw e;
+    delete row.badges; delete row.badge_count;
+    await post(row);
+  }
   return true;
 }
 async function dailyStats(name){
@@ -7195,6 +7380,15 @@ async function profileFetch(name){
   return out;
 }
 
+// a viewer only ever renders badges it knows: an id it cannot find is
+// dropped rather than printed, so nothing arbitrary from a row reaches a card
+function badgeStrip(ids, count){
+  const list = (Array.isArray(ids) ? ids : []).map(badgeById).filter(Boolean).slice(0, BADGE_PINS);
+  const n = Math.max(list.length, count | 0);
+  if (!list.length && !n) return "";
+  return `<div class="pbadges">` + list.map(badgeChip).join("") +
+    (n ? `<span class="bdg more">${n} badge${n === 1 ? "" : "s"} earned</span>` : "") + `</div>`;
+}
 function profStat(label, value, sub){
   return `<div class="pstat"><span>${label}</span><b>${value}${sub ? `<small>${sub}</small>` : ""}</b></div>`;
 }
@@ -7228,6 +7422,7 @@ function renderProfile(d){
        <div class="plid"><canvas id="pfLid" width="152" height="138"></canvas></div>
      </div>
      <div class="pbio${bio ? "" : " none"}">${bio ? esc(bio) : (mine ? "You haven't written a bio yet." : "No bio yet.")}</div>
+     ${badgeStrip(mine ? badgePins() : (p && p.badges), mine ? badgeState().badges.length : (p && p.badge_count | 0))}
      <div class="pstats">
        ${profStat("Street",   Number(sc.best      || 0).toLocaleString())}
        ${profStat("Ride Out", Number(sc.best_ride || 0).toLocaleString())}
@@ -7238,7 +7433,8 @@ function renderProfile(d){
        ${profStat("Usually at", esc((SPOTS[(p && p.spot) | 0] || SPOTS[0]).name))}
      </div>
      <div class="pfoot">
-       ${mine ? `<button class="btn pri" id="pfEdit">Edit profile</button>` : ""}
+       ${mine ? `<button class="btn pri" id="pfEdit">Edit profile</button>
+                 <button class="btn" id="pfCase">Badges</button>` : ""}
        ${since ? `<span class="since">riding since ${since.toLocaleDateString()}</span>` : ""}
      </div>`;
   body.innerHTML = "";
@@ -7257,7 +7453,49 @@ function renderProfile(d){
   }
   const ed = document.getElementById("pfEdit");
   if (ed) ed.addEventListener("click", () => { sfx.ui(); PROF.edit = true; renderProfileEdit(card); });
+  const cs = document.getElementById("pfCase");
+  if (cs) cs.addEventListener("click", () => { sfx.ui(); PROF.case = true; renderProfileCase(card); });
   if (PROF.edit && mine) renderProfileEdit(card);
+  if (PROF.case && mine) renderProfileCase(card);
+}
+/* The case is drawn from the local save rather than the row that came back,
+   so a badge earned thirty seconds ago is already in it. Pinning only writes
+   the save; the card goes up with the next sync like everything else. */
+function renderProfileCase(card){
+  if (card.querySelector(".bcase")) return;
+  const cs = document.getElementById("pfCase");
+  if (cs) cs.hidden = true;
+  const box = document.createElement("div");
+  box.className = "bcase";
+  card.appendChild(box);
+
+  const draw = () => {
+    const pins = badgePins(), have = badgeState().badges.length;
+    box.innerHTML =
+      `<h4>Badge case</h4>
+       <div class="sub">${have} of ${BADGES.length} earned ·
+         ${pins.length} of ${BADGE_PINS} pinned to your card ·
+         click one you have earned to pin or unpin it</div>
+       <div class="bgrid">` +
+      BADGES.map(b => {
+        const got = badgeHas(b.id), pinned = pins.indexOf(b.id) >= 0;
+        return `<div class="bcell t${b.tier}${got ? " got" : " locked"}${pinned ? " pinned" : ""}"` +
+               (got ? ` data-badge="${esc(b.id)}"` : "") + `>` +
+               `<span class="ic">${b.ic}</span>` +
+               `<span class="bt"><b>${esc(b.name)}</b><em>${got ? "" : "Locked · "}${esc(b.need)}</em></span>` +
+               `</div>`;
+      }).join("") + `</div>`;
+    box.querySelectorAll("[data-badge]").forEach(el => el.addEventListener("click", () => {
+      if (!badgePin(el.dataset.badge)) return toast("three pinned is the limit");
+      sfx.ui();
+      draw();
+      const strip = card.querySelector(".pbadges");
+      const html = badgeStrip(badgePins(), badgeState().badges.length);
+      if (strip) strip.outerHTML = html || `<div class="pbadges"></div>`;
+      else card.querySelector(".pbio").insertAdjacentHTML("afterend", html);
+    }));
+  };
+  draw();
 }
 function renderProfileEdit(card){
   if (card.querySelector(".pedit")) return;
@@ -7331,7 +7569,7 @@ async function showProfile(){
 function openProfile(name, from){
   PROF.open = name || AUTH.name || "";
   PROF.from = from || "menu";
-  PROF.edit = false;
+  PROF.edit = false; PROF.case = false;
   S.mode = "profile"; S.paused = false;
   elMenu.hidden = true; elShop.hidden = true; elBoard.hidden = true;
   elCrew.hidden = true; elSeason.hidden = true; elProfile.hidden = false;
@@ -7349,6 +7587,7 @@ document.getElementById("openMyProfile").addEventListener("click", () => openPro
 
 syncWallet();
 renderDailyCard();
+renderProfileLink();
 renderStreet();
 bootAuth();
 requestAnimationFrame(loop);
