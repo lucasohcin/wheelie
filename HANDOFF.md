@@ -6,7 +6,7 @@ Everything a fresh session needs to pick this up. Written 3 Sep 2026.
 
 ## What this is
 
-A wheelie game. One file: **`index.html`**, ~6,900 lines, no build step, no
+A wheelie game. One file: **`index.html`**, ~7,200 lines, no build step, no
 dependencies. HTML + CSS + one big IIFE of JavaScript, rendered to a canvas.
 
 - **Repo:** https://github.com/lucasohcin/wheelie
@@ -53,7 +53,7 @@ fields, so **adding** fields is free.
 
 It happened on 3 Sep: a second session committed the same feature concurrently
 (`30d9ab4`). Nothing was lost that time, by luck. Two sessions editing a single
-6,900-line file will overwrite each other.
+7,200-line file will overwrite each other.
 
 ---
 
@@ -70,6 +70,7 @@ It happened on 3 Sep: a second session committed the same feature concurrently
 | Cloud sync | `cloudSyncNow()` |
 | Two-player | `startVersus()` / `vsTick()` / `vsRender()` / `renderVersus()` |
 | Daily seed run | `startDaily()` / `dailyFinish()` / `dailyStop()`, plan in `dailyPlan(day)` |
+| Rider profiles | `openProfile(name, from)` / `profileFetch()` / `renderProfile()` / `profilePush()` |
 
 **Stat pipeline order:** base bike → upgrade pips → engine swap → fitted parts.
 All multiplicative except `loop`/`bp`, which are additive offsets.
@@ -88,6 +89,18 @@ is stored anywhere and every rider computes the same setup independently. The
 loaner is `buildBike(idx, DAILY_STOCK)`, which skips the player's upgrades.
 `DAILY.on` also locks `rtrack()`, blocks `cycleBike()`, keeps the crash from
 respawning at a checkpoint, and keeps the run out of `SAVE.rampBest`.
+
+**Rider profiles** are a public card per rider, opened by clicking a name on
+any leaderboard or crew roster. The avatar is not an upload: it is their bike,
+in their paint, drawn by the same `thumbBike()` the garage uses, from a bike
+index and five colours on the row. Nothing needs hosting and nothing needs
+moderating except the two fields a player types — display name and bio — which
+are capped, stripped of control characters, and escaped on the way out.
+`buildBike(idx, STOCK_TUNE)` is what makes an avatar show the bike rather than
+the owner's upgrades; the daily loaner uses the same argument.
+The username on a row is set by a database trigger off the account, never by
+the client, because profiles are looked up by name and letting a client set it
+would let one player claim another's name.
 
 **Versus** swaps the module globals (`S`, `POSE`, `CUR`, `ctx`, `target`,
 `SCALE/DPR/OFFX/OFFY`) around each rider, renders each to its own offscreen
@@ -115,9 +128,10 @@ level security is what actually protects data.
 | `broadcasts` | public | admins only |
 | `grants` | own + admins | insert admins, claim own |
 | `daily` | public | own row only, **insert only** — no update policy, so one attempt a day is enforced by the database |
+| `profiles` | public | own row only, plus `is_admin()` for taking a bio down |
 
 SQL lives in `supabase-setup.sql`, `leaderboard.sql`, `crews.sql`, `admin.sql`,
-`daily.sql`.
+`daily.sql`, `profiles.sql`.
 All are idempotent — safe to re-run.
 
 **Auth quirk:** usernames map to internal addresses `name@wheelie.local`, which
@@ -144,7 +158,8 @@ curl -s -X POST -H "apikey: $KEY" -H "Content-Type: application/json" \
 | Style chain | `STYLE_STEP 2200`, `STYLE_GRACE 12`, `STYLE_CRASH_KEEP 0.34` |
 | Render quality | `Q_STEPS` |
 | Admin door | `ADMIN_PHRASE "adminabuse"` |
-| Daily seed run | `DAILY_EPOCH`, `DAILY_FLEET`, `DAILY_STOCK`, reward in `dailyReward()` |
+| Daily seed run | `DAILY_EPOCH`, `DAILY_FLEET`, `STOCK_TUNE`, reward in `dailyReward()` |
+| Rider profiles | `PROF_NAME_MAX 24`, `PROF_BIO_MAX 200`, `COLOUR_OK` |
 
 Seasons roll over from the clock — no scheduling, no server job. So does the
 daily seed, off a **UTC** day number, which means it turns over at 20:00 in
@@ -213,6 +228,14 @@ bike, or asserting on a stub that a live fetch had replaced.
   crash does not burn somebody's day.
 - **The daily board needs `daily.sql` run.** Until it is, the mode plays and
   pays normally and the board tab says so in plain words rather than dying.
+- **Profiles need `profiles.sql` run**, and it depends on `is_admin()` from
+  `admin.sql`. Until it is, the profile screen says so and nothing else breaks.
+- **A bio is the only free text one player writes for another to read.** It is
+  capped at 200 characters and escaped, and the admin panel has a *Moderate a
+  profile* card that clears a name and bio, but there is no automatic
+  filtering. That was the deciding argument against crew chat, so if bios turn
+  into a problem the same reasoning applies: take the feature out rather than
+  try to police it.
 
 ---
 

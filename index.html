@@ -339,6 +339,47 @@
                       letter-spacing:.08em; color:var(--neon)}
   .dailycard .dfoot .btn{padding:8px 16px; font-size:13px}
 
+  .profsheet{width:min(720px,94vw); text-align:left}
+  .profbody{margin-top:14px}
+  .profnote{padding:30px 18px; text-align:center; color:var(--dim); font-size:14px; line-height:1.6}
+  .profcard{border:1px solid var(--edge); border-radius:16px; padding:18px;
+            background:linear-gradient(165deg,rgba(20,26,35,.75),rgba(10,13,18,.75))}
+  .profhead{display:flex; gap:18px; align-items:center; flex-wrap:wrap}
+  .avatar{width:212px; height:120px; flex:none; border-radius:14px; overflow:hidden;
+          border:1px solid var(--edge);
+          background:linear-gradient(160deg,rgba(34,43,56,.95),rgba(12,16,22,.95))}
+  .avatar canvas{display:block; width:100%; height:100%}
+  .pwho{flex:1; min-width:180px}
+  .pname{font-family:var(--num); font-weight:700; font-size:clamp(22px,3.4vw,30px); line-height:1.1}
+  .phandle{font-size:13px; color:var(--dim); margin-top:3px}
+  .plid{width:66px; height:60px; flex:none; border-radius:12px; border:1px solid var(--edge);
+        background:rgba(8,11,16,.55); overflow:hidden}
+  .plid canvas{display:block; width:100%; height:100%}
+  .pchips{display:flex; gap:7px; flex-wrap:wrap; margin-top:9px}
+  .chip{font-family:var(--num); font-weight:700; font-size:11.5px; letter-spacing:.1em;
+        padding:4px 10px; border-radius:999px; border:1px solid var(--edge); color:var(--dim)}
+  .chip.lv{color:#0B0F14; background:var(--amber); border-color:transparent}
+  .chip.crew{color:var(--neon); border-color:rgba(60,240,140,.5)}
+  .chip.streak{color:#7BE7FF; border-color:rgba(123,231,255,.5)}
+  .pbio{margin-top:15px; font-size:14.5px; line-height:1.55; overflow-wrap:anywhere}
+  .pbio.none{color:var(--dim); font-style:italic}
+  .pstats{display:grid; grid-template-columns:repeat(auto-fit,minmax(126px,1fr)); gap:10px; margin-top:16px}
+  .pstat{border:1px solid var(--edge); border-radius:12px; padding:9px 12px; background:rgba(8,11,16,.5)}
+  .pstat span{display:block; font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--dim)}
+  .pstat b{display:block; font-family:var(--num); font-weight:700; font-size:19px; margin-top:3px}
+  .pstat b small{font-size:12px; color:var(--dim); font-weight:600; margin-left:4px}
+  .pfoot{display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:16px}
+  .pfoot .since{font-size:12px; color:var(--dim); margin-left:auto}
+  .pedit{margin-top:16px; border-top:1px solid var(--edge); padding-top:16px}
+  .pedit textarea{width:100%; padding:11px 13px; border-radius:11px; background:rgba(8,11,16,.75);
+                  border:1px solid var(--edge); color:var(--text); font-family:var(--ui);
+                  font-size:14.5px; line-height:1.5; resize:vertical; min-height:74px}
+  .pedit textarea:focus{outline:none; border-color:var(--neon)}
+  .pmsg{min-height:18px; font-size:13px; color:var(--hot); margin-top:4px}
+  .pmsg.ok{color:var(--neon)}
+  .lbrow.click, .crewrow.click{cursor:pointer}
+  .lbrow.click:hover, .crewrow.click:hover{background:rgba(60,240,140,.09)}
+
 
   .bcastlive{
     position:fixed; left:50%; top:18px; transform:translate(-50%,-24px); z-index:40;
@@ -532,7 +573,8 @@
     <button class="passbanner" id="openSeason"></button>
     <div class="dailycard" id="dailyCard"></div>
     <div class="whoami"><button id="openBoard">View the leaderboard</button>
-      <span style="opacity:.4">·</span><button id="openCrew">Crews</button></div>
+      <span style="opacity:.4">·</span><button id="openCrew">Crews</button>
+      <span style="opacity:.4">·</span><button id="openMyProfile">Your profile</button></div>
     <div class="modes">
       <button class="mode" id="mStreet">
         <div class="ic">🌴</div>
@@ -648,6 +690,16 @@
       <button class="btn" id="crewBack">Back</button>
     </div>
     <div class="crewbody" id="crewBody"></div>
+  </div>
+</div>
+
+<div class="sheet" id="profile" hidden>
+  <div class="profsheet">
+    <div class="shophead">
+      <h2>Rider</h2>
+      <button class="btn" id="profBack">Back</button>
+    </div>
+    <div class="profbody" id="profBody"></div>
   </div>
 </div>
 
@@ -1352,7 +1404,7 @@ const CODES = {
 const SAVE = { coins:0, codes:[], bikes:[0], lids:[0,1], bike:0, lid:0, best:0, rampBest:0,
                quests:[], qp:{}, qdone:[], tune:{}, spot:0, bestRide:0,
                tricks:[], slots:["stand","knee","drag","nohand","fob","onehand"],
-               rider:{}, track:0, daily:{}, dailyBest:0 };
+               rider:{}, track:0, daily:{}, dailyBest:0, profile:{} };
 
 /* ---------- tuning ---------- */
 const PAINT = ["#FF6A13","#E01B24","#D0111B","#1D5FD8","#2452D8","#2FBF6B","#00C2C7",
@@ -1716,6 +1768,7 @@ function normaliseSave(){
   if (!SAVE.keys || typeof SAVE.keys !== "object" || Array.isArray(SAVE.keys)) SAVE.keys = {};
   SAVE.track = SAVE.track | 0;
   if (!SAVE.daily || typeof SAVE.daily !== "object" || Array.isArray(SAVE.daily)) SAVE.daily = {};
+  if (!SAVE.profile || typeof SAVE.profile !== "object" || Array.isArray(SAVE.profile)) SAVE.profile = {};
   SAVE.dailyBest = Math.max(0, SAVE.dailyBest | 0);
   if (!Array.isArray(SAVE.codes)) SAVE.codes = [];
   if (!Array.isArray(SAVE.quests)) SAVE.quests = [];
@@ -2007,7 +2060,7 @@ function mergeSaves(a, b){
     out.tune[id] = t;
   }
 
-  for (const k of ["bike","lid","spot","track","slots","rider","keys","quests","crew"])
+  for (const k of ["bike","lid","spot","track","slots","rider","keys","quests","crew","profile"])
     if (newer[k] !== undefined) out[k] = newer[k];
 
   out.ts = Math.max(a.ts || 0, b.ts || 0);
@@ -2026,6 +2079,7 @@ function cloudMark(){                       // called whenever the save changes
     try { await cloudPush(); } catch(e){ pushDirty = true; }
     try { await scoresPush(); } catch(e){}   // board is secondary; never risk the save
     try { await dailyPush();  } catch(e){}
+    try { await profilePush(); } catch(e){}
   }, 4000);
 }
 async function cloudSyncNow(){
@@ -2285,7 +2339,7 @@ addEventListener("keydown", e => {
   keys[k] = true;
   const playing = S.mode === "street" || S.mode === "ramp";
   if (k === "escape" && VS.on) { endVersus(); return; }
-  if (k === "escape") { playing ? openMenu() : (S.mode === "shop" ? openMenu() : S.mode === "board" ? closeBoard() : S.mode === "season" ? closeSeason() : S.mode === "crew" ? closeCrew() : S.mode === "admin" ? closeAdmin() : 0); return; }
+  if (k === "escape") { playing ? openMenu() : (S.mode === "shop" ? openMenu() : S.mode === "board" ? closeBoard() : S.mode === "season" ? closeSeason() : S.mode === "crew" ? closeCrew() : S.mode === "profile" ? closeProfile() : S.mode === "admin" ? closeAdmin() : 0); return; }
   if (k === "enter") { playing ? (S.paused && togglePause()) : startMode("rideout"); return; }
   if (!playing) return;
   const act = actionFor(k);
@@ -4581,7 +4635,7 @@ function renderStreet(){
    ============================================================ */
 const DAILY_EPOCH = Date.UTC(2026, 0, 5);        // day 1 was Mon 5 Jan 2026
 const DAILY_FLEET = [0, 1, 2, 4, 5, 6, 7, 8, 9, 12, 13, 15, 16, 17, 18, 19, 20, 24, 26, 27];
-const DAILY_STOCK = Object.freeze({
+const STOCK_TUNE = Object.freeze({
   up:{ motor:0, brakes:0, tyres:0, susp:0 }, fx:{}, own:{}, owns:{}, engs:{ stock:1 },
   eng:"stock", parts:{ gearing:"stock", susp:"stock", tyres:"stock" },
 });
@@ -4641,7 +4695,7 @@ function startDaily(){
   DAILY.on = true; DAILY.over = false; DAILY.day = st.day;
   DAILY.bike = P.bike; DAILY.track = P.track; DAILY.score = 0; DAILY.dist = 0;
   tRnd = seedRnd(P.seed);                        // seeded before the track is generated, not after
-  CUR = buildBike(P.bike, DAILY_STOCK);
+  CUR = buildBike(P.bike, STOCK_TUNE);
   st.started = true;                             // spent the moment you set off: no restarts
   persist();
   startMode("ramp");
@@ -5962,7 +6016,7 @@ function openMenu(){
   VS.on = false;
   S.mode = "menu"; S.paused = false;
   elShop.hidden = true; elBoard.hidden = true; elSeason.hidden = true; elCrew.hidden = true;
-  elAdmin.hidden = true; elMenu.hidden = false;
+  elAdmin.hidden = true; elProfile.hidden = true; elMenu.hidden = false;
   elExit.classList.remove("on");
   for (const k in keys) keys[k] = false;
   for (const k in touchKeys) touchKeys[k] = false;
@@ -6574,11 +6628,70 @@ async function renderAdmin(){
       sfx.buy();
     } catch(e){ adSay("adGiveOut", "Refused: " + String(e.message || e), "no"); }
   });
+
+  /* Bios are the one thing in the game a player can type for other players to
+     read, so there has to be a way to take one down. The policy on `profiles`
+     lets an admin write any row; this is the button for it. */
+  const mod = document.createElement("div");
+  mod.className = "adcard";
+  mod.innerHTML = `<h3>Moderate a profile</h3>
+    <div class="adrow">
+      <label class="fld" style="flex:2"><span>Username</span>
+        <input id="adProfUser" placeholder="exact username" spellcheck="false"></label>
+      <button class="btn" id="adProfLoad">Look up</button>
+      <button class="btn" id="adProfWipe">Clear name and bio</button>
+    </div>
+    <div class="admsg" id="adProfOut">Clearing wipes the display name and bio only -
+      the account, its scores and its garage are untouched.</div>`;
+  body.appendChild(mod);
+
+  const profUser = () => document.getElementById("adProfUser").value.trim();
+  let armed = false;
+  const disarm = () => {
+    armed = false;
+    const b = document.getElementById("adProfWipe");
+    if (b) b.textContent = "Clear name and bio";
+  };
+  document.getElementById("adProfUser").addEventListener("input", disarm);
+  document.getElementById("adProfLoad").addEventListener("click", async () => {
+    const name = profUser();
+    disarm();
+    if (!name) return adSay("adProfOut", "Type a username", "no");
+    adSay("adProfOut", "Looking up...");
+    try {
+      const rows = await api("/rest/v1/profiles?select=display_name,bio,updated_at&limit=1&username=eq." +
+        encodeURIComponent(name));
+      const r = rows && rows[0];
+      if (!r) return adSay("adProfOut", "No profile for " + name, "no");
+      adSay("adProfOut", (r.display_name || "(no display name)") + " - " +
+        (r.bio || "(no bio)") + "  ·  updated " + new Date(r.updated_at).toLocaleString());
+    } catch(e){ adSay("adProfOut", "Refused: " + String(e.message || e), "no"); }
+  });
+  document.getElementById("adProfWipe").addEventListener("click", async () => {
+    const name = profUser();
+    if (!name) return adSay("adProfOut", "Type a username", "no");
+    const btn = document.getElementById("adProfWipe");
+    if (!armed) {
+      armed = true;
+      btn.textContent = "Click again to clear " + name;
+      return adSay("adProfOut", "This cannot be undone. Click the button again to go ahead.");
+    }
+    disarm();
+    adSay("adProfOut", "Clearing...");
+    try {
+      await api("/rest/v1/profiles?username=eq." + encodeURIComponent(name),
+        { method:"PATCH", headers:{ "Prefer":"return=minimal" },
+          body:JSON.stringify({ display_name:"", bio:"" }) });
+      adSay("adProfOut", "Cleared " + name + "'s name and bio", "ok");
+      sfx.ui();
+    } catch(e){ adSay("adProfOut", "Refused: " + String(e.message || e), "no"); }
+  });
 }
 function openAdmin(){
   S.mode = "admin"; S.paused = false;
   elMenu.hidden = true; elShop.hidden = true; elBoard.hidden = true;
-  elSeason.hidden = true; elCrew.hidden = true; elAdmin.hidden = false;
+  elSeason.hidden = true; elCrew.hidden = true; elProfile.hidden = true;
+  elAdmin.hidden = false;
   sfx.ui();
   adminCheck().then(renderAdmin);
 }
@@ -6603,7 +6716,8 @@ function renderCrewTabs(){
   }
 }
 function crewRow(i, name, members, score, extra){
-  return `<div class="crewrow${extra && extra.mine ? " mine" : ""}">
+  const rider = extra && extra.rider ? ` data-rider="${esc(extra.rider)}"` : "";
+  return `<div class="crewrow${extra && extra.mine ? " mine" : ""}${rider ? " click" : ""}"${rider}>
     <div class="pos">${i === null ? "" : "#" + i}</div>
     <div class="nm">${esc(name)}</div>
     <div class="mem">${members === null ? "" : members + (members === 1 ? " rider" : " riders")}</div>
@@ -6642,7 +6756,10 @@ async function showCrew(){
         const list = document.createElement("div");
         list.className = "crewlist";
         list.innerHTML = rows.map((r, i) =>
-          crewRow(i + 1, r.name + (r.me ? " (you)" : ""), null, r.best, { mine:r.me })).join("");
+          crewRow(i + 1, r.name + (r.me ? " (you)" : ""), null, r.best,
+                  { mine:r.me, rider:r.name })).join("");
+        list.querySelectorAll("[data-rider]").forEach(el =>
+          el.addEventListener("click", () => openProfile(el.dataset.rider, "crew")));
         box.appendChild(list);
         const leave = document.createElement("button");
         leave.className = "btn"; leave.style.marginTop = "12px";
@@ -6815,6 +6932,9 @@ async function showBoard(){
           (i === 0 ? " gold" : i === 1 ? " silver" : i === 2 ? " bronze" : "");
         const pos = document.createElement("div"); pos.className = "pos"; pos.textContent = "#" + (i + 1);
         const who = document.createElement("div"); who.className = "who"; who.textContent = r.username || "rider";
+        d.classList.add("click");
+        d.title = "See this rider";
+        d.addEventListener("click", () => openProfile(r.username || "rider", "board"));
         const sc  = document.createElement("div"); sc.className  = "sc";
         sc.textContent = Number((board.daily ? r.score : r[board.key]) || 0).toLocaleString();
         d.append(pos, who, sc);
@@ -6856,6 +6976,248 @@ function openBoard(){
 function closeBoard(){ elBoard.hidden = true; openMenu(); }
 document.getElementById("openBoard").addEventListener("click", openBoard);
 document.getElementById("lbBack").addEventListener("click", closeBoard);
+
+/* ============================================================
+   RIDER PROFILES
+   ------------------------------------------------------------
+   A public card for every rider, opened by clicking a name anywhere a name
+   appears. The avatar is not an upload: it is the bike they are actually
+   riding, in their own paint, drawn by the same routine the garage uses. That
+   keeps profiles free of anything that needs hosting or moderating, and it
+   means your picture changes the day you buy a bike.
+   Only the display name and the bio are typed by a player. Everything else is
+   derived from the save and pushed on each sync, so a card cannot drift from
+   the game it describes. Both typed fields are escaped on the way out - a
+   profile is exactly the kind of place the crew-name XSS would come back.
+   ============================================================ */
+const elProfile = document.getElementById("profile");
+const PROF_NAME_MAX = 24, PROF_BIO_MAX = 200;
+const PROF = { open:null, from:"menu", busy:false, edit:false };
+const COLOUR_OK = /^#[0-9a-f]{3,8}$/i;
+
+const profSave = () => {
+  if (!SAVE.profile || typeof SAVE.profile !== "object") SAVE.profile = {};
+  return SAVE.profile;
+};
+// one line, no control characters, short enough to fit on a card
+function profClean(t, max){
+  return String(t == null ? "" : t)
+    .replace(/[\u0000-\u001F\u007F]+/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
+}
+// paint travels with the profile so a viewer draws the bike as its owner did
+function paintOf(idx){
+  const t = tuneOf(idx), out = {};
+  for (const k of ["body","body2","rim","frame","fork"])
+    if (t[k] && COLOUR_OK.test(t[k])) out[k] = t[k];
+  return out;
+}
+function profileBikeOf(p){
+  const idx = Math.max(0, Math.min(BIKES.length - 1, (p && p.bike) | 0));
+  const paint = {};
+  const src = (p && p.paint && typeof p.paint === "object") ? p.paint : {};
+  for (const k of ["body","body2","rim","frame","fork"])
+    if (typeof src[k] === "string" && COLOUR_OK.test(src[k])) paint[k] = src[k];
+  return buildBike(idx, Object.assign({}, STOCK_TUNE, paint));
+}
+function myProfileRow(){
+  const p = profSave();
+  return {
+    user_id: AUTH.uid,
+    display_name: profClean(p.name, PROF_NAME_MAX),
+    bio:          profClean(p.bio,  PROF_BIO_MAX),
+    bike: SAVE.bike | 0, lid: SAVE.lid | 0, spot: SAVE.spot | 0,
+    level: riderLevel().lvl, streak: dailyStreak(), paint: paintOf(SAVE.bike),
+  };
+}
+// username is deliberately not sent: the table's trigger takes it off the
+// account, so nobody can file a profile under somebody else's name
+async function profilePush(){
+  if (!cloudOn() || !AUTH.uid) return false;
+  if (!await freshToken()) return false;
+  await api("/rest/v1/profiles", { method:"POST",
+    headers:{ "Prefer":"resolution=merge-duplicates,return=minimal" },
+    body:JSON.stringify(myProfileRow()) });
+  return true;
+}
+async function dailyStats(name){
+  const r = await fetch(CLOUD.url + "/rest/v1/daily?select=score&order=score.desc&limit=1&username=eq." +
+    encodeURIComponent(name),
+    { headers:{ apikey:CLOUD.key, Authorization:"Bearer " + AUTH.token,
+                Prefer:"count=exact", Range:"0-0" } });
+  if (!r.ok) return null;
+  const rows = await r.json();
+  const runs = parseInt((r.headers.get("content-range") || "").split("/")[1], 10);
+  return { best:(rows && rows[0] && rows[0].score) || 0, runs: isFinite(runs) ? runs : 0 };
+}
+/* Four small public reads rather than one view: `scores`, `crew_members` and
+   `daily` were already world readable, so a profile exposes nothing new. */
+async function profileFetch(name){
+  const q = "username=eq." + encodeURIComponent(name);
+  const prof = (await api("/rest/v1/profiles?select=*&limit=1&" + q))[0] || null;
+  const out = { name, prof, score:null, crew:null, daily:null };
+  try { out.score = (await api("/rest/v1/scores?select=best,best_ride,ramp_best&limit=1&" + q))[0] || null; }
+  catch(e){}
+  if (prof && prof.user_id) {
+    try {
+      const cm = await api("/rest/v1/crew_members?select=crews(name,tag)&limit=1&user_id=eq." + prof.user_id);
+      out.crew = (cm && cm[0] && cm[0].crews) || null;
+    } catch(e){}
+  }
+  try { out.daily = await dailyStats(name); } catch(e){}
+  return out;
+}
+
+function profStat(label, value, sub){
+  return `<div class="pstat"><span>${label}</span><b>${value}${sub ? `<small>${sub}</small>` : ""}</b></div>`;
+}
+function renderProfile(d){
+  const body = document.getElementById("profBody");
+  const p = d.prof, sc = d.score || {};
+  const mine = !!(AUTH.name && d.name && AUTH.name.toLowerCase() === String(d.name).toLowerCase());
+  const B = profileBikeOf(p);
+  const lid = HELMETS[Math.max(0, Math.min(HELMETS.length - 1, (p && p.lid) | 0))] || HELMETS[0];
+  const shown = profClean((p && p.display_name) || d.name || "rider", PROF_NAME_MAX);
+  const lvl = p ? Math.max(1, p.level | 0) : 0;
+  const streak = p ? (p.streak | 0) : 0;
+  const bio = profClean(p && p.bio, PROF_BIO_MAX);
+  const since = p && p.created_at ? new Date(p.created_at) : null;
+
+  const card = document.createElement("div");
+  card.className = "profcard";
+  card.innerHTML =
+    `<div class="profhead">
+       <div class="avatar"><canvas id="pfBike" width="424" height="240"></canvas></div>
+       <div class="pwho">
+         <div class="pname">${esc(shown)}</div>
+         <div class="phandle">@${esc(d.name || "rider")}${mine ? " · this is you" : ""}</div>
+         <div class="pchips">
+           ${lvl ? `<span class="chip lv">LVL ${lvl} · ${esc(titleFor(lvl))}</span>` : ""}
+           ${d.crew && d.crew.name
+              ? `<span class="chip crew">${esc(d.crew.tag ? "[" + d.crew.tag + "] " : "")}${esc(d.crew.name)}</span>` : ""}
+           ${streak > 0 ? `<span class="chip streak">${streak} DAY STREAK</span>` : ""}
+         </div>
+       </div>
+       <div class="plid"><canvas id="pfLid" width="152" height="138"></canvas></div>
+     </div>
+     <div class="pbio${bio ? "" : " none"}">${bio ? esc(bio) : (mine ? "You haven't written a bio yet." : "No bio yet.")}</div>
+     <div class="pstats">
+       ${profStat("Street",   Number(sc.best      || 0).toLocaleString())}
+       ${profStat("Ride Out", Number(sc.best_ride || 0).toLocaleString())}
+       ${profStat("Ramp",     Number(sc.ramp_best || 0).toLocaleString(), "m")}
+       ${profStat("Daily best", d.daily ? Number(d.daily.best || 0).toLocaleString() : "—",
+                  d.daily && d.daily.runs ? d.daily.runs + " run" + (d.daily.runs === 1 ? "" : "s") : "")}
+       ${profStat("Rides", esc(B.name))}
+       ${profStat("Usually at", esc((SPOTS[(p && p.spot) | 0] || SPOTS[0]).name))}
+     </div>
+     <div class="pfoot">
+       ${mine ? `<button class="btn pri" id="pfEdit">Edit profile</button>` : ""}
+       ${since ? `<span class="since">riding since ${since.toLocaleDateString()}</span>` : ""}
+     </div>`;
+  body.innerHTML = "";
+  body.appendChild(card);
+
+  try { thumbBike(document.getElementById("pfBike"), B); } catch(e){}
+  try { thumbLid(document.getElementById("pfLid"), lid, B.body); } catch(e){}
+
+  if (!p) {
+    const note = document.createElement("div");
+    note.className = "profnote";
+    note.textContent = mine
+      ? "Your card goes up the next time the game syncs."
+      : "This rider hasn't been seen since profiles arrived, so their card is still filling in.";
+    card.appendChild(note);
+  }
+  const ed = document.getElementById("pfEdit");
+  if (ed) ed.addEventListener("click", () => { sfx.ui(); PROF.edit = true; renderProfileEdit(card); });
+  if (PROF.edit && mine) renderProfileEdit(card);
+}
+function renderProfileEdit(card){
+  if (card.querySelector(".pedit")) return;
+  const ed = document.getElementById("pfEdit");
+  if (ed) ed.hidden = true;
+  const p = profSave();
+  const box = document.createElement("div");
+  box.className = "pedit";
+  box.innerHTML =
+    `<label class="fld"><span>Display name <i>up to ${PROF_NAME_MAX}, blank uses your username</i></span>
+       <input id="pfName" maxlength="${PROF_NAME_MAX}" autocomplete="off" spellcheck="false"></label>
+     <label class="fld"><span>Bio <i>up to ${PROF_BIO_MAX}</i></span>
+       <textarea id="pfBio" maxlength="${PROF_BIO_MAX}" spellcheck="true"></textarea></label>
+     <div class="pfoot"><button class="btn pri" id="pfSave">Save</button>
+       <button class="btn" id="pfCancel">Cancel</button></div>
+     <div class="pmsg" id="pfMsg"></div>`;
+  card.appendChild(box);
+  const nameIn = document.getElementById("pfName"), bioIn = document.getElementById("pfBio");
+  nameIn.value = profClean(p.name, PROF_NAME_MAX);
+  bioIn.value  = profClean(p.bio,  PROF_BIO_MAX);
+  nameIn.focus();
+
+  const say = (t, ok) => {
+    const m = document.getElementById("pfMsg");
+    if (m) { m.textContent = t || ""; m.className = "pmsg" + (ok ? " ok" : ""); }
+  };
+  document.getElementById("pfCancel").addEventListener("click", () => {
+    sfx.ui(); PROF.edit = false; showProfile();
+  });
+  document.getElementById("pfSave").addEventListener("click", async () => {
+    const btn = document.getElementById("pfSave");
+    btn.disabled = true;
+    say("Saving…", true);
+    p.name = profClean(nameIn.value, PROF_NAME_MAX);
+    p.bio  = profClean(bioIn.value,  PROF_BIO_MAX);
+    persist();
+    try {
+      await profilePush();
+      sfx.ui();
+      PROF.edit = false;
+      showProfile();
+    } catch(e){
+      // the save already holds it, so this is only about the public card
+      say(e.status === 404 || e.status === 400
+        ? "Saved on this device. Profiles aren't set up on the server yet."
+        : "Saved on this device, but couldn't reach the server.");
+      btn.disabled = false;
+    }
+  });
+}
+async function showProfile(){
+  const body = document.getElementById("profBody");
+  if (!cloudOn() || !AUTH.uid) {
+    body.innerHTML = `<div class="profnote">Sign in to see rider profiles.</div>`;
+    return;
+  }
+  if (PROF.busy) return;
+  PROF.busy = true;
+  body.innerHTML = `<div class="profnote">Loading…</div>`;
+  try {
+    if (!await freshToken()) { body.innerHTML = `<div class="profnote">Sign in to see rider profiles.</div>`; }
+    else renderProfile(await profileFetch(PROF.open));
+  } catch(e){
+    body.innerHTML = (e.status === 404 || e.status === 400)
+      ? `<div class="profnote">Profiles aren't set up on the server yet.<br>
+           Everything else works; this screen needs <b>profiles.sql</b> run.</div>`
+      : `<div class="profnote">Couldn't load that profile.<br>${esc(String(e.message || e))}</div>`;
+  }
+  PROF.busy = false;
+}
+function openProfile(name, from){
+  PROF.open = name || AUTH.name || "";
+  PROF.from = from || "menu";
+  PROF.edit = false;
+  S.mode = "profile"; S.paused = false;
+  elMenu.hidden = true; elShop.hidden = true; elBoard.hidden = true;
+  elCrew.hidden = true; elSeason.hidden = true; elProfile.hidden = false;
+  sfx.ui();
+  showProfile();
+}
+function closeProfile(){
+  elProfile.hidden = true;
+  if (PROF.from === "board") openBoard();
+  else if (PROF.from === "crew") openCrew();
+  else openMenu();
+}
+document.getElementById("profBack").addEventListener("click", closeProfile);
+document.getElementById("openMyProfile").addEventListener("click", () => openProfile(AUTH.name, "menu"));
 
 syncWallet();
 renderDailyCard();
