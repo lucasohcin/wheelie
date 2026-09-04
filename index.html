@@ -2581,9 +2581,9 @@ function tickStreet(){
      going straight to the bank. Set the front down and it pays out, multiplied.
      Crash and it is gone. */
   if (S.style > 0) {
-    const alive = easy > 8 || S.stopT > 0.2;
-    if (alive) { S.styleT = 90; }
-    else if (--S.styleT <= 0) bankStyle("landed");
+    const alive = easy > 4 || S.stopT > 0.15;
+    if (alive) S.styleT = STYLE_GRACE;
+    else if (--S.styleT <= 0) bankStyle("banked");
   }
   if (S.styleFlash > 0) S.styleFlash--;
 
@@ -2694,12 +2694,14 @@ function tickStreet(){
    all in the air: points ride on it while the wheel is up, the multiplier
    climbs as you hold, and it only becomes score when you set the front down.
    Crashing loses the lot. */
-const STYLE_STEP = 2200;                    // banked points per multiplier step
+const STYLE_STEP = 2200;
+const STYLE_CRASH_KEEP = 0.34;              // a crash keeps a third
+const STYLE_GRACE = 12;                     // ~0.4s of wheel-down banks the chain                    // banked points per multiplier step
 function styleMul(){ return 1 + Math.min(9, Math.floor(S.style / STYLE_STEP)) * 0.5; }
 function styleAdd(n, why){
   if (!(n > 0)) return;
   S.style += n;
-  S.styleT = 90;
+  S.styleT = STYLE_GRACE;
   const m = styleMul();
   if (m > S.styleMul) { S.styleMul = m; S.styleFlash = 26; sfx.coin(); }
   if (why) toast(why + "  +" + Math.round(n));
@@ -2720,7 +2722,20 @@ function bankStyle(why){
 function dropStyle(){ S.style = 0; S.styleMul = 1; S.styleT = 0; }
 
 function crash(why){
-  if (S.style > 0) toast("lost " + Math.floor(S.style * S.styleMul).toLocaleString() + " unbanked");
+  // A crash used to wipe the chain, so a long run that ended badly scored
+  // nothing at all. It now keeps a third of what was riding on it: still a
+  // real reason to bank, never a wasted run.
+  if (S.style > 0) {
+    const keep = Math.floor(S.style * S.styleMul * STYLE_CRASH_KEEP);
+    const lost = Math.floor(S.style * S.styleMul) - keep;
+    if (keep > 0) {
+      S.score += keep;
+      earn(keep / 15);
+      const bk = S.rideOut ? "bestRide" : "best";
+      if (!VS.on && S.score > SAVE[bk]) SAVE[bk] = Math.floor(S.score);
+    }
+    toast("saved " + keep.toLocaleString() + "  ·  lost " + lost.toLocaleString());
+  }
   dropStyle();
   S.over = true; S.crashT = 46; S.crashSpin = 0;
   S.crashWhy = why || "looped out";
@@ -4269,8 +4284,8 @@ function drawGauge(){
 function drawStyle(){
   if (S.style <= 0) return;
   const pend = Math.floor(S.style * S.styleMul);
-  const cx = W / 2, y = 118;
-  const w = 250, h = 40;
+  const w = 232, h = 40;
+  const cx = W - 18 - w / 2, y = 40;        // top right, clear of gauge and speedo
   const pulse = S.styleFlash > 0 ? 1 + S.styleFlash / 90 : 1;
 
   ctx.save();
