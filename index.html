@@ -2857,6 +2857,7 @@ function crash(why){
   S.lastXP = awardXP(runXP(S.lastScore, S.wheelieT));
   persist();
   S.score = 0; S.mult = 1; S.spd = 0; S.av = 0; S.rpm = 0; S.wheelieT = 0;
+  rivalRebase();
 }
 function respawn(){ dropStyle(); S.over = false; S.dir = 90; S.av = 0; S.spd = 0; S.sag = 0; S.sagV = 0; S.crashSpin = 0; }
 
@@ -4457,6 +4458,7 @@ function drawHUD(){
     ctx.textAlign = "center"; ctx.fillText("×" + S.mult.toFixed(2), 240-w/2, 69); ctx.textAlign = "left";
   }
 
+  drawRival(S.score);
   drawStyle();
   drawGauge();
 
@@ -4617,6 +4619,121 @@ function renderStreet(){
   if (!S.photo) drawBroadcast();
   if (S.photo) drawPhotoHint();
   if (S.paused) drawPause();
+}
+
+/* ============================================================
+   RIVALS
+   ------------------------------------------------------------
+   A run against nobody is a run against a number. This puts a name on the
+   number: whoever sits one place above you on the board for the mode you are
+   riding, called out the moment you pass them, and then replaced by the next
+   one up so there is always somebody just out of reach.
+   It reads the boards that were already public and stores nothing, so there
+   is no table and no sync. A rival is a nicety - every failure here is
+   swallowed, because nothing about it is allowed to interrupt a run.
+   ============================================================ */
+const RIV = { on:false, col:"best", list:[], idx:0, name:"", target:0, top:false, flash:0 };
+
+function rivalColumn(){
+  if (DAILY.on) return "daily";
+  if (S.mode === "ramp") return "ramp_best";
+  return S.rideOut ? "best_ride" : "best";
+}
+// the mark to search above: your own record, or nothing at all in the daily,
+// where a fresh attempt starts at the bottom of today's board and climbs
+function rivalBase(col){
+  return col === "daily"     ? 0
+       : col === "ramp_best" ? (SAVE.rampBest | 0)
+       : col === "best_ride" ? (SAVE.bestRide | 0)
+       : (SAVE.best | 0);
+}
+function rivalPoint(){
+  const r = RIV.list[RIV.idx];
+  RIV.top = !r;
+  RIV.name = r ? r.name : "";
+  RIV.target = r ? r.v : 0;
+}
+async function rivalFetch(){
+  RIV.on = false; RIV.list = []; RIV.idx = 0; RIV.name = ""; RIV.target = 0;
+  RIV.top = false; RIV.flash = 0;
+  if (VS.on || !cloudOn() || !AUTH.uid) return;
+  const col = rivalColumn();
+  RIV.col = col;
+  try {
+    if (!await freshToken()) return;
+    let rows;
+    if (col === "daily") {
+      rows = await api("/rest/v1/daily?select=username,score&score=gt.0&day=eq." +
+        (dailyState().day | 0) + "&order=score.asc&limit=12");
+      rows = (rows || []).map(r => ({ name:r.username, v:r.score | 0 }));
+    } else {
+      rows = await api("/rest/v1/scores?select=username," + col + "&" + col + "=gt." +
+        rivalBase(col) + "&order=" + col + ".asc&limit=8");
+      rows = (rows || []).map(r => ({ name:r.username, v:r[col] | 0 }));
+    }
+    const me = (AUTH.name || "").toLowerCase();
+    RIV.list = rows.filter(r => r.v > 0 && String(r.name || "").toLowerCase() !== me);
+    RIV.on = true;
+    rivalPoint();
+  } catch(e){}                                   // never let the board spoil a run
+}
+/* Called once a frame with whatever the board actually measures, so passing
+   several riders in one jump is one callout rather than a stack of them. */
+function rivalCheck(live){
+  if (!RIV.on || RIV.top || VS.on) return;
+  live = Math.floor(live || 0);
+  let passed = null, n = 0;
+  while (!RIV.top && RIV.target > 0 && live > RIV.target) {
+    passed = RIV.name; n++;
+    RIV.idx++; rivalPoint();
+  }
+  if (!passed) return;
+  RIV.flash = 48;
+  sfx.quest();
+  toast(n > 1 ? "PASSED " + n + " RIDERS" : "PASSED " + passed);
+  if (RIV.top) toast("NOBODY LEFT ABOVE YOU");
+}
+// A street crash banks the run and resets the score to zero, so the chase has
+// to start again from wherever the new record leaves you.
+function rivalRebase(){
+  if (!RIV.on || RIV.col === "daily") return;
+  const base = rivalBase(RIV.col);
+  RIV.idx = 0;
+  while (RIV.list[RIV.idx] && RIV.list[RIV.idx].v <= base) RIV.idx++;
+  rivalPoint();
+}
+function drawRival(live){
+  if (!RIV.on || VS.on) return;
+  const x = 18, y = 118, w = 236, h = RIV.top ? 44 : 60;
+  panel(x, y, w, h);
+  if (RIV.flash > 0) {
+    RIV.flash--;
+    ctx.fillStyle = "rgba(60,240,140," + Math.min(0.34, RIV.flash / 140).toFixed(3) + ")";
+    rr(x, y, w, h, 12); ctx.fill();
+  }
+  label("chasing", x + 14, y + 20);
+  if (RIV.top) {
+    ctx.font = '700 19px "Saira Condensed", sans-serif';
+    ctx.fillStyle = "#3CF08C";
+    ctx.fillText("NOBODY ABOVE YOU", x + 14, y + 38);
+    return;
+  }
+  const tgt = RIV.target.toLocaleString();
+  ctx.font = '700 17px "Saira Condensed", sans-serif';
+  const tw = ctx.measureText(tgt).width;
+  ctx.fillStyle = "rgba(255,194,75,.9)";
+  ctx.textAlign = "right"; ctx.fillText(tgt, x + w - 14, y + 39); ctx.textAlign = "left";
+  ctx.font = '700 20px "Saira Condensed", sans-serif';
+  ctx.fillStyle = "#F2F6FA";
+  let nm = String(RIV.name || "rider");
+  const room = w - 28 - tw - 12;
+  if (ctx.measureText(nm).width > room) {
+    while (nm.length > 2 && ctx.measureText(nm + "\u2026").width > room) nm = nm.slice(0, -1);
+    nm += "\u2026";
+  }
+  ctx.fillText(nm, x + 14, y + 39);
+  const v = RIV.target > 0 ? Math.floor(live || 0) / RIV.target : 0;
+  statBar(x + 14, y + 48, w - 28, v, v >= 0.85 ? "#FFC24B" : "#3CF08C");
 }
 
 /* ============================================================
@@ -5304,6 +5421,8 @@ function drawRampHUD(){
   ctx.fillText(DAILY.on
     ? "daily #" + DAILY.day + "  \u00b7  " + (Math.floor(R.dist) + Math.floor(R.score)) + " pts"
     : "best " + SAVE.rampBest + " m", 32, 91);
+
+  drawRival(DAILY.on ? Math.floor(R.dist) + Math.floor(R.score) : R.dist);
 
   panel(18, H-84, 210, 66);
   label("mph", 32, H-62);
@@ -6013,6 +6132,7 @@ function renderWho(){
 }
 function openMenu(){
   if (DAILY.on) { dailyFinish(); dailyStop(); }   // walking out still banks the run
+  RIV.on = false;
   VS.on = false;
   S.mode = "menu"; S.paused = false;
   elShop.hidden = true; elBoard.hidden = true; elSeason.hidden = true; elCrew.hidden = true;
@@ -6047,6 +6167,7 @@ function startMode(m){
   audio.start(); audio.mute(!S.sound);
   audio.setStyle(m === "ramp" ? "ramp" : "street");
   sfx.ui();
+  rivalFetch();                             // async; the run never waits on it
   if (S.mode === "street") {
     S.dir = 90; S.av = 0; S.spd = 0; S.rpm = 0; S.score = 0; S.mult = 1;
     S.over = false; S.sag = 0; S.sagV = 0; POSE = null; S.cleared = 0;
@@ -6077,6 +6198,9 @@ function loop(now){
       else S.mode === "street" ? tickStreet() : tickRamp();
       acc -= TICK;
     }
+    if (!VS.on) rivalCheck(S.mode === "ramp"
+      ? (DAILY.on ? Math.floor(R.dist) + Math.floor(R.score) : R.dist)
+      : S.score);
     const B = bike();
     if (S.mode === "street") audio.set(S.rpm, B.rpmMax, S.spd, S.trick === "drag" || S.dir < 26, engKind(B));
     else {
@@ -6948,9 +7072,13 @@ async function showBoard(){
     foot.className = "lbrow lbmine";
     if (mineScore > 0) {
       const rank = board.daily ? await dailyRank(st.day, mineScore) : await myRank(board.key);
+      // rows come back best first, so the last one still above you is the
+      // rider you are chasing - no extra request to work it out
+      const above = rows.filter(r => Number((board.daily ? r.score : r[board.key]) || 0) > mineScore).pop();
       foot.innerHTML = (board.daily ? `Today <b>${mineScore.toLocaleString()}</b>`
                                     : `Your best <b>${mineScore.toLocaleString()}</b>`) +
-        (rank ? ` · rank <b>#${rank}</b>` : "");
+        (rank ? ` · rank <b>#${rank}</b>` : "") +
+        (above ? ` · chasing <b>${esc(above.username || "rider")}</b>` : " · nobody above you");
     } else {
       foot.innerHTML = board.daily ? `You haven't ridden today's seed yet`
                                    : `You haven't set a score in ${board.name} yet`;

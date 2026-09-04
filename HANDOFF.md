@@ -6,7 +6,7 @@ Everything a fresh session needs to pick this up. Written 3 Sep 2026.
 
 ## What this is
 
-A wheelie game. One file: **`index.html`**, ~7,200 lines, no build step, no
+A wheelie game. One file: **`index.html`**, ~7,350 lines, no build step, no
 dependencies. HTML + CSS + one big IIFE of JavaScript, rendered to a canvas.
 
 - **Repo:** https://github.com/lucasohcin/wheelie
@@ -53,7 +53,7 @@ fields, so **adding** fields is free.
 
 It happened on 3 Sep: a second session committed the same feature concurrently
 (`30d9ab4`). Nothing was lost that time, by luck. Two sessions editing a single
-7,200-line file will overwrite each other.
+7,350-line file will overwrite each other.
 
 ---
 
@@ -71,6 +71,7 @@ It happened on 3 Sep: a second session committed the same feature concurrently
 | Two-player | `startVersus()` / `vsTick()` / `vsRender()` / `renderVersus()` |
 | Daily seed run | `startDaily()` / `dailyFinish()` / `dailyStop()`, plan in `dailyPlan(day)` |
 | Rider profiles | `openProfile(name, from)` / `profileFetch()` / `renderProfile()` / `profilePush()` |
+| Rivals | `rivalFetch()` on run start, `rivalCheck(live)` once a frame, `drawRival()` in both HUDs |
 
 **Stat pipeline order:** base bike → upgrade pips → engine swap → fitted parts.
 All multiplicative except `loop`/`bp`, which are additive offsets.
@@ -89,6 +90,23 @@ is stored anywhere and every rider computes the same setup independently. The
 loaner is `buildBike(idx, DAILY_STOCK)`, which skips the player's upgrades.
 `DAILY.on` also locks `rtrack()`, blocks `cycleBike()`, keeps the crash from
 respawning at a checkpoint, and keeps the run out of `SAVE.rampBest`.
+
+**Rivals** put a name on the number you are riding against: the handful of
+riders sitting just above you on the board for the mode you are in, fetched
+once when a run starts and walked up one at a time as you pass them. It adds
+no table and stores nothing - it reads `scores` and `daily`, which were
+already public - and every failure in it is swallowed, because a nicety must
+never interrupt a run.
+Two things there are easy to get wrong. A street crash banks the run and
+resets the score to zero, so `rivalRebase()` re-points the chase at the first
+rider still above your *new* record; without it you would silently skip
+everyone. And a daily's baseline is zero rather than your record, because a
+fresh attempt starts at the bottom of today's board and climbs it - which is
+why `rivalRebase()` returns early for the daily instead of walking you back
+down to last place.
+The list is a snapshot taken when the run began. If somebody beats you while
+you are riding, you will not see it until the next run; that is deliberate,
+so the target cannot move under you mid-run.
 
 **Rider profiles** are a public card per rider, opened by clicking a name on
 any leaderboard or crew roster. The avatar is not an upload: it is their bike,
@@ -160,6 +178,7 @@ curl -s -X POST -H "apikey: $KEY" -H "Content-Type: application/json" \
 | Admin door | `ADMIN_PHRASE "adminabuse"` |
 | Daily seed run | `DAILY_EPOCH`, `DAILY_FLEET`, `STOCK_TUNE`, reward in `dailyReward()` |
 | Rider profiles | `PROF_NAME_MAX 24`, `PROF_BIO_MAX 200`, `COLOUR_OK` |
+| Rivals | how many are queued up: `limit=8` on a board, `limit=12` in the daily |
 
 Seasons roll over from the clock — no scheduling, no server job. So does the
 daily seed, off a **UTC** day number, which means it turns over at 20:00 in
@@ -243,12 +262,20 @@ bike, or asserting on a stub that a live fetch had replaced.
 
 Already pitched and not built. Strongest first:
 
-1. **Rivals** — auto-assign the player just above you; callout when you pass
-   them. No new tables.
-2. **Rewind token** — one crash-undo per run. Kills frustration quits.
-3. **Per-bike leaderboards** — makes all 60 bikes matter; reuses `scores`.
-4. **Crew Wars** — weekly crew-vs-crew pairing.
-5. **Wheelie School** — graded tutorial ladder; the game is hard to learn.
+1. **Crash flags on the daily track** — a flag where each friend died, with
+   their name and distance on it. The `daily` table already holds every one of
+   those numbers, so this is a fetch and a draw call: no table, no SQL.
+2. **Ghost of the day** — the top daily run replays beside you. The track is
+   already deterministic, so a run is just position samples; store a few KB on
+   the winner's row at about 5Hz.
+3. **Streak freeze** — one a week, bought with coins. Also softens the day a
+   0m crash burns.
+4. **Daily modifiers** — the seed already picks a track and a bike; let it pick
+   a rule too (no brakes, night, flips double).
+5. **Rewind token** — one crash-undo per run. Kills frustration quits.
+6. **Per-bike leaderboards** — makes all 60 bikes matter; reuses `scores`.
+7. **Crew Wars** — weekly crew-vs-crew pairing.
+8. **Wheelie School** — graded tutorial ladder; the game is hard to learn.
 
 Deliberately rejected: **loot boxes / paid random pulls** and **coin wagering**
 (gambling-adjacent, and the players are the owner's friends, some young), and
