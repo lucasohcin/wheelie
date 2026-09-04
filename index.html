@@ -313,6 +313,32 @@
   .passbanner .go{flex:none; font-family:var(--num); font-weight:700; font-size:12px;
                   letter-spacing:.12em; color:var(--amber); text-transform:uppercase}
 
+  .dailycard{
+    width:min(560px,92vw); margin:0 auto 16px; padding:13px 16px 12px; border-radius:14px;
+    text-align:left; font-family:var(--ui);
+    background:linear-gradient(96deg, rgba(10,26,34,.88), rgba(14,20,28,.88));
+    border:1px solid rgba(123,231,255,.38);
+  }
+  .dailycard.done{border-color:rgba(60,240,140,.42);
+                  background:linear-gradient(96deg, rgba(10,30,20,.88), rgba(14,20,28,.88))}
+  .dailycard .dhead{display:flex; align-items:baseline; gap:9px; flex-wrap:wrap}
+  .dailycard .dtag{font-family:var(--num); font-weight:700; font-size:10.5px; letter-spacing:.16em;
+                   color:#06121A; background:#7BE7FF; border-radius:5px; padding:2px 7px}
+  .dailycard.done .dtag{background:var(--neon)}
+  .dailycard .dnum{font-family:var(--num); font-weight:700; font-size:19px; letter-spacing:.02em}
+  .dailycard .dclock{margin-left:auto; font-family:var(--num); font-size:11.5px;
+                     letter-spacing:.08em; color:var(--dim)}
+  .dailycard .dline{margin-top:7px; font-size:13.5px; line-height:1.45}
+  .dailycard .dline b{font-family:var(--num); letter-spacing:.02em}
+  .dailycard .dline.sub{color:var(--dim); font-size:12.5px}
+  .dailycard .dscore{margin-top:8px; font-family:var(--num); font-weight:700; font-size:26px;
+                     color:var(--amber); letter-spacing:.02em}
+  .dailycard .dscore small{font-size:14px; color:var(--dim); font-weight:600; margin-left:7px}
+  .dailycard .dfoot{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:11px}
+  .dailycard .dstreak{font-family:var(--num); font-weight:700; font-size:12px;
+                      letter-spacing:.08em; color:var(--neon)}
+  .dailycard .dfoot .btn{padding:8px 16px; font-size:13px}
+
 
   .bcastlive{
     position:fixed; left:50%; top:18px; transform:translate(-50%,-24px); z-index:40;
@@ -504,6 +530,7 @@
     <div class="whoami" id="whoami" hidden></div>
     <div class="bcast" id="bcast" hidden></div>
     <button class="passbanner" id="openSeason"></button>
+    <div class="dailycard" id="dailyCard"></div>
     <div class="whoami"><button id="openBoard">View the leaderboard</button>
       <span style="opacity:.4">·</span><button id="openCrew">Crews</button></div>
     <div class="modes">
@@ -1325,7 +1352,7 @@ const CODES = {
 const SAVE = { coins:0, codes:[], bikes:[0], lids:[0,1], bike:0, lid:0, best:0, rampBest:0,
                quests:[], qp:{}, qdone:[], tune:{}, spot:0, bestRide:0,
                tricks:[], slots:["stand","knee","drag","nohand","fob","onehand"],
-               rider:{}, track:0 };
+               rider:{}, track:0, daily:{}, dailyBest:0 };
 
 /* ---------- tuning ---------- */
 const PAINT = ["#FF6A13","#E01B24","#D0111B","#1D5FD8","#2452D8","#2FBF6B","#00C2C7",
@@ -1435,8 +1462,10 @@ function upPrice(bikeIdx, lvl){
 }
 let CUR = null;
 function refreshBike(){ CUR = buildBike(SAVE.bike); }
-function buildBike(idx){
-  const B = BIKES[idx] || BIKES[0], t = tuneOf(idx);
+// tOverride lets a caller build a bike that ignores what the player has bolted
+// on to it - the daily loaner is always stock, whoever is riding it.
+function buildBike(idx, tOverride){
+  const B = BIKES[idx] || BIKES[0], t = tOverride || tuneOf(idx);
   const E = engineById(t.eng);
   const P = PART_SLOTS.map(sl => partById(sl.key, t.parts && t.parts[sl.key]));
   const pm = k => P.reduce((n, x) => n * (x[k] === undefined ? 1 : x[k]), 1);
@@ -1686,6 +1715,8 @@ function normaliseSave(){
   if (!SAVE.rider) SAVE.rider = {};
   if (!SAVE.keys || typeof SAVE.keys !== "object" || Array.isArray(SAVE.keys)) SAVE.keys = {};
   SAVE.track = SAVE.track | 0;
+  if (!SAVE.daily || typeof SAVE.daily !== "object" || Array.isArray(SAVE.daily)) SAVE.daily = {};
+  SAVE.dailyBest = Math.max(0, SAVE.dailyBest | 0);
   if (!Array.isArray(SAVE.codes)) SAVE.codes = [];
   if (!Array.isArray(SAVE.quests)) SAVE.quests = [];
   if (!Array.isArray(SAVE.qdone))  SAVE.qdone  = [];
@@ -1901,6 +1932,26 @@ async function cloudPush(){
    newer one wholesale would quietly delete whatever the other one earned, so
    every field is merged on its own terms: bests take the higher number,
    anything owned is unioned, and preferences follow whichever save is newer. */
+// The daily run is one attempt a day, so a merge must never hand back a fresh
+// attempt: for the same day every flag is OR'd and the score takes the higher.
+function mergeDaily(a, b){
+  a = a || {}; b = b || {};
+  const day = Math.max(a.day | 0, b.day | 0);
+  const cur = [a, b].filter(x => (x.day | 0) === day);
+  const out = {
+    day,
+    started: cur.some(x => x.started),
+    done:    cur.some(x => x.done),
+    score:   Math.max(0, ...cur.map(x => x.score | 0)),
+    dist:    Math.max(0, ...cur.map(x => x.dist  | 0)),
+  };
+  // the streak belongs to whoever completed the later day
+  const sa = a.last | 0, sb = b.last | 0;
+  const win = sa === sb ? (Math.max(a.streak | 0, b.streak | 0)) : (sa > sb ? a.streak | 0 : b.streak | 0);
+  out.last = Math.max(sa, sb);
+  out.streak = win;
+  return out;
+}
 function mergeSaves(a, b){
   if (!a) return b; if (!b) return a;
   const newer = (b.ts || 0) >= (a.ts || 0) ? b : a;   // for preference-style fields
@@ -1921,9 +1972,11 @@ function mergeSaves(a, b){
     const pick = (sb && (!sa || sb.id > sa.id)) ? sb : sa;
     out.season = pick || null;
   }
-  out.best     = max("best");
-  out.rampBest = max("rampBest");
-  out.bestRide = max("bestRide");
+  out.best      = max("best");
+  out.rampBest  = max("rampBest");
+  out.bestRide  = max("bestRide");
+  out.dailyBest = max("dailyBest");
+  out.daily     = mergeDaily(a.daily, b.daily);
   out.bikes  = uni("bikes");
   out.lids   = uni("lids");
   out.codes  = uni("codes");
@@ -1972,6 +2025,7 @@ function cloudMark(){                       // called whenever the save changes
     pushDirty = false;
     try { await cloudPush(); } catch(e){ pushDirty = true; }
     try { await scoresPush(); } catch(e){}   // board is secondary; never risk the save
+    try { await dailyPush();  } catch(e){}
   }, 4000);
 }
 async function cloudSyncNow(){
@@ -2280,6 +2334,7 @@ addEventListener("pointerup",     () => { touchKeys.a = touchKeys.d = false; });
 addEventListener("pointercancel", () => { touchKeys.a = touchKeys.d = false; });
 
 function cycleBike(d){
+  if (DAILY.on) { toast("The daily loaner is fixed"); return; }
   const own = SAVE.bikes.slice().sort((a,b) => a - b);
   const at = Math.max(0, own.indexOf(SAVE.bike));
   SAVE.bike = own[(at + d + own.length) % own.length];
@@ -4511,6 +4566,170 @@ function renderStreet(){
 }
 
 /* ============================================================
+   DAILY SEED RUN
+   ------------------------------------------------------------
+   One track, generated from today's date, identical for every rider in the
+   world, and one attempt at it. The bike is a loaner picked by the same seed
+   and built stock, so the board measures riding rather than who has ground
+   out the most upgrades.
+   The day number comes off a UTC clock, so the seed turns over at the same
+   instant everywhere: nothing to schedule and no server job, the same trick
+   the season track uses.
+   Do not reorder DAILY_FLEET or RTRACKS. The seed indexes into both, so a
+   reorder shipped mid-day would put two players on different tracks while
+   they think they are riding the same one.
+   ============================================================ */
+const DAILY_EPOCH = Date.UTC(2026, 0, 5);        // day 1 was Mon 5 Jan 2026
+const DAILY_FLEET = [0, 1, 2, 4, 5, 6, 7, 8, 9, 12, 13, 15, 16, 17, 18, 19, 20, 24, 26, 27];
+const DAILY_STOCK = Object.freeze({
+  up:{ motor:0, brakes:0, tyres:0, susp:0 }, fx:{}, own:{}, owns:{}, engs:{ stock:1 },
+  eng:"stock", parts:{ gearing:"stock", susp:"stock", tyres:"stock" },
+});
+const DAILY = { on:false, over:false, day:0, bike:0, track:0, score:0, dist:0 };
+
+/* mulberry32 - small, fast, and the same sequence in every browser, which is
+   the entire point: Math.random is not reproducible across machines. */
+function seedRnd(seed){
+  let a = seed >>> 0;
+  return function(){
+    a = (a + 0x6D2B79F5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+let tRnd = Math.random;                          // the terrain generator's source of randomness
+
+const dayNumber = () => Math.max(1, Math.floor((Date.now() - DAILY_EPOCH) / 86400000) + 1);
+function dailyClock(){
+  const ms = (DAILY_EPOCH + dayNumber() * 86400000) - Date.now();
+  const h = Math.floor(ms / 3600000), m = Math.floor(ms / 60000) % 60;
+  return h > 0 ? h + "h " + m + "m" : Math.max(1, m) + "m";
+}
+function dailyPlan(day){
+  const r = seedRnd(day * 2654435761);
+  r();                                           // the first draw off a fresh seed is weakly mixed
+  const bike  = DAILY_FLEET[Math.floor(r() * DAILY_FLEET.length)] | 0;
+  const track = Math.floor(r() * RTRACKS.length);
+  return { day, bike, track, seed: Math.floor(r() * 4294967296) };
+}
+function dailyState(){
+  const d = dayNumber();
+  if (!SAVE.daily || typeof SAVE.daily !== "object") SAVE.daily = {};
+  const s = SAVE.daily;
+  if ((s.day | 0) !== d) { s.day = d; s.started = false; s.done = false; s.score = 0; s.dist = 0; }
+  s.streak = Math.max(0, s.streak | 0);
+  s.last   = Math.max(0, s.last | 0);
+  return s;
+}
+// a streak only counts while it is still alive: finished today, or yesterday
+const dailyStreak = () => {
+  const s = dailyState();
+  return (s.last === s.day || s.last === s.day - 1) ? s.streak : 0;
+};
+function dailyReward(score, streak){
+  const mult = 1 + Math.min(10, Math.max(0, streak - 1)) * 0.05;   // +5% a day, capped at +50%
+  return { mult,
+           coins: Math.min(12000, Math.round((300 + score * 0.55) * mult)),
+           xp:    Math.round((runXP(score, 0) + 60) * mult) };
+}
+function startDaily(){
+  const st = dailyState();
+  if (st.done) { toast("Today's seed is already ridden"); return; }
+  const P = dailyPlan(st.day);
+  DAILY.on = true; DAILY.over = false; DAILY.day = st.day;
+  DAILY.bike = P.bike; DAILY.track = P.track; DAILY.score = 0; DAILY.dist = 0;
+  tRnd = seedRnd(P.seed);                        // seeded before the track is generated, not after
+  CUR = buildBike(P.bike, DAILY_STOCK);
+  st.started = true;                             // spent the moment you set off: no restarts
+  persist();
+  startMode("ramp");
+}
+/* Banking is deliberately separate from stopping: a crash banks the run and
+   leaves the result on screen, and walking out to the menu banks whatever you
+   had reached rather than voiding it. Either way there is no second attempt. */
+function dailyFinish(){
+  if (!DAILY.on || DAILY.over) return;
+  DAILY.over = true;
+  DAILY.dist  = Math.max(0, Math.floor(R.dist));
+  DAILY.score = DAILY.dist + Math.max(0, Math.floor(R.score));
+  const st = dailyState();
+  if (st.day === DAILY.day && st.done) return;   // a merged save already banked today
+  const streak = st.day === DAILY.day
+    ? (st.last === st.day - 1 ? st.streak + 1 : 1)
+    : dailyStreak();
+  const rw = dailyReward(DAILY.score, streak);
+  SAVE.coins += rw.coins;
+  S.lastXP = awardXP(rw.xp);
+  if (st.day === DAILY.day) {                    // if the clock rolled over mid-run, pay out but
+    st.done = true;                              // leave the new day's attempt untouched
+    st.score = DAILY.score; st.dist = DAILY.dist;
+    st.streak = streak; st.last = st.day;
+    if (DAILY.score > (SAVE.dailyBest | 0)) SAVE.dailyBest = DAILY.score;
+    dailyPush().catch(() => {});
+  }
+  toast("DAILY BANKED  +" + money(rw.coins));
+  persist();
+}
+function dailyStop(){
+  if (!DAILY.on) return;
+  DAILY.on = false;
+  tRnd = Math.random;
+  refreshBike();                                 // hand the player their own bike back
+}
+function dailyShareText(){
+  const st = dailyState(), P = dailyPlan(st.day);
+  const B = BIKES[P.bike] || BIKES[0], K = RTRACKS[P.track] || RTRACKS[0];
+  const streak = dailyStreak();
+  return "SoFlo Daily #" + st.day + "\n" +
+         money(st.score | 0) + " pts \u00b7 " + (st.dist | 0) + " m\n" +
+         B.name + " \u00b7 " + K.name +
+         (streak > 1 ? "\n" + streak + " day streak" : "") +
+         (location.protocol.indexOf("http") === 0 ? "\n" + location.origin : "");
+}
+function renderDailyCard(){
+  const el = document.getElementById("dailyCard");
+  if (!el) return;
+  const st = dailyState(), P = dailyPlan(st.day);
+  const B = BIKES[P.bike] || BIKES[0], K = RTRACKS[P.track] || RTRACKS[0];
+  const streak = dailyStreak();
+  el.classList.toggle("done", !!st.done);
+  el.innerHTML =
+    `<div class="dhead"><span class="dtag">DAILY SEED</span>
+       <span class="dnum">#${st.day}</span>
+       <span class="dclock">new seed in ${dailyClock()}</span></div>
+     <div class="dline"><b>${esc(B.name)}</b>, stock \u00b7 <b>${esc(K.name)}</b></div>` +
+    (st.done
+      ? `<div class="dscore">${money(st.score | 0)} pts<small>${st.dist | 0} m</small></div>
+         <div class="dline sub">That is today's ride. A new track lands in ${dailyClock()}.</div>`
+      : `<div class="dline sub">The same track for every rider today, on the same stock loaner.
+           One attempt \u2014 leaving early banks whatever you have reached.</div>`) +
+    `<div class="dfoot">` +
+       (st.done ? `<button class="btn" id="dailyCopy">Copy result</button>`
+                : `<button class="btn pri" id="dailyGo">Ride today's seed</button>`) +
+       `<button class="btn" id="dailyBoard">Today's board</button>` +
+       (streak ? `<span class="dstreak">${streak} DAY STREAK</span>` : "") +
+       ((SAVE.dailyBest | 0) ? `<span class="dclock">best ${money(SAVE.dailyBest | 0)} pts</span>` : "") +
+     `</div>`;
+  const go = document.getElementById("dailyGo");
+  if (go) go.addEventListener("click", () => { sfx.ui(); startDaily(); });
+  const bd = document.getElementById("dailyBoard");
+  if (bd) bd.addEventListener("click", () => { lbTab = "daily"; openBoard(); });
+  const cp = document.getElementById("dailyCopy");
+  if (cp) cp.addEventListener("click", () => {
+    sfx.ui();
+    const txt = dailyShareText();
+    const done = ok => { cp.textContent = ok ? "Copied" : "Press Ctrl+C"; };
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText)
+        navigator.clipboard.writeText(txt).then(() => done(true), () => done(false));
+      else done(false);
+    } catch(e){ done(false); }
+  });
+}
+
+/* ============================================================
    RAMP MODE — endless randomised track
    ============================================================ */
 const RTRACKS = [
@@ -4522,7 +4741,7 @@ const RTRACKS = [
     hill1:"#5C7C68", hill2:"#38564A", tree:true, water:"#2C6D86",
     sky:[[0,"#6FB6DE"],[.48,"#A8D2E4"],[.84,"#D2E2CE"],[1,"#DFE7C6"]] },
 ];
-const rtrack = () => RTRACKS[SAVE.track] || RTRACKS[0];
+const rtrack = () => (DAILY.on ? RTRACKS[DAILY.track] : RTRACKS[SAVE.track]) || RTRACKS[0];
 
 const RSC = 0.80;
 const R = {
@@ -4539,7 +4758,7 @@ function tX(){ return T.n * T.step; }
 function clampY(y){ return Math.max(-260, Math.min(760, y)); }
 
 function fRolling(n){
-  const y0 = T.lastY, amp = 18 + Math.random()*34, ph = Math.random()*6.28;
+  const y0 = T.lastY, amp = 18 + tRnd()*34, ph = tRnd()*6.28;
   for (let i = 1; i <= n; i++)
     tPush(clampY(y0 + Math.sin(ph + i/n*6.28)*amp - Math.sin(ph)*amp), true);
 }
@@ -4555,17 +4774,17 @@ function fFlat(n){ const y0 = T.lastY; for (let i = 0; i < n; i++) tPush(y0, tru
 function fGap(n, arc){
   const x0 = tX(), y0 = T.lastY;
   for (let i = 0; i < n; i++) tPush(NaN, false);
-  if (rtrack().water) T.water.push({ x0, x1:tX(), y:y0 + 120 + Math.random()*70 });
+  if (rtrack().water) T.water.push({ x0, x1:tX(), y:y0 + 120 + tRnd()*70 });
   if (arc) for (let i = 0; i < 5; i++)
     T.coins.push({ x:x0 + (i+0.5)/5 * n*T.step, y:y0 - 70 - Math.sin((i+0.5)/5*Math.PI)*60, got:false });
 }
 function fWhoops(){
-  const y0 = T.lastY, n = 4 + Math.floor(Math.random()*4);
+  const y0 = T.lastY, n = 4 + Math.floor(tRnd()*4);
   for (let k = 0; k < n; k++)
     for (let i = 1; i <= 13; i++) tPush(clampY(y0 - Math.sin(i/13*Math.PI)*20), true);
 }
 function fCoinRun(){
-  const x0 = tX(), y0 = T.lastY, n = 4 + Math.floor(Math.random()*4);
+  const x0 = tX(), y0 = T.lastY, n = 4 + Math.floor(tRnd()*4);
   for (let i = 0; i < n; i++) T.coins.push({ x:x0 + 90 + i*66, y:y0 - 78, got:false });
 }
 function jumpSet(h, n, gap, drop){
@@ -4583,29 +4802,29 @@ function fLog(){
 }
 function scatterDeco(){
   if (!rtrack().tree) return;
-  const n = 1 + Math.floor(Math.random() * 3);
+  const n = 1 + Math.floor(tRnd() * 3);
   for (let i = 0; i < n; i++) {
-    const idx = T.n - 2 - Math.floor(Math.random() * 26);
+    const idx = T.n - 2 - Math.floor(tRnd() * 26);
     if (idx < 1 || !T.solid[idx]) continue;
-    const roll = Math.random();
+    const roll = tRnd();
     const kind = roll < 0.62 ? "pine" : roll < 0.82 ? "fern" : roll < 0.93 ? "rock" : "stump";
     T.deco.push({ x: idx * T.step, y: T.y[idx], t: kind,
-      s: kind === "pine" ? 1.1 + Math.random() * 1.2 : 0.7 + Math.random() * 0.7 });
+      s: kind === "pine" ? 1.1 + tRnd() * 1.2 : 0.7 + tRnd() * 0.7 });
   }
 }
 function genFeature(){
   const forest = rtrack().tree;
-  const r = Math.random();
+  const r = tRnd();
   if (forest && r > 0.60 && r < 0.68) { fLog(); fFlat(10); scatterDeco(); return; }
-  if (r < 0.22)      { fRolling(34 + Math.floor(Math.random()*30)); if (Math.random() < 0.6) fCoinRun(); }
-  else if (r < 0.46) { jumpSet(95 + Math.random()*55, 26 + Math.floor(Math.random()*8),
-                               7 + Math.floor(Math.random()*7), 40 + Math.random()*90); }
-  else if (r < 0.60) { const h = 80 + Math.random()*60;      // tabletop
-                       fKicker(h, 24); fFlat(14 + Math.floor(Math.random()*16)); fLanding(h, 26); fFlat(10); }
-  else if (r < 0.71) { fWhoops(); fFlat(12); if (Math.random() < 0.5) fCoinRun(); }
+  if (r < 0.22)      { fRolling(34 + Math.floor(tRnd()*30)); if (tRnd() < 0.6) fCoinRun(); }
+  else if (r < 0.46) { jumpSet(95 + tRnd()*55, 26 + Math.floor(tRnd()*8),
+                               7 + Math.floor(tRnd()*7), 40 + tRnd()*90); }
+  else if (r < 0.60) { const h = 80 + tRnd()*60;      // tabletop
+                       fKicker(h, 24); fFlat(14 + Math.floor(tRnd()*16)); fLanding(h, 26); fFlat(10); }
+  else if (r < 0.71) { fWhoops(); fFlat(12); if (tRnd() < 0.5) fCoinRun(); }
   else if (r < 0.85) { jumpSet(105, 26, 7, 30); jumpSet(125, 28, 9, 60); }
-  else if (r < 0.94) { fFlat(10); T.lastY += 120 + Math.random()*120; fLanding(0, 1); fFlat(30); }
-  else               { fKicker(190 + Math.random()*70, 34); fFlat(8); fLanding(210 + Math.random()*80, 34); }
+  else if (r < 0.94) { fFlat(10); T.lastY += 120 + tRnd()*120; fLanding(0, 1); fFlat(30); }
+  else               { fKicker(190 + tRnd()*70, 34); fFlat(8); fLanding(210 + tRnd()*80, 34); }
   fFlat(8);
   scatterDeco();
 }
@@ -4653,7 +4872,7 @@ function tickRamp(){
 
   if (R.dead) {
     R.deadT--; stepPartsRamp();
-    if (R.deadT <= 0) rampReset(false);
+    if (R.deadT <= 0 && !DAILY.on) rampReset(false);   // the daily run has one life
     if (S.shake > 0) S.shake *= 0.86;
     return;
   }
@@ -4754,7 +4973,7 @@ function tickRamp(){
   if (d > R.dist) {
     earn((d - R.dist) * 1.2);
     R.dist = d;
-    if (Math.floor(d) > SAVE.rampBest) SAVE.rampBest = Math.floor(d);
+    if (!DAILY.on && Math.floor(d) > SAVE.rampBest) SAVE.rampBest = Math.floor(d);
     qMax("rampDist", d);
   }
   // remember the last place we were genuinely upright on solid ground
@@ -4820,9 +5039,12 @@ function rampDie(why){
   R.dead = true; R.deadT = 50; R.crashMsg = true;
   S.shake = REDUCED ? 0 : 12;
   sfx.crash();
-  if (Math.floor(R.dist) > SAVE.rampBest) { SAVE.rampBest = Math.floor(R.dist); }
-  S.lastXP = awardXP(runXP(Math.floor(R.dist) * 6, 0));
-  persist();
+  if (DAILY.on) dailyFinish();          // a seeded run banks on the crash; records stay untouched
+  else {
+    if (Math.floor(R.dist) > SAVE.rampBest) { SAVE.rampBest = Math.floor(R.dist); }
+    S.lastXP = awardXP(runXP(Math.floor(R.dist) * 6, 0));
+    persist();
+  }
   rampMsg(why);
   R.crashMsg = true;
 }
@@ -5025,7 +5247,9 @@ function drawRampHUD(){
   ctx.font = '700 40px "Saira Condensed", sans-serif'; ctx.fillStyle = "#F2F6FA";
   ctx.fillText(Math.floor(R.dist) + " m", 32, 73);
   ctx.font = '600 14px "Barlow Condensed", sans-serif'; ctx.fillStyle = "rgba(255,194,75,.78)";
-  ctx.fillText("best " + SAVE.rampBest + " m", 32, 91);
+  ctx.fillText(DAILY.on
+    ? "daily #" + DAILY.day + "  \u00b7  " + (Math.floor(R.dist) + Math.floor(R.score)) + " pts"
+    : "best " + SAVE.rampBest + " m", 32, 91);
 
   panel(18, H-84, 210, 66);
   label("mph", 32, H-62);
@@ -5060,9 +5284,11 @@ function drawRampHUD(){
     ctx.fillStyle = "rgba(255,61,127,.10)"; ctx.fillRect(0,0,W,H);
     ctx.textAlign = "center";
     ctx.font = '400 44px "Archivo Black", sans-serif'; ctx.fillStyle = "#FF3D7F";
-    ctx.fillText("CRASHED", W/2, H/2);
+    ctx.fillText(DAILY.on ? "DAILY RUN OVER" : "CRASHED", W/2, H/2);
     ctx.font = '600 18px "Barlow Condensed", sans-serif'; ctx.fillStyle = "rgba(231,237,243,.75)";
-    ctx.fillText(Math.floor(R.dist) + " m  ·  restarting at the last checkpoint", W/2, H/2 + 26);
+    ctx.fillText(DAILY.on
+      ? DAILY.score.toLocaleString() + " pts  ·  " + DAILY.dist + " m  ·  Esc for the menu"
+      : Math.floor(R.dist) + " m  ·  restarting at the last checkpoint", W/2, H/2 + 26);
     ctx.textAlign = "left";
   }
   if (S.toastT > 0 && S.toast) {
@@ -5732,6 +5958,7 @@ function renderWho(){
   el.appendChild(b);
 }
 function openMenu(){
+  if (DAILY.on) { dailyFinish(); dailyStop(); }   // walking out still banks the run
   VS.on = false;
   S.mode = "menu"; S.paused = false;
   elShop.hidden = true; elBoard.hidden = true; elSeason.hidden = true; elCrew.hidden = true;
@@ -5744,6 +5971,7 @@ function openMenu(){
   audio.setStyle("menu");
   sfx.ui();
   syncWallet(); persist(); renderWho(); renderLevel(); renderSeasonBanner(); renderCrewLink();
+  renderDailyCard();
   renderBroadcast(); pullBroadcasts();
 }
 function openShop(){
@@ -6064,6 +6292,8 @@ const LB_BOARDS = [
   { key:"best",      name:"Street",   pick:s => s.best     || 0 },
   { key:"best_ride", name:"Ride Out", pick:s => s.bestRide || 0 },
   { key:"ramp_best", name:"Ramp",     pick:s => s.rampBest || 0 },
+  // the daily lives in its own table: one row per rider per day, insert only
+  { key:"daily",     name:"Daily",    daily:true, pick:s => (s.daily && s.daily.score) || 0 },
 ];
 let lbCache = {}, lbTab = "best", lbBusy = false;
 
@@ -6080,6 +6310,39 @@ async function scoresPush(){
       ramp_best: Math.max(0, Math.floor(SAVE.rampBest || 0)),
     }) });
   return true;
+}
+/* One row per rider per day, and the table takes inserts only - there is no
+   update policy, so the server is what enforces "one attempt", not the client.
+   A retry of a run already up there is a no-op rather than an error. */
+async function dailyPush(){
+  if (!cloudOn() || !AUTH.uid) return false;
+  const st = dailyState();
+  if (!st.done) return false;
+  if (!await freshToken()) return false;
+  await api("/rest/v1/daily", { method:"POST",
+    headers:{ "Prefer":"resolution=ignore-duplicates,return=minimal" },
+    body:JSON.stringify({
+      user_id: AUTH.uid,
+      username: AUTH.name || "rider",
+      day:   st.day | 0,
+      score: Math.max(0, st.score | 0),
+      dist:  Math.max(0, st.dist  | 0),
+    }) });
+  return true;
+}
+async function dailyTop(day){
+  const rows = await api("/rest/v1/daily?select=username,score,dist&day=eq." + (day | 0) +
+    "&order=score.desc&limit=50");
+  return rows || [];
+}
+async function dailyRank(day, score){
+  if (!AUTH.uid || score <= 0) return null;
+  const r = await fetch(CLOUD.url + "/rest/v1/daily?select=user_id&day=eq." + (day | 0) +
+      "&score=gt." + (score | 0), {
+    headers:{ apikey:CLOUD.key, Authorization:"Bearer " + AUTH.token, Prefer:"count=exact", Range:"0-0" } });
+  const cr = r.headers.get("content-range") || "";
+  const total = parseInt(cr.split("/")[1], 10);
+  return isFinite(total) ? total + 1 : null;
 }
 async function scoresTop(col){
   const rows = await api("/rest/v1/scores?select=username," + col +
@@ -6537,11 +6800,12 @@ async function showBoard(){
   const board = LB_BOARDS.find(b => b.key === lbTab) || LB_BOARDS[0];
   try {
     if (!await freshToken()) { lbNote("Sign in to see the leaderboard."); lbBusy = false; return; }
-    const rows = await scoresTop(board.key);
+    const rows = board.daily ? await dailyTop(dailyState().day) : await scoresTop(board.key);
     lbCache[board.key] = rows;
     const body = document.getElementById("lbBody");
     if (!rows.length) {
-      lbNote("Nobody has set a score here yet.<br>Go be first.");
+      lbNote(board.daily ? "Nobody has ridden today's seed yet.<br>Go be first."
+                         : "Nobody has set a score here yet.<br>Go be first.");
     } else {
       body.innerHTML = "";
       rows.forEach((r, i) => {
@@ -6552,25 +6816,32 @@ async function showBoard(){
         const pos = document.createElement("div"); pos.className = "pos"; pos.textContent = "#" + (i + 1);
         const who = document.createElement("div"); who.className = "who"; who.textContent = r.username || "rider";
         const sc  = document.createElement("div"); sc.className  = "sc";
-        sc.textContent = Number(r[board.key] || 0).toLocaleString();
+        sc.textContent = Number((board.daily ? r.score : r[board.key]) || 0).toLocaleString();
         d.append(pos, who, sc);
         body.appendChild(d);
       });
     }
     // where you sit, even if you are off the bottom of the top 50
-    const mineScore = Math.floor(board.pick(SAVE));
+    const st = dailyState();
+    const mineScore = Math.floor(board.daily ? (st.done ? st.score | 0 : 0) : board.pick(SAVE));
     const foot = document.createElement("div");
     foot.className = "lbrow lbmine";
     if (mineScore > 0) {
-      const rank = await myRank(board.key);
-      foot.innerHTML = `Your best <b>${mineScore.toLocaleString()}</b>` +
+      const rank = board.daily ? await dailyRank(st.day, mineScore) : await myRank(board.key);
+      foot.innerHTML = (board.daily ? `Today <b>${mineScore.toLocaleString()}</b>`
+                                    : `Your best <b>${mineScore.toLocaleString()}</b>`) +
         (rank ? ` · rank <b>#${rank}</b>` : "");
     } else {
-      foot.innerHTML = `You haven't set a score in ${board.name} yet`;
+      foot.innerHTML = board.daily ? `You haven't ridden today's seed yet`
+                                   : `You haven't set a score in ${board.name} yet`;
     }
     document.getElementById("lbBody").appendChild(foot);
   } catch(e){
-    lbNote("Couldn't load the leaderboard.<br>" + String(e.message || e));
+    // the daily table is newer than the game: say so plainly rather than
+    // leaving a dead screen, because the run itself still counted locally
+    if (board.daily && (e.status === 404 || e.status === 400))
+      lbNote("The daily board isn't set up on the server yet.<br>Your run still counted on this device.");
+    else lbNote("Couldn't load the leaderboard.<br>" + String(e.message || e));
   }
   lbBusy = false;
 }
@@ -6579,6 +6850,7 @@ function openBoard(){
   elMenu.hidden = true; elShop.hidden = true; elBoard.hidden = false;
   sfx.ui();
   scoresPush().catch(() => {});     // make sure your own record is up there first
+  dailyPush().catch(() => {});      // and a daily run banked while offline
   showBoard();
 }
 function closeBoard(){ elBoard.hidden = true; openMenu(); }
@@ -6586,6 +6858,7 @@ document.getElementById("openBoard").addEventListener("click", openBoard);
 document.getElementById("lbBack").addEventListener("click", closeBoard);
 
 syncWallet();
+renderDailyCard();
 renderStreet();
 bootAuth();
 requestAnimationFrame(loop);

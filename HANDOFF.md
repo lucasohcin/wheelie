@@ -6,7 +6,7 @@ Everything a fresh session needs to pick this up. Written 3 Sep 2026.
 
 ## What this is
 
-A wheelie game. One file: **`index.html`**, ~6,600 lines, no build step, no
+A wheelie game. One file: **`index.html`**, ~6,900 lines, no build step, no
 dependencies. HTML + CSS + one big IIFE of JavaScript, rendered to a canvas.
 
 - **Repo:** https://github.com/lucasohcin/wheelie
@@ -53,7 +53,7 @@ fields, so **adding** fields is free.
 
 It happened on 3 Sep: a second session committed the same feature concurrently
 (`30d9ab4`). Nothing was lost that time, by luck. Two sessions editing a single
-6,600-line file will overwrite each other.
+6,900-line file will overwrite each other.
 
 ---
 
@@ -69,6 +69,7 @@ It happened on 3 Sep: a second session committed the same feature concurrently
 | Cross-device merge | `mergeSaves(a, b)` |
 | Cloud sync | `cloudSyncNow()` |
 | Two-player | `startVersus()` / `vsTick()` / `vsRender()` / `renderVersus()` |
+| Daily seed run | `startDaily()` / `dailyFinish()` / `dailyStop()`, plan in `dailyPlan(day)` |
 
 **Stat pipeline order:** base bike → upgrade pips → engine swap → fitted parts.
 All multiplicative except `loop`/`bp`, which are additive offsets.
@@ -78,6 +79,15 @@ baked into offscreen canvases by `buildLayers()`, keyed on `spot|W|H`. Frame
 time is watched by `tuneQuality()`, which steps render scale through
 `Q_STEPS = [1, 1.25, 1.5, 2]`. Before this the game ran at 17–40 ms/frame; the
 background alone was 84% of a frame.
+
+**Daily seed run** is ramp mode with the randomness seeded. `tRnd` is the
+terrain generator's source of random numbers; it is `Math.random` normally and
+a `seedRnd(seed)` stream while `DAILY.on`. Everything about a day — the track,
+the loaner bike, the terrain seed — falls out of `dailyPlan(day)`, so nothing
+is stored anywhere and every rider computes the same setup independently. The
+loaner is `buildBike(idx, DAILY_STOCK)`, which skips the player's upgrades.
+`DAILY.on` also locks `rtrack()`, blocks `cycleBike()`, keeps the crash from
+respawning at a checkpoint, and keeps the run out of `SAVE.rampBest`.
 
 **Versus** swaps the module globals (`S`, `POSE`, `CUR`, `ctx`, `target`,
 `SCALE/DPR/OFFX/OFFY`) around each rider, renders each to its own offscreen
@@ -104,8 +114,10 @@ level security is what actually protects data.
 | `admins` | own row only | dashboard only |
 | `broadcasts` | public | admins only |
 | `grants` | own + admins | insert admins, claim own |
+| `daily` | public | own row only, **insert only** — no update policy, so one attempt a day is enforced by the database |
 
-SQL lives in `supabase-setup.sql`, `leaderboard.sql`, `crews.sql`, `admin.sql`.
+SQL lives in `supabase-setup.sql`, `leaderboard.sql`, `crews.sql`, `admin.sql`,
+`daily.sql`.
 All are idempotent — safe to re-run.
 
 **Auth quirk:** usernames map to internal addresses `name@wheelie.local`, which
@@ -132,8 +144,16 @@ curl -s -X POST -H "apikey: $KEY" -H "Content-Type: application/json" \
 | Style chain | `STYLE_STEP 2200`, `STYLE_GRACE 12`, `STYLE_CRASH_KEEP 0.34` |
 | Render quality | `Q_STEPS` |
 | Admin door | `ADMIN_PHRASE "adminabuse"` |
+| Daily seed run | `DAILY_EPOCH`, `DAILY_FLEET`, `DAILY_STOCK`, reward in `dailyReward()` |
 
-Seasons roll over from the clock — no scheduling, no server job.
+Seasons roll over from the clock — no scheduling, no server job. So does the
+daily seed, off a **UTC** day number, which means it turns over at 20:00 in
+South Florida. Move `DAILY_EPOCH` only if you also accept that every past day
+number shifts.
+
+**Never reorder `DAILY_FLEET` or `RTRACKS`.** The daily seed indexes into both.
+Appending is safe between days; a reorder shipped mid-day puts two players on
+different tracks while they both think they are riding today's.
 
 **60 bikes.** Indexes 34–39 and 51–52 are code-unlocked secrets (`price 0`),
 54–59 are season pass bikes, 50 is the 500k Apex Omega.
@@ -185,6 +205,14 @@ bike, or asserting on a stub that a live fetch had replaced.
   future content accordingly.
 - **Versus pays nothing** — no coins, XP or records, since two people share one
   account. Deliberate.
+- **A daily attempt can be dodged by killing the tab.** Leaving through the
+  menu banks the run, and a crash banks it, so the only way to get a second go
+  is to close the tab mid-run — nothing was banked, so nothing was filed.
+  `SAVE.daily.started` already records that the attempt was launched and is the
+  hook if this ever needs closing; it is left open on purpose so a browser
+  crash does not burn somebody's day.
+- **The daily board needs `daily.sql` run.** Until it is, the mode plays and
+  pays normally and the board tab says so in plain words rather than dying.
 
 ---
 
@@ -192,14 +220,12 @@ bike, or asserting on a stub that a live fetch had replaced.
 
 Already pitched and not built. Strongest first:
 
-1. **Daily Seed Run** — same randomised setup for everyone each day, one
-   attempt, daily board. Wordle mechanic. Small; one table.
-2. **Rivals** — auto-assign the player just above you; callout when you pass
+1. **Rivals** — auto-assign the player just above you; callout when you pass
    them. No new tables.
-3. **Rewind token** — one crash-undo per run. Kills frustration quits.
-4. **Per-bike leaderboards** — makes all 60 bikes matter; reuses `scores`.
-5. **Crew Wars** — weekly crew-vs-crew pairing.
-6. **Wheelie School** — graded tutorial ladder; the game is hard to learn.
+2. **Rewind token** — one crash-undo per run. Kills frustration quits.
+3. **Per-bike leaderboards** — makes all 60 bikes matter; reuses `scores`.
+4. **Crew Wars** — weekly crew-vs-crew pairing.
+5. **Wheelie School** — graded tutorial ladder; the game is hard to learn.
 
 Deliberately rejected: **loot boxes / paid random pulls** and **coin wagering**
 (gambling-adjacent, and the players are the owner's friends, some young), and
