@@ -1,6 +1,6 @@
 # SoFlo Wheelie Life — handoff
 
-Everything a fresh session needs to pick this up. Written 3 Sep 2026.
+Everything a fresh session needs to pick this up. Written 3 Sep 2026, updated 5 Sep 2026.
 
 ---
 
@@ -68,7 +68,8 @@ It happened on 3 Sep: a second session committed the same feature concurrently
 | Save repair on load | `normaliseSave()` |
 | Cross-device merge | `mergeSaves(a, b)` |
 | Cloud sync | `cloudSyncNow()` |
-| Two-player | `startVersus()` / `vsTick()` / `vsRender()` / `renderVersus()` |
+| Two-player | `vsOpenSetup()` → `startVersus()` / `vsTick()` / `vsRender()` / `renderVersus()` |
+| Mini bodywork | `drawMini()`, silhouettes in `MINI_TANK` |
 | Daily seed run | `startDaily()` / `dailyFinish()` / `dailyStop()`, plan in `dailyPlan(day)` |
 | Rider profiles | `openProfile(name, from)` / `profileFetch()` / `renderProfile()` / `profilePush()` |
 | Rivals | `rivalFetch()` on run start, `rivalCheck(live)` once a frame, `drawRival()` in both HUDs |
@@ -165,9 +166,39 @@ the client, because profiles are looked up by name and letting a client set it
 would let one player claim another's name.
 
 **Versus** swaps the module globals (`S`, `POSE`, `CUR`, `ctx`, `target`,
-`SCALE/DPR/OFFX/OFFY`) around each rider, renders each to its own offscreen
-canvas, and blits them into stacked halves. `S` is `let`, not `const`, for
-exactly this reason. Always restore globals in a `finally`.
+`SCALE/DPR/OFFX/OFFY`, and now `W`/`BIKE_X`) around each rider, renders each to
+its own offscreen canvas, and blits them into stacked halves. `S` is `let`, not
+`const`, for exactly this reason. Always restore globals in a `finally`.
+It was unreachable until 5 Sep: `#mVersus` had no click handler and
+`startVersus()` was never called from anywhere. It now opens a setup sheet
+where each rider picks from the bikes you own and you set the round length.
+
+A round is a **fixed length of time**, not a race to a number, so both riders
+always finish together and a bad first minute is not fatal. `VS.phase` walks
+`setup → count → run → over`; the clock is stepped by `vsClock()` inside the
+physics loop rather than off the renderer, so a round is the same length on
+every machine. A crash costs the chain you were holding, exactly as on the
+street, but `VS.stat[i].total` carries the banked score across crashes and the
+live number is `total + S.score` - without that one crash would zero a whole
+round and there would be no reason to keep riding.
+
+Versus still pays nothing, and that is now actually true. It was leaking:
+`crash()` called `awardXP()` and `persist()`, and two record writes inside
+`tickStreet` were unguarded, so a versus round moved your level and your
+street best. The crash path routes through `vsCrash()` instead, and both
+writes check `VS.on`. Neither rider's bike touches `SAVE.bike` either - both
+get their own build in `VS.cur`, so the garage is exactly as you left it.
+
+The halves are no longer zoomed. The old code rendered at the window's own
+width and cropped a short slice, which upscaled roughly 2x. `vsWidth()` picks
+the world width the half's shape actually asks for (about double), so all 540
+of world height fits with nothing cropped and nothing stretched. That costs
+about twice the pixels; `tuneQuality` still applies, because the chosen width
+falls out of `cv.width`, which `DPR` drives.
+
+The full riding HUD is suppressed in versus - two of them in a half-height
+viewport is unreadable - so `vsHUD()` draws a compact board per half, plus the
+crash card that would otherwise be lost with `drawHUD`.
 
 ---
 
@@ -227,6 +258,7 @@ curl -s -X POST -H "apikey: $KEY" -H "Content-Type: application/json" \
 | Badges | `BADGE_PINS 3`, the `BADGES` array (30 of them), tiers 1-3 |
 | Weather | `WEATHERS` (grip, brake, wind, dark), `WEATHER_FROM_DAY` |
 | Time trial | `TT_DIST 900`, `TT_SPLITS`, `TT_PENALTY 3000`, course seeded per week |
+| Versus | `VS_LENGTHS` (60/90/150s), `VS_KEYS`, `VS_TINT`, `vsWidth()` clamp |
 
 Seasons roll over from the clock — no scheduling, no server job. So does the
 daily seed, off a **UTC** day number, which means it turns over at 20:00 in
@@ -237,8 +269,22 @@ number shifts.
 Appending is safe between days; a reorder shipped mid-day puts two players on
 different tracks while they both think they are riding today's.
 
-**60 bikes.** Indexes 34–39 and 51–52 are code-unlocked secrets (`price 0`),
-54–59 are season pass bikes, 50 is the 500k Apex Omega.
+**80 bikes.** Indexes 34–39 and 51–52 are code-unlocked secrets (`price 0`),
+54–59 are season pass bikes, 50 is the 500k Apex Omega. 60–79 were added on
+5 Sep: eight minis, six motocross (one of them a supermoto), four road bikes,
+an e-moto and a drag bike, all bought with coins.
+
+**`cls:"mini"` is a fifth body class**, drawn by `drawMini()`. A mini is not a
+big bike drawn small - the wheels are tiny beside the rider, the frame is one
+backbone rather than a cradle, the motor hangs under the seat - and putting
+them through `drawNaked` with a short wheelbase read as toy motorcycles. Five
+variants (`shape.mini`: `grom` `monkey` `pit` `trail` `pocket`) branch on
+structure, because a rigid-forked trail mini and a faired pocket racer share
+almost nothing. `MINI_TANK` stores silhouettes as **a fraction of the
+wheelbase across and a multiple of the seat height up**, so one shape fits a
+104 trail mini and a 130 pit bike; absolute coordinates put the tank through
+the frame on half of them. The minis also fill the gap under the 2,600-coin
+Grom that the early game did not have - the Coleman is 1,200.
 
 **Codes:** `julian dev soflolucas penguinong a1a bikelife nohands miami braaap
 dev2 caleb eli`. Typing `adminabuse` opens the admin panel — but it is only a
@@ -276,9 +322,6 @@ bike, or asserting on a stub that a live fetch had replaced.
 
 ## Known open items
 
-- **Split-screen halves are zoomed.** Inherent to cropping a 960-wide frame
-  into a short, wide viewport. Proper fix is rendering each half at a wider
-  internal width.
 - **Leaderboard is cheatable.** Client-side game; a determined player can post
   any score through dev tools. Mitigated by a DB ceiling and a monotonic
   trigger, not solved. Only worth fixing if someone actually does it.
@@ -286,7 +329,10 @@ bike, or asserting on a stub that a live fetch had replaced.
 - **`1.5×` crew coins is effectively economy-wide** once everyone joins. Price
   future content accordingly.
 - **Versus pays nothing** — no coins, XP or records, since two people share one
-  account. Deliberate.
+  account. Deliberate, and verified: a street run moves `best`/`xp`/`coins`, a
+  full versus round after it moves none of them.
+- **Versus is keyboard only.** The touch pad drives P1, which is not a second
+  player. Fine on a sofa with a laptop; no use on a phone.
 - **A daily attempt can be dodged by killing the tab.** Leaving through the
   menu banks the run, and a crash banks it, so the only way to get a second go
   is to close the tab mid-run — nothing was banked, so nothing was filed.
@@ -365,6 +411,15 @@ Each of these shipped or nearly shipped, and each has a lesson.
 - **Admin passphrase ate a redeemed code.** The branch called
   `SAVE.codes.pop()` before the push that would have added it.
 - **UTF-8 without a charset.** Em dashes rendered as mojibake for months.
+- **Versus shipped with no way in.** The button, the CSS, the split-screen
+  renderer and the input mapping were all written and correct; nobody had
+  added the one `addEventListener` line, so `startVersus()` was dead code for
+  weeks and nobody noticed because the button looked like the others.
+  *Lesson: a feature is not done until you have clicked it in the built page.*
+- **Absolute coordinates do not scale.** The first mini bodywork used the MX
+  tables' fixed y values, so a 104mm trail mini wore a tank halfway through
+  its own frame. Normalising to wheelbase and seat height fixed all five
+  variants at once. *Screenshot the bike, do not reason about the polygon.*
 
 ---
 
