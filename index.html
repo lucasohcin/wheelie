@@ -75,23 +75,47 @@
   .mini{display:none; margin:14px auto 0; max-width:32ch; font-size:12.5px; line-height:1.6; color:#6E7B8A}
   @media (max-width:700px), (max-height:520px){ .legend{display:none} .mini{display:block} }
 
-  /* ---------- spot picker ---------- */
-  .spots{display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin:0 auto 18px; max-width:640px}
-  .spots button{
-    font-family:var(--ui); font-weight:600; font-size:13px; letter-spacing:.06em;
-    color:var(--dim); background:rgba(20,25,34,.6); border:1px solid var(--edge);
-    border-radius:999px; padding:7px 15px 7px 9px; cursor:pointer;
-    display:inline-flex; align-items:center; gap:8px;
+  /* ---------- map picker ----------
+     The map used to live in a row of pills below the fold, where nobody
+     scrolled to find it. Now it is the step between pressing a mode and
+     riding, so every run is a deliberate choice of where. */
+  .mapbox{width:min(920px,100%); margin:auto}
+  .mapttl{
+    margin:0 0 4px; font-family:var(--display); text-transform:uppercase;
+    font-size:clamp(22px,4vw,38px); letter-spacing:-.01em; color:var(--text);
   }
-  .spots button:hover{color:var(--text); border-color:#3E4C5E}
-  .spots button.on{color:#0B0F14; background:var(--text); border-color:var(--text)}
-  .spots button i{width:26px; height:14px; border-radius:4px; display:block}
-  .spots button .wxic{font-size:14px; line-height:1}
-  .spots button:focus-visible{outline:3px solid var(--amber); outline-offset:2px}
-  .spots .cap{
-    width:100%; text-align:center; font-size:11px; letter-spacing:.22em;
-    text-transform:uppercase; color:var(--dim); margin-bottom:2px;
+  .mapsub{margin:0 0 20px; color:var(--dim); font-size:clamp(13px,1.6vw,15.5px)}
+  .mapgrid{display:flex; gap:14px; justify-content:center; align-items:stretch; flex-wrap:wrap; margin-bottom:18px}
+  .mapcard{
+    width:212px; padding:0 0 13px; border-radius:14px; cursor:pointer; text-align:left;
+    display:flex; flex-direction:column;
+    background:linear-gradient(160deg,rgba(30,37,49,.92),rgba(16,20,27,.92));
+    border:1px solid var(--edge); color:var(--text); font-family:var(--ui);
+    overflow:hidden; transition:transform .12s ease, border-color .12s ease;
   }
+  .mapcard:hover{transform:translateY(-3px); border-color:#3E4C5E}
+  .mapcard:focus-visible{outline:3px solid var(--amber); outline-offset:3px}
+  .mapcard.on{border-color:var(--amber)}
+  .mapcard .pv{
+    display:block; position:relative; height:96px; width:100%; flex:none; overflow:hidden;
+    border-bottom:1px solid var(--edge);
+  }
+  .mapcard .pv i{position:absolute; display:block}
+  .mapcard .pv .sun{width:22px; height:22px; border-radius:50%; left:22%; transform:translateY(-50%)}
+  .mapcard .pv .band{left:0; right:0; bottom:0}
+  .mapcard .pv .hill{left:-8%; right:-8%; border-radius:50% 50% 0 0}
+  .mapcard b{
+    display:block; margin:11px 14px 3px; font-family:var(--num); font-weight:700;
+    font-size:19px; letter-spacing:.02em;
+  }
+  .mapcard span{display:block; margin:0 14px 9px; font-size:13px; color:var(--dim); line-height:1.4}
+  .mapcard .tag{
+    display:inline-block; margin:auto 14px 0; align-self:flex-start; font-family:var(--num); font-weight:700;
+    font-size:11px; letter-spacing:.12em; color:var(--amber);
+  }
+  .maprow{display:flex; gap:14px; align-items:center; justify-content:center; flex-wrap:wrap}
+  .maphint{font-size:13px; color:#6E7B8A}
+  @media (max-width:700px){ .mapcard{width:min(300px,100%)} .mapcard .pv{height:78px} }
 
   /* ---------- quests ---------- */
   .quests{
@@ -637,9 +661,6 @@
         <div class="rec" id="ownedCount">1 / 14 BIKES</div>
       </button>
     </div>
-    <div class="spots" id="spotPick"></div>
-    <div class="spots" id="trackPick"></div>
-    <div class="spots" id="wxPick"></div>
     <div class="quests" id="questBox">
       <h3>Quests <em id="questCount"></em></h3>
       <div id="questList"></div>
@@ -671,6 +692,18 @@
   </div>
 </div>
 
+
+<div class="sheet" id="mapPick" hidden>
+  <div class="mapbox">
+    <h2 class="mapttl" id="mapTitle">Pick your map</h2>
+    <p class="mapsub" id="mapSub"></p>
+    <div class="mapgrid" id="mapGrid"></div>
+    <div class="maprow">
+      <button class="btn" id="mapBack">Back</button>
+      <span class="maphint">Conditions roll on their own once you're out there.</span>
+    </div>
+  </div>
+</div>
 
 <div class="sheet" id="auth" hidden>
   <div class="authbox">
@@ -1286,22 +1319,22 @@ const HELMETS = [
 ];
 
 const SPOTS = [
-  { name:"FTL Beach", sky:[[0,"#3FB6D2"],[.42,"#8FD3D0"],[.62,"#F7C36B"],[.82,"#FF9155"],[1,"#FF6F52"]],
+  { name:"FTL Beach", blurb:"Sunset over A1A. Wide open and forgiving.", sky:[[0,"#3FB6D2"],[.42,"#8FD3D0"],[.62,"#F7C36B"],[.82,"#FF9155"],[1,"#FF6F52"]],
     sun:"#FFE9A8", sunGlow:"rgba(255,190,110,.55)", sunY:.62,
     sea:"#1B7FA8", seaHi:"#63C6D8", sand:"#E8D9BF", curb:"#C9C3B4",
     road:"#41444C", roadFar:"#4A4D56", line:"#E9E6DC", palmT:"#7A5A3A", palmL:"#1FA84E", palmL2:"#17853D",
     city:"rgba(66,46,86,.40)", cityLit:false, haze:"rgba(255,180,120,.14)", night:false },
-  { name:"Miami Night", sky:[[0,"#0B1230"],[.45,"#1B1A4A"],[.72,"#4B1E5C"],[1,"#8A2A5B"]],
+  { name:"Miami Night", blurb:"Neon skyline, dark road, everything harder to read.", sky:[[0,"#0B1230"],[.45,"#1B1A4A"],[.72,"#4B1E5C"],[1,"#8A2A5B"]],
     sun:"#FFD9F2", sunGlow:"rgba(255,90,190,.35)", sunY:.5,
     sea:"#0C1E3C", seaHi:"#2C6FA8", sand:"#A99A83", curb:"#6E6A63",
     road:"#23252C", roadFar:"#2A2D35", line:"#C8C4B8", palmT:"#2A2030", palmL:"#125E44", palmL2:"#0C4531",
     city:"#131A38", cityLit:true, haze:"rgba(120,40,160,.20)", night:true },
-  { name:"Key Biscayne", sky:[[0,"#2FA5E0"],[.55,"#7FD0EE"],[1,"#CFEFF6"]],
+  { name:"Key Biscayne", blurb:"Flat noon light off the water. Nothing hidden.", sky:[[0,"#2FA5E0"],[.55,"#7FD0EE"],[1,"#CFEFF6"]],
     sun:"#FFFFFF", sunGlow:"rgba(255,255,255,.5)", sunY:.28,
     sea:"#12A5B8", seaHi:"#7BE3E0", sand:"#F2E6CC", curb:"#D6D0C0",
     road:"#4C505A", roadFar:"#565A64", line:"#F4F1E6", palmT:"#8A6742", palmL:"#25BF5B", palmL2:"#1B9647",
     city:"rgba(150,180,200,.38)", cityLit:false, haze:"rgba(255,255,255,.08)", night:false },
-  { name:"Pine Trail", kind:"trail",
+  { name:"Pine Trail", kind:"trail", blurb:"Dirt and ruts through the pines. Loose under the wheel.",
     sky:[[0,"#7FC0E6"],[.46,"#BEDDEC"],[.78,"#E6DCC0"],[1,"#EBCF9E"]],
     sun:"#FFF6D8", sunGlow:"rgba(255,240,190,.45)", sunY:.22,
     sea:"#6E8A47", seaHi:"#87A55C", sand:"#8A6A45", curb:"#7A5F3E",
@@ -1436,7 +1469,7 @@ const SAVE = { coins:0, codes:[], bikes:[0], lids:[0,1], bike:0, lid:0, best:0, 
                quests:[], qp:{}, qdone:[], tune:{}, spot:0, bestRide:0,
                tricks:[], slots:["stand","knee","drag","nohand","fob","onehand"],
                rider:{}, track:0, daily:{}, dailyBest:0, profile:{}, badges:[], pins:[],
-               weather:0, tt:{} };
+               tt:{} };
 
 /* ---------- tuning ---------- */
 const PAINT = ["#FF6A13","#E01B24","#D0111B","#1D5FD8","#2452D8","#2FBF6B","#00C2C7",
@@ -1799,7 +1832,6 @@ function normaliseSave(){
   if (!SAVE.rider) SAVE.rider = {};
   if (!SAVE.keys || typeof SAVE.keys !== "object" || Array.isArray(SAVE.keys)) SAVE.keys = {};
   SAVE.track = SAVE.track | 0;
-  SAVE.weather = Math.max(0, SAVE.weather | 0);
   if (!SAVE.daily || typeof SAVE.daily !== "object" || Array.isArray(SAVE.daily)) SAVE.daily = {};
   if (!SAVE.profile || typeof SAVE.profile !== "object" || Array.isArray(SAVE.profile)) SAVE.profile = {};
   if (!SAVE.tt || typeof SAVE.tt !== "object" || Array.isArray(SAVE.tt)) SAVE.tt = {};
@@ -2104,7 +2136,7 @@ function mergeSaves(a, b){
     out.tune[id] = t;
   }
 
-  for (const k of ["bike","lid","spot","track","slots","rider","keys","quests","crew","profile","pins","weather"])
+  for (const k of ["bike","lid","spot","track","slots","rider","keys","quests","crew","profile","pins"])
     if (newer[k] !== undefined) out[k] = newer[k];
 
   out.ts = Math.max(a.ts || 0, b.ts || 0);
@@ -2208,6 +2240,7 @@ function vsCanvas(i){
 
 function startVersus(){
   VS.on = true;
+  RUN_WX = 0;                     // a shared screen is hard enough to read as it is
   VS.p2 = vsMakeState();
   VS.pose2 = null;
   // rider two takes the next bike you own, so the two are told apart at a glance
@@ -2384,8 +2417,15 @@ addEventListener("keydown", e => {
   keys[k] = true;
   const playing = S.mode === "street" || S.mode === "ramp";
   if (k === "escape" && VS.on) { endVersus(); return; }
-  if (k === "escape") { playing ? openMenu() : (S.mode === "shop" ? openMenu() : S.mode === "board" ? closeBoard() : S.mode === "season" ? closeSeason() : S.mode === "crew" ? closeCrew() : S.mode === "profile" ? closeProfile() : S.mode === "admin" ? closeAdmin() : 0); return; }
-  if (k === "enter") { playing ? (S.paused && togglePause()) : startMode("rideout"); return; }
+  if (k === "escape") { playing ? openMenu() : (S.mode === "shop" ? openMenu() : S.mode === "mappick" ? openMenu() : S.mode === "board" ? closeBoard() : S.mode === "season" ? closeSeason() : S.mode === "crew" ? closeCrew() : S.mode === "profile" ? closeProfile() : S.mode === "admin" ? closeAdmin() : 0); return; }
+  if (k === "enter") {
+    if (playing) { S.paused && togglePause(); return; }
+    // from the picker Enter takes the map already selected, so the quick way in
+    // is still Enter, Enter
+    if (S.mode === "mappick") startMode(MAPFOR || "rideout");
+    else if (S.mode === "menu") openMapPick("rideout");
+    return;
+  }
   if (!playing) return;
   const act = actionFor(k);
   if (act === "pause") togglePause();
@@ -5111,9 +5151,11 @@ function badgeChip(b){
    Rain takes grip and most of the brakes, wind pushes the front up and down
    on a slow cycle you have to ride against, and night takes away the road
    ahead. Clear is the game you already know.
-   You pick it for your own runs, because a record set in the rain against one
-   set in the dry is not a record. The daily picks its own from the seed, so
-   everybody rides the same conditions on the same day.
+   Nobody picks it. Weather is something that happens to a run: it is rolled
+   once, as the run starts, and most runs are clear - so turning up to rain is
+   a thing that happened to you rather than a setting you left on. The daily
+   rolls its own from the seed, so everybody rides the same conditions on the
+   same day, and a time trial is always dry because a board needs one surface.
    Every effect is a multiplier applied at one point in each tick, so nothing
    here can change the physics of a clear run.
    ============================================================ */
@@ -5131,10 +5173,20 @@ const WEATHERS = [
     tint:"rgba(6,10,26,.40)" },
 ];
 const weatherById = id => WEATHERS.find(w => w.id === id) || WEATHERS[0];
-// the daily's weather beats your own pick, so a seeded day is the same for all
+/* How often each condition turns up, out of 100. Clear has to stay the run you
+   usually get, or the weather stops being weather and becomes the game. */
+const WX_ODDS = [72, 12, 9, 7];              // clear · rain · wind · night
+let RUN_WX = 0;                              // rolled at the start of every run
+function rollWeather(){
+  let n = Math.random() * WX_ODDS.reduce((a, b) => a + b, 0);
+  RUN_WX = 0;
+  for (let i = 0; i < WX_ODDS.length; i++) { n -= WX_ODDS[i]; if (n < 0) { RUN_WX = i; break; } }
+  return WEATHERS[RUN_WX];
+}
+// the daily's weather beats the roll, so a seeded day is the same for all
 // a trial is a timed board, so it is always run in the dry
 const weather = () => (TT.on ? WEATHERS[0] : DAILY.on ? WEATHERS[DAILY.weather]
-                                                     : WEATHERS[SAVE.weather]) || WEATHERS[0];
+                                                     : WEATHERS[RUN_WX]) || WEATHERS[0];
 const wxOn = () => weather().id !== "clear";
 
 /* The weather clock ticks with the physics, not with the renderer: a gust has
@@ -5219,21 +5271,6 @@ function drawWeatherTag(x, y){
   }
   ctx.fillText(t, x, y);
   ctx.textAlign = "left";
-}
-function renderWeatherPick(){
-  const el = document.getElementById("wxPick");
-  if (!el) return;
-  el.innerHTML = `<div class="cap">Conditions</div>`;
-  WEATHERS.forEach((w, i) => {
-    const b = document.createElement("button");
-    b.className = i === (SAVE.weather | 0) ? "on" : "";
-    b.title = w.blurb;
-    b.innerHTML = `<span class="wxic">${w.ic}</span>${w.name}`;
-    b.addEventListener("click", () => {
-      SAVE.weather = i; persist(); sfx.ui(); renderWeatherPick();
-    });
-    el.appendChild(b);
-  });
 }
 
 /* ============================================================
@@ -5377,10 +5414,10 @@ function renderTrialCard(){
    RAMP MODE — endless randomised track
    ============================================================ */
 const RTRACKS = [
-  { id:"dunes",  name:"Dunes",
+  { id:"dunes",  name:"Dunes", blurb:"Sand kickers and long lips. Big air, soft landings.",
     dirt:"#4A3626", shade:"rgba(0,0,0,.22)", top:"#8B6A45", top2:"#A98559",
     hill1:"rgba(120,86,120,.55)", hill2:"rgba(70,50,80,.65)", tree:false },
-  { id:"forest", name:"Backcountry",
+  { id:"forest", name:"Backcountry", blurb:"Trees, water gaps and a tighter line to hold.",
     dirt:"#3B3226", shade:"rgba(0,0,0,.30)", top:"#4B6B34", top2:"#79A052",
     hill1:"#5C7C68", hill2:"#38564A", tree:true, water:"#2C6D86",
     sky:[[0,"#6FB6DE"],[.48,"#A8D2E4"],[.84,"#D2E2CE"],[1,"#DFE7C6"]] },
@@ -5987,30 +6024,78 @@ function renderQuests(){
     list.appendChild(row);
   }
 }
-function renderSpots(){
-  const el = document.getElementById("spotPick");
-  if (!el) return;
-  el.innerHTML = `<div class="cap">Where you ride</div>`;
-  SPOTS.forEach((sp, i) => {
-    const b = document.createElement("button");
-    b.className = i === SAVE.spot ? "on" : "";
-    b.innerHTML = `<i style="background:linear-gradient(160deg,${sp.sky[0][1]},${sp.sky[sp.sky.length-1][1]})"></i>${sp.name}`;
-    b.addEventListener("click", () => { SAVE.spot = i; persist(); sfx.ui(); renderSpots(); });
-    el.appendChild(b);
-  });
+/* ============================================================
+   MAP PICKER
+   ------------------------------------------------------------
+   Picking where you ride used to be a row of pills under the modes, below
+   the fold on most screens, so almost nobody ever changed it. It is now the
+   one step between pressing a mode and riding it: press Street, choose the
+   beach or the night, go. The choice is still remembered, so the map you
+   rode last is the one already selected next time.
+   ============================================================ */
+const elMapPick = document.getElementById("mapPick");
+let MAPFOR = null;                          // which mode the picker is choosing for
+
+const skyCss = stops =>
+  "linear-gradient(180deg," + stops.map(([p, c]) => `${c} ${(p * 100).toFixed(1)}%`).join(",") + ")";
+
+// A card has to read as its map at a glance, so each preview is built from the
+// same colours the renderer paints the real thing with.
+function spotPreview(sp){
+  const trail = sp.kind === "trail";
+  return `<span class="pv" style="background:${skyCss(sp.sky)}">` +
+    `<i class="sun" style="top:${(sp.sunY * 100).toFixed(0)}%;background:${sp.sun};` +
+      `box-shadow:0 0 16px 7px ${sp.sunGlow}"></i>` +
+    `<i class="band" style="height:34%;background:linear-gradient(180deg,${sp.seaHi},${sp.sea})"></i>` +
+    `<i class="band" style="height:22%;background:${sp.sand}"></i>` +
+    `<i class="band" style="height:15%;background:${sp.road}"></i>` +
+    (trail ? "" : `<i class="band" style="height:2px;bottom:6%;background:${sp.line};opacity:.75"></i>`) +
+    `</span>`;
 }
-function renderTracks(){
-  const el = document.getElementById("trackPick");
-  if (!el) return;
-  el.innerHTML = `<div class="cap">Ramp track</div>`;
-  RTRACKS.forEach((k, i) => {
-    const b = document.createElement("button");
-    b.className = i === SAVE.track ? "on" : "";
-    b.innerHTML = `<i style="background:linear-gradient(160deg,${k.top},${k.dirt})"></i>${k.name}`;
-    b.addEventListener("click", () => { SAVE.track = i; persist(); sfx.ui(); renderTracks(); });
-    el.appendChild(b);
-  });
+function trackPreview(k){
+  const sky = k.sky || spot().sky;
+  return `<span class="pv" style="background:${skyCss(sky)}">` +
+    `<i class="hill" style="height:46%;bottom:30%;background:${k.hill1}"></i>` +
+    `<i class="hill" style="height:34%;bottom:28%;background:${k.hill2}"></i>` +
+    `<i class="band" style="height:30%;background:linear-gradient(180deg,${k.top2},${k.dirt})"></i>` +
+    `<i class="band" style="height:6%;background:${k.top}"></i>` +
+    `</span>`;
 }
+
+/* mode is the same string startMode takes: "street", "rideout" or "ramp". */
+function openMapPick(mode){
+  MAPFOR = mode;
+  const ramp = mode === "ramp";
+  const list = ramp ? RTRACKS : SPOTS;
+  const cur  = ramp ? (SAVE.track | 0) : (SAVE.spot | 0);
+  document.getElementById("mapTitle").textContent = ramp ? "Pick a track" : "Pick your spot";
+  document.getElementById("mapSub").textContent = ramp
+    ? "Every track is endless and randomised - the ground under it is what changes."
+    : mode === "rideout" ? "Where the pack is riding out to."
+                         : "Empty road, your choice of road.";
+  const grid = document.getElementById("mapGrid");
+  grid.innerHTML = "";
+  list.forEach((m, i) => {
+    const b = document.createElement("button");
+    b.className = "mapcard" + (i === cur ? " on" : "");
+    b.innerHTML = (ramp ? trackPreview(m) : spotPreview(m)) +
+      `<b>${esc(m.name)}</b><span>${esc(m.blurb || "")}</span>` +
+      (i === cur ? `<span class="tag">LAST RIDDEN</span>` : "");
+    b.addEventListener("click", () => {
+      if (ramp) SAVE.track = i; else SAVE.spot = i;
+      persist();
+      closeMapPick();
+      startMode(mode);
+    });
+    grid.appendChild(b);
+  });
+  S.mode = "mappick";
+  elMenu.hidden = true; elShop.hidden = true;
+  elMapPick.hidden = false;
+  sfx.ui();
+}
+function closeMapPick(){ elMapPick.hidden = true; MAPFOR = null; }
+document.getElementById("mapBack").addEventListener("click", openMenu);
 function renderChallenges(){
   const list = document.getElementById("chalList");
   if (!list) return;
@@ -6035,9 +6120,6 @@ function renderChallenges(){
 function syncWallet(){
   renderQuests();
   renderChallenges();
-  renderSpots();
-  renderTracks();
-  renderWeatherPick();
   document.getElementById("coinsMenu").textContent = money(SAVE.coins);
   document.getElementById("coinsShop").textContent = money(SAVE.coins);
   const cc = document.getElementById("coinsCrew");
@@ -6574,9 +6656,9 @@ document.getElementById("codeIn").addEventListener("keydown", e => {
   if (e.key === "Enter") redeem(e.target.value);
 });
 document.getElementById("mShop").addEventListener("click", openShop);
-document.getElementById("mStreet").addEventListener("click", () => startMode("street"));
-document.getElementById("mRide").addEventListener("click", () => startMode("rideout"));
-document.getElementById("mRamp").addEventListener("click", () => startMode("ramp"));
+document.getElementById("mStreet").addEventListener("click", () => openMapPick("street"));
+document.getElementById("mRide").addEventListener("click", () => openMapPick("rideout"));
+document.getElementById("mRamp").addEventListener("click", () => openMapPick("ramp"));
 document.getElementById("mTrial").addEventListener("click", startTrial);
 
 /* ---------- mode control ---------- */
@@ -6627,6 +6709,7 @@ function openMenu(){
   S.mode = "menu"; S.paused = false;
   elShop.hidden = true; elBoard.hidden = true; elSeason.hidden = true; elCrew.hidden = true;
   elAdmin.hidden = true; elProfile.hidden = true; elMenu.hidden = false;
+  closeMapPick();
   elExit.classList.remove("on");
   for (const k in keys) keys[k] = false;
   for (const k in touchKeys) touchKeys[k] = false;
@@ -6649,6 +6732,11 @@ function openShop(){
 function startMode(m){
   bcastRun.clear();                         // every run gets the current announcement
   setTimeout(popBroadcast, 400);
+  closeMapPick();
+  /* Weather is rolled here and nowhere else, so one run is one set of
+     conditions - it cannot turn on halfway through a record. */
+  const wx = rollWeather();
+  if (wx.id !== "clear") setTimeout(() => toast(wx.ic + "  " + wx.name.toUpperCase()), 500);
   S.rideOut = (m === "rideout");
   S.mode = S.rideOut ? "street" : m;
   S.paused = false;

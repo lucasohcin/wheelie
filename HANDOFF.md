@@ -73,7 +73,8 @@ It happened on 3 Sep: a second session committed the same feature concurrently
 | Rider profiles | `openProfile(name, from)` / `profileFetch()` / `renderProfile()` / `profilePush()` |
 | Rivals | `rivalFetch()` on run start, `rivalCheck(live)` once a frame, `drawRival()` in both HUDs |
 | Badges | `BADGES` catalogue, `badgeCheck()` on every `persist()`, case in `renderProfileCase()` |
-| Weather | `WEATHERS`, `weather()`, `windNow()`, `drawWeather()` in both renderers |
+| Map picker | `openMapPick(mode)` / `closeMapPick()`, previews from `spotPreview()` / `trackPreview()` |
+| Weather | `WEATHERS`, `rollWeather()`, `weather()`, `windNow()`, `drawWeather()` in both renderers |
 | Time trial | `startTrial()` / `ttTick()` / `ttFinish()`, course from `ttPlan(week)` |
 
 **Stat pipeline order:** base bike → upgrade pips → engine swap → fitted parts.
@@ -97,10 +98,12 @@ respawning at a checkpoint, and keeps the run out of `SAVE.rampBest`.
 **Weather** is four conditions applied as multipliers at single points in each
 tick: grip on acceleration and on the ramp's tyre grip, brake force, and a
 gust added straight to the pitch velocity. Nothing about it can change a clear
-run. You pick your own, because a record set in the rain against one set in
-the dry is not a record; the daily picks its own off the seed so a day is the
-same for everyone, and the time trial forces clear because it is a timed
-board.
+run. Nobody picks it: `rollWeather()` rolls `RUN_WX` once inside `startMode()`,
+with the odds in `WX_ODDS` (72/12/9/7, clear first), so weather is something
+that happens to a run rather than a setting left on, and it can never change
+partway through one. The daily rolls its own off the seed so a day is the same
+for everyone, versus is forced clear because two riders share a screen, and the
+time trial forces clear because it is a timed board.
 Two things worth knowing. The weather draw goes on the **end** of the daily's
 seed stream, so every day already ridden keeps the bike, track and terrain it
 had - a test pins day 243's whole plan, computed outside the game, to catch
@@ -225,7 +228,7 @@ curl -s -X POST -H "apikey: $KEY" -H "Content-Type: application/json" \
 | Rider profiles | `PROF_NAME_MAX 24`, `PROF_BIO_MAX 200`, `COLOUR_OK` |
 | Rivals | how many are queued up: `limit=8` on a board, `limit=12` in the daily |
 | Badges | `BADGE_PINS 3`, the `BADGES` array (30 of them), tiers 1-3 |
-| Weather | `WEATHERS` (grip, brake, wind, dark), `WEATHER_FROM_DAY` |
+| Weather | `WEATHERS` (grip, brake, wind, dark), `WX_ODDS`, `WEATHER_FROM_DAY` |
 | Time trial | `TT_DIST 900`, `TT_SPLITS`, `TT_PENALTY 3000`, course seeded per week |
 
 Seasons roll over from the clock — no scheduling, no server job. So does the
