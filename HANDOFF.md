@@ -6,7 +6,7 @@ Everything a fresh session needs to pick this up. Written 3 Sep 2026.
 
 ## What this is
 
-A wheelie game. One file: **`index.html`**, ~7,600 lines, no build step, no
+A wheelie game. One file: **`index.html`**, ~8,000 lines, no build step, no
 dependencies. HTML + CSS + one big IIFE of JavaScript, rendered to a canvas.
 
 - **Repo:** https://github.com/lucasohcin/wheelie
@@ -53,7 +53,7 @@ fields, so **adding** fields is free.
 
 It happened on 3 Sep: a second session committed the same feature concurrently
 (`30d9ab4`). Nothing was lost that time, by luck. Two sessions editing a single
-7,600-line file will overwrite each other.
+8,000-line file will overwrite each other.
 
 ---
 
@@ -73,6 +73,8 @@ It happened on 3 Sep: a second session committed the same feature concurrently
 | Rider profiles | `openProfile(name, from)` / `profileFetch()` / `renderProfile()` / `profilePush()` |
 | Rivals | `rivalFetch()` on run start, `rivalCheck(live)` once a frame, `drawRival()` in both HUDs |
 | Badges | `BADGES` catalogue, `badgeCheck()` on every `persist()`, case in `renderProfileCase()` |
+| Weather | `WEATHERS`, `weather()`, `windNow()`, `drawWeather()` in both renderers |
+| Time trial | `startTrial()` / `ttTick()` / `ttFinish()`, course from `ttPlan(week)` |
 
 **Stat pipeline order:** base bike → upgrade pips → engine swap → fitted parts.
 All multiplicative except `loop`/`bp`, which are additive offsets.
@@ -91,6 +93,31 @@ is stored anywhere and every rider computes the same setup independently. The
 loaner is `buildBike(idx, DAILY_STOCK)`, which skips the player's upgrades.
 `DAILY.on` also locks `rtrack()`, blocks `cycleBike()`, keeps the crash from
 respawning at a checkpoint, and keeps the run out of `SAVE.rampBest`.
+
+**Weather** is four conditions applied as multipliers at single points in each
+tick: grip on acceleration and on the ramp's tyre grip, brake force, and a
+gust added straight to the pitch velocity. Nothing about it can change a clear
+run. You pick your own, because a record set in the rain against one set in
+the dry is not a record; the daily picks its own off the seed so a day is the
+same for everyone, and the time trial forces clear because it is a timed
+board.
+Two things worth knowing. The weather draw goes on the **end** of the daily's
+seed stream, so every day already ridden keeps the bike, track and terrain it
+had - a test pins day 243's whole plan, computed outside the game, to catch
+anyone moving it. And `WEATHER_FROM_DAY` exists because day 244 was already
+being ridden when weather was built: without it, half a board would have been
+in the dry and half at night.
+The weather clock `wxT` ticks with the physics, not the renderer, so a gust is
+the same length of time on every machine.
+
+**The time trial** is ramp physics on a course seeded off the **week** rather
+than the day, because a time trial you only see once is a lottery. Style is
+worth nothing; the clock starts when you move, three splits call out on the
+way, a crash costs three seconds and puts you back at the last checkpoint
+rather than ending the run. The loaner is stock, like the daily.
+It is the only board in the game where the smallest number wins, which is why
+`trials.sql` has a `least()` trigger where `scores` has a `greatest()` one,
+and why `mergeSaves` takes the lower time per week rather than the higher.
 
 **Badges** are predicates over the save, nothing more. `badgeCheck()` runs
 inside `persist()`, which is every point at which the save changed in a way
@@ -164,9 +191,10 @@ level security is what actually protects data.
 | `grants` | own + admins | insert admins, claim own |
 | `daily` | public | own row only, **insert only** — no update policy, so one attempt a day is enforced by the database |
 | `profiles` | public | own row only, plus `is_admin()` for taking a bio down. `badges` / `badge_count` were added later; re-run `profiles.sql` for them |
+| `trials` | public | own row only, and a trigger that only ever lets a time come down |
 
 SQL lives in `supabase-setup.sql`, `leaderboard.sql`, `crews.sql`, `admin.sql`,
-`daily.sql`, `profiles.sql`.
+`daily.sql`, `profiles.sql`, `trials.sql`.
 All are idempotent — safe to re-run.
 
 **Auth quirk:** usernames map to internal addresses `name@wheelie.local`, which
@@ -197,6 +225,8 @@ curl -s -X POST -H "apikey: $KEY" -H "Content-Type: application/json" \
 | Rider profiles | `PROF_NAME_MAX 24`, `PROF_BIO_MAX 200`, `COLOUR_OK` |
 | Rivals | how many are queued up: `limit=8` on a board, `limit=12` in the daily |
 | Badges | `BADGE_PINS 3`, the `BADGES` array (30 of them), tiers 1-3 |
+| Weather | `WEATHERS` (grip, brake, wind, dark), `WEATHER_FROM_DAY` |
+| Time trial | `TT_DIST 900`, `TT_SPLITS`, `TT_PENALTY 3000`, course seeded per week |
 
 Seasons roll over from the clock — no scheduling, no server job. So does the
 daily seed, off a **UTC** day number, which means it turns over at 20:00 in
@@ -267,6 +297,9 @@ bike, or asserting on a stub that a live fetch had replaced.
   pays normally and the board tab says so in plain words rather than dying.
 - **Profiles need `profiles.sql` run**, and it depends on `is_admin()` from
   `admin.sql`. Until it is, the profile screen says so and nothing else breaks.
+- **The time trial board needs `trials.sql` run.** Until it is, the mode plays
+  and your own best still saves; only the shared board is missing, and the
+  board tab says so.
 - **Badges added two columns to `profiles`**, so `profiles.sql` needs running
   again. It is idempotent and the `alter table ... add column if not exists`
   lines are safe on the live table. Until it is run, `profilePush()` notices
@@ -286,20 +319,22 @@ bike, or asserting on a stub that a live fetch had replaced.
 
 Already pitched and not built. Strongest first:
 
-1. **Crash flags on the daily track** — a flag where each friend died, with
+1. **A grace threshold on the daily.** A 0 m crash still burns the day. Below
+   about 10 m, do not count the attempt and do not file a row.
+2. **Crash flags on the daily track** — a flag where each friend died, with
    their name and distance on it. The `daily` table already holds every one of
    those numbers, so this is a fetch and a draw call: no table, no SQL.
-2. **Ghost of the day** — the top daily run replays beside you. The track is
+3. **Ghost of the day** — the top daily run replays beside you. The track is
    already deterministic, so a run is just position samples; store a few KB on
    the winner's row at about 5Hz.
-3. **Streak freeze** — one a week, bought with coins. Also softens the day a
+4. **Streak freeze** — one a week, bought with coins. Also softens the day a
    0m crash burns.
-4. **Daily modifiers** — the seed already picks a track and a bike; let it pick
-   a rule too (no brakes, night, flips double).
-5. **Rewind token** — one crash-undo per run. Kills frustration quits.
-6. **Per-bike leaderboards** — makes all 60 bikes matter; reuses `scores`.
-7. **Crew Wars** — weekly crew-vs-crew pairing.
-8. **Wheelie School** — graded tutorial ladder; the game is hard to learn.
+5. **More daily modifiers** — weather is the first one; the seed could just as
+   easily pick a rule (no brakes, flips score double, one life at half speed).
+6. **Rewind token** — one crash-undo per run. Kills frustration quits.
+7. **Per-bike leaderboards** — makes all 60 bikes matter; reuses `scores`.
+8. **Crew Wars** — weekly crew-vs-crew pairing.
+9. **Wheelie School** — graded tutorial ladder; the game is hard to learn.
 
 Deliberately rejected: **loot boxes / paid random pulls** and **coin wagering**
 (gambling-adjacent, and the players are the owner's friends, some young), and

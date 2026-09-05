@@ -86,6 +86,7 @@
   .spots button:hover{color:var(--text); border-color:#3E4C5E}
   .spots button.on{color:#0B0F14; background:var(--text); border-color:var(--text)}
   .spots button i{width:26px; height:14px; border-radius:4px; display:block}
+  .spots button .wxic{font-size:14px; line-height:1}
   .spots button:focus-visible{outline:3px solid var(--amber); outline-offset:2px}
   .spots .cap{
     width:100%; text-align:center; font-size:11px; letter-spacing:.22em;
@@ -617,6 +618,12 @@
         <span>Endless randomised track. Send jumps, flip, don't land on your head.</span>
         <div class="rec" id="bestRamp">BEST 0 m</div>
       </button>
+      <button class="mode" id="mTrial">
+        <div class="ic">⏱️</div>
+        <b>Time Trial</b>
+        <span class="tt-sub">900 m against the clock.</span>
+        <div class="rec">NO TIME YET</div>
+      </button>
       <button class="mode" id="mVersus">
         <div class="ic">🏆</div>
         <b>Versus</b>
@@ -632,6 +639,7 @@
     </div>
     <div class="spots" id="spotPick"></div>
     <div class="spots" id="trackPick"></div>
+    <div class="spots" id="wxPick"></div>
     <div class="quests" id="questBox">
       <h3>Quests <em id="questCount"></em></h3>
       <div id="questList"></div>
@@ -1427,7 +1435,8 @@ const CODES = {
 const SAVE = { coins:0, codes:[], bikes:[0], lids:[0,1], bike:0, lid:0, best:0, rampBest:0,
                quests:[], qp:{}, qdone:[], tune:{}, spot:0, bestRide:0,
                tricks:[], slots:["stand","knee","drag","nohand","fob","onehand"],
-               rider:{}, track:0, daily:{}, dailyBest:0, profile:{}, badges:[], pins:[] };
+               rider:{}, track:0, daily:{}, dailyBest:0, profile:{}, badges:[], pins:[],
+               weather:0, tt:{} };
 
 /* ---------- tuning ---------- */
 const PAINT = ["#FF6A13","#E01B24","#D0111B","#1D5FD8","#2452D8","#2FBF6B","#00C2C7",
@@ -1790,8 +1799,10 @@ function normaliseSave(){
   if (!SAVE.rider) SAVE.rider = {};
   if (!SAVE.keys || typeof SAVE.keys !== "object" || Array.isArray(SAVE.keys)) SAVE.keys = {};
   SAVE.track = SAVE.track | 0;
+  SAVE.weather = Math.max(0, SAVE.weather | 0);
   if (!SAVE.daily || typeof SAVE.daily !== "object" || Array.isArray(SAVE.daily)) SAVE.daily = {};
   if (!SAVE.profile || typeof SAVE.profile !== "object" || Array.isArray(SAVE.profile)) SAVE.profile = {};
+  if (!SAVE.tt || typeof SAVE.tt !== "object" || Array.isArray(SAVE.tt)) SAVE.tt = {};
   if (!Array.isArray(SAVE.badges)) SAVE.badges = [];
   if (!Array.isArray(SAVE.pins))   SAVE.pins   = [];
   SAVE.dailyBest = Math.max(0, SAVE.dailyBest | 0);
@@ -2063,6 +2074,13 @@ function mergeSaves(a, b){
   out.badges = uni("badges");                  // earned on either device is earned
   out.paints = uni("paints");
 
+  // a trial time is a best, so the lower of the two wins for each week
+  out.tt = Object.assign({}, a.tt || {});
+  for (const k in (b.tt || {})) {
+    const cur = out.tt[k] | 0, nw = b.tt[k] | 0;
+    if (nw > 0 && (!cur || nw < cur)) out.tt[k] = nw;
+  }
+
   out.qp = Object.assign({}, a.qp || {});
   for (const k in (b.qp || {})) out.qp[k] = Math.max(out.qp[k] || 0, b.qp[k] || 0);
 
@@ -2086,7 +2104,7 @@ function mergeSaves(a, b){
     out.tune[id] = t;
   }
 
-  for (const k of ["bike","lid","spot","track","slots","rider","keys","quests","crew","profile","pins"])
+  for (const k of ["bike","lid","spot","track","slots","rider","keys","quests","crew","profile","pins","weather"])
     if (newer[k] !== undefined) out[k] = newer[k];
 
   out.ts = Math.max(a.ts || 0, b.ts || 0);
@@ -2105,6 +2123,7 @@ function cloudMark(){                       // called whenever the save changes
     try { await cloudPush(); } catch(e){ pushDirty = true; }
     try { await scoresPush(); } catch(e){}   // board is secondary; never risk the save
     try { await dailyPush();  } catch(e){}
+    try { await ttPush();     } catch(e){}
     try { await profilePush(); } catch(e){}
   }, 4000);
 }
@@ -2414,7 +2433,7 @@ addEventListener("pointerup",     () => { touchKeys.a = touchKeys.d = false; });
 addEventListener("pointercancel", () => { touchKeys.a = touchKeys.d = false; });
 
 function cycleBike(d){
-  if (DAILY.on) { toast("The daily loaner is fixed"); return; }
+  if (DAILY.on || TT.on) { toast("The loaner is fixed for this run"); return; }
   const own = SAVE.bikes.slice().sort((a,b) => a - b);
   const at = Math.max(0, own.indexOf(SAVE.bike));
   SAVE.bike = own[(at + d + own.length) % own.length];
@@ -2730,6 +2749,7 @@ function tickStreet(){
 
   const bp = S.anim === 3 ? Math.max(20, B.bp - 3) : B.bp;
 
+  S.av += windNow();                  // a gust is just one more force on the front
   S.dir += S.av;
   const onBrake = BRAKE() && S.spd > 12;
   if (S.dir <= 90) S.av += B.weight * ((S.dir - bp) / (90 - bp));
@@ -2751,7 +2771,7 @@ function tickStreet(){
   if (S.spd < 0) S.spd = 0;
 
   if (S.spd > 1 && BRAKE() && S.dir < 100) {
-    const f = B.brake - S.spd / (B.limit * 4);
+    const f = (B.brake - S.spd / (B.limit * 4)) * brakeMulWx();
     S.av += f; S.spd -= f;
     if (S.rpm > 0) S.rpm -= 1000;
   }
@@ -2763,7 +2783,7 @@ function tickStreet(){
         S.spd += B.torque * 2 - S.spd / (B.limit * B.sl);
       } else {
         S.av  -= B.torque - S.spd / (B.limit * B.sl * 6);
-        S.spd += B.torque * 2 - S.spd / (B.limit * B.sl);
+        S.spd += (B.torque * 2 - S.spd / (B.limit * B.sl)) * gripMulWx();
       }
     }
   }
@@ -4508,6 +4528,7 @@ function drawHUD(){
   ctx.textAlign = "right"; ctx.fillText(B.name, W-28, H-44);
   ctx.font = '600 13px "Barlow Condensed", sans-serif'; ctx.fillStyle = "rgba(231,237,243,.45)";
   ctx.fillText(spot().name, W-28, H-27); ctx.textAlign = "left";
+  drawWeatherTag(W-28, H-84);
 
   if (S.coach && !S.over) {
     ctx.textAlign = "center";
@@ -4641,6 +4662,7 @@ function renderStreet(){
   }
   ctx.restore();
 
+  drawWeather();
   if (S.mode === "street" && !S.photo) drawHUD();
   if (!S.photo) drawBroadcast();
   if (S.photo) drawPhotoHint();
@@ -4682,7 +4704,7 @@ function rivalPoint(){
 async function rivalFetch(){
   RIV.on = false; RIV.list = []; RIV.idx = 0; RIV.name = ""; RIV.target = 0;
   RIV.top = false; RIV.flash = 0;
-  if (VS.on || !cloudOn() || !AUTH.uid) return;
+  if (VS.on || TT.on || !cloudOn() || !AUTH.uid) return;
   const col = rivalColumn();
   RIV.col = col;
   try {
@@ -4783,7 +4805,10 @@ const STOCK_TUNE = Object.freeze({
   up:{ motor:0, brakes:0, tyres:0, susp:0 }, fx:{}, own:{}, owns:{}, engs:{ stock:1 },
   eng:"stock", parts:{ gearing:"stock", susp:"stock", tyres:"stock" },
 });
-const DAILY = { on:false, over:false, day:0, bike:0, track:0, score:0, dist:0 };
+const DAILY = { on:false, over:false, day:0, bike:0, track:0, score:0, dist:0, weather:0 };
+// Day 244 was already under way, with a run filed on it, when weather was
+// built - so it starts on 245 and no board is half in the dry.
+const WEATHER_FROM_DAY = 245;
 
 /* mulberry32 - small, fast, and the same sequence in every browser, which is
    the entire point: Math.random is not reproducible across machines. */
@@ -4810,7 +4835,13 @@ function dailyPlan(day){
   r();                                           // the first draw off a fresh seed is weakly mixed
   const bike  = DAILY_FLEET[Math.floor(r() * DAILY_FLEET.length)] | 0;
   const track = Math.floor(r() * RTRACKS.length);
-  return { day, bike, track, seed: Math.floor(r() * 4294967296) };
+  const seed  = Math.floor(r() * 4294967296);
+  // Weather arrived after the daily did. Its draw goes on the END of the
+  // stream so every day already ridden keeps the bike, track and terrain it
+  // had, and it only applies from the day after it shipped so that nobody's
+  // board is half in the dry and half in the rain.
+  const wx = day >= WEATHER_FROM_DAY ? 1 + Math.floor(r() * 3) : 0;
+  return { day, bike, track, seed, weather: wx };
 }
 function dailyState(){
   const d = dayNumber();
@@ -4837,7 +4868,8 @@ function startDaily(){
   if (st.done) { toast("Today's seed is already ridden"); return; }
   const P = dailyPlan(st.day);
   DAILY.on = true; DAILY.over = false; DAILY.day = st.day;
-  DAILY.bike = P.bike; DAILY.track = P.track; DAILY.score = 0; DAILY.dist = 0;
+  DAILY.bike = P.bike; DAILY.track = P.track; DAILY.weather = P.weather | 0;
+  DAILY.score = 0; DAILY.dist = 0;
   tRnd = seedRnd(P.seed);                        // seeded before the track is generated, not after
   CUR = buildBike(P.bike, STOCK_TUNE);
   st.started = true;                             // spent the moment you set off: no restarts
@@ -4883,6 +4915,7 @@ function dailyShareText(){
   return "SoFlo Daily #" + st.day + "\n" +
          money(st.score | 0) + " pts \u00b7 " + (st.dist | 0) + " m\n" +
          B.name + " \u00b7 " + K.name +
+         (P.weather ? " \u00b7 " + (WEATHERS[P.weather] || WEATHERS[0]).name : "") +
          (streak > 1 ? "\n" + streak + " day streak" : "") +
          (location.protocol.indexOf("http") === 0 ? "\n" + location.origin : "");
 }
@@ -4897,7 +4930,9 @@ function renderDailyCard(){
     `<div class="dhead"><span class="dtag">DAILY SEED</span>
        <span class="dnum">#${st.day}</span>
        <span class="dclock">new seed in ${dailyClock()}</span></div>
-     <div class="dline"><b>${esc(B.name)}</b>, stock \u00b7 <b>${esc(K.name)}</b></div>` +
+     <div class="dline"><b>${esc(B.name)}</b>, stock \u00b7 <b>${esc(K.name)}</b>` +
+       (P.weather ? ` \u00b7 <b>${esc((WEATHERS[P.weather] || WEATHERS[0]).name)}</b>` : "") +
+     `</div>` +
     (st.done
       ? `<div class="dscore">${money(st.score | 0)} pts<small>${st.dist | 0} m</small></div>
          <div class="dline sub">That is today's ride. A new track lands in ${dailyClock()}.</div>`
@@ -5070,6 +5105,275 @@ function badgeChip(b){
 }
 
 /* ============================================================
+   WEATHER
+   ------------------------------------------------------------
+   Four conditions that change how the bike behaves rather than how it looks.
+   Rain takes grip and most of the brakes, wind pushes the front up and down
+   on a slow cycle you have to ride against, and night takes away the road
+   ahead. Clear is the game you already know.
+   You pick it for your own runs, because a record set in the rain against one
+   set in the dry is not a record. The daily picks its own from the seed, so
+   everybody rides the same conditions on the same day.
+   Every effect is a multiplier applied at one point in each tick, so nothing
+   here can change the physics of a clear run.
+   ============================================================ */
+const WEATHERS = [
+  { id:"clear", name:"Clear", ic:"☀️", blurb:"The game as it was built",
+    grip:1, brake:1, wind:0, dark:0, spray:0 },
+  { id:"rain",  name:"Rain",  ic:"\u{1F327}️", blurb:"Half the grip, less than half the brakes",
+    grip:0.80, brake:0.68, wind:0, dark:0.20, spray:1,
+    tint:"rgba(28,44,70,.26)" },
+  { id:"wind",  name:"Wind",  ic:"\u{1F4A8}", blurb:"Gusts lift the front, then drop it",
+    grip:0.96, brake:1, wind:0.075, dark:0.05, spray:0,
+    tint:"rgba(70,64,44,.10)" },
+  { id:"night", name:"Night", ic:"\u{1F319}", blurb:"You only see as far as the headlight",
+    grip:0.93, brake:0.94, wind:0, dark:0.88, spray:0, light:true,
+    tint:"rgba(6,10,26,.40)" },
+];
+const weatherById = id => WEATHERS.find(w => w.id === id) || WEATHERS[0];
+// the daily's weather beats your own pick, so a seeded day is the same for all
+// a trial is a timed board, so it is always run in the dry
+const weather = () => (TT.on ? WEATHERS[0] : DAILY.on ? WEATHERS[DAILY.weather]
+                                                     : WEATHERS[SAVE.weather]) || WEATHERS[0];
+const wxOn = () => weather().id !== "clear";
+
+/* The weather clock ticks with the physics, not with the renderer: a gust has
+   to be the same length of time on every machine, and a run that is not being
+   drawn must not be a run with no wind. */
+let wxT = 0;
+/* One slow cycle from tailwind to headwind and back, so a gust is something
+   you can feel coming rather than a random shove. Negative lifts the front,
+   which is the same sign convention the throttle uses. */
+function windNow(){
+  const w = weather();
+  if (!w.wind) return 0;
+  return Math.sin(wxT * 0.011) * w.wind * (0.72 + 0.28 * Math.sin(wxT * 0.043));
+}
+const gripMulWx  = () => weather().grip;
+const brakeMulWx = () => weather().brake;
+
+/* ---- the look ---- */
+function drawWeather(bx, by){
+  const w = weather();
+  if (w.id === "clear") return;
+
+  if (w.tint) { ctx.fillStyle = w.tint; ctx.fillRect(0, 0, W, H); }
+
+  if (w.light) {
+    // a headlight rather than a darkness: bright where you are, gone by the
+    // time anything is close enough to matter
+    const cx = bx === undefined ? W * 0.36 : bx, cy = by === undefined ? H * 0.62 : by;
+    const g = ctx.createRadialGradient(cx, cy, 30, cx, cy, Math.max(W, H) * 0.46);
+    g.addColorStop(0, "rgba(4,7,18,0)");
+    g.addColorStop(0.30, "rgba(4,7,18," + (w.dark * 0.30).toFixed(3) + ")");
+    g.addColorStop(0.72, "rgba(3,5,14," + (w.dark * 0.82).toFixed(3) + ")");
+    g.addColorStop(1, "rgba(2,4,10," + w.dark.toFixed(3) + ")");
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  } else if (w.dark) {
+    ctx.fillStyle = "rgba(6,9,16," + w.dark.toFixed(3) + ")";
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  if (w.spray) {                                 // rain, drawn as one path
+    ctx.strokeStyle = "rgba(186,214,240,.42)";
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    for (let i = 0; i < 70; i++) {
+      const sp = 16 + rand(i) * 16;
+      const x = (rand(i) * W * 1.3 - wxT * sp) % (W * 1.3);
+      const y = (rand(i + 311) * H + wxT * (sp * 1.9)) % H;
+      const xx = x < 0 ? x + W * 1.3 : x;
+      ctx.moveTo(xx, y);
+      ctx.lineTo(xx + 7, y + 19);
+    }
+    ctx.stroke();
+  }
+
+  if (w.wind) {                                  // streaks that run with the gust
+    const dir = windNow() < 0 ? -1 : 1;
+    ctx.strokeStyle = "rgba(232,226,208,.16)";
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    for (let i = 0; i < 26; i++) {
+      const sp = 22 + rand(i + 7) * 26;
+      const x = (rand(i + 41) * W * 1.4 - wxT * sp) % (W * 1.4);
+      const xx = x < 0 ? x + W * 1.4 : x;
+      const y = rand(i + 91) * H;
+      ctx.moveTo(xx, y);
+      ctx.lineTo(xx + 34 + rand(i) * 30, y + dir * 3);
+    }
+    ctx.stroke();
+  }
+}
+/* The bike behaving oddly has to have a visible cause, or it reads as a bug. */
+function drawWeatherTag(x, y){
+  const w = weather();
+  if (w.id === "clear") return;
+  ctx.font = '600 13px "Barlow Condensed", sans-serif';
+  ctx.fillStyle = "rgba(231,237,243,.62)";
+  ctx.textAlign = "right";
+  let t = w.name.toUpperCase();
+  if (w.wind) {
+    const g = windNow();
+    t += "  " + (g < -0.012 ? "↑ LIFT" : g > 0.012 ? "↓ PUSH" : "•");
+  }
+  ctx.fillText(t, x, y);
+  ctx.textAlign = "left";
+}
+function renderWeatherPick(){
+  const el = document.getElementById("wxPick");
+  if (!el) return;
+  el.innerHTML = `<div class="cap">Conditions</div>`;
+  WEATHERS.forEach((w, i) => {
+    const b = document.createElement("button");
+    b.className = i === (SAVE.weather | 0) ? "on" : "";
+    b.title = w.blurb;
+    b.innerHTML = `<span class="wxic">${w.ic}</span>${w.name}`;
+    b.addEventListener("click", () => {
+      SAVE.weather = i; persist(); sfx.ui(); renderWeatherPick();
+    });
+    el.appendChild(b);
+  });
+}
+
+/* ============================================================
+   TIME TRIAL
+   ------------------------------------------------------------
+   The one mode where style is worth nothing. A fixed course, a clock, four
+   checkpoints, and the only question is how fast you got to the end.
+   The course is seeded off the week rather than the day, so there is time to
+   learn it - which is the whole point of a time trial, and the opposite of
+   the daily, where you get one look at a track you have never seen.
+   Ramp physics, ramp terrain, a loaner bike so the board is about riding.
+   A crash costs three seconds and puts you back at the last checkpoint; it
+   does not end the run, because a time trial you cannot finish teaches you
+   nothing.
+   ============================================================ */
+const TT_EPOCH = DAILY_EPOCH;                    // same clock the daily runs on
+const TT_DIST = 900;                             // metres to the finish
+const TT_SPLITS = [225, 450, 675];               // and where the splits fall
+const TT_PENALTY = 3000;                         // milliseconds a crash costs
+const TT = { on:false, running:false, done:false, week:0, ms:0, pen:0,
+             seed:0, track:0, bike:0, split:0, best:0, was:0 };
+
+const ttWeek = () => Math.max(1, Math.floor((Date.now() - TT_EPOCH) / (7 * 86400000)) + 1);
+function ttEndsIn(){
+  const ms = TT_EPOCH + ttWeek() * 7 * 86400000 - Date.now();
+  const d = Math.floor(ms / 86400000), h = Math.floor(ms / 3600000) % 24;
+  return d > 0 ? d + "d " + h + "h" : Math.max(1, h) + "h";
+}
+function ttPlan(week){
+  const r = seedRnd(week * 2246822519);
+  r();
+  const bike  = DAILY_FLEET[Math.floor(r() * DAILY_FLEET.length)] | 0;
+  const track = Math.floor(r() * RTRACKS.length);
+  return { week, bike, track, seed: Math.floor(r() * 4294967296) };
+}
+function ttState(){
+  if (!SAVE.tt || typeof SAVE.tt !== "object" || Array.isArray(SAVE.tt)) SAVE.tt = {};
+  return SAVE.tt;
+}
+const ttBest = week => (ttState()[String(week || ttWeek())] | 0);
+// mm:ss.cc, and a dash when there is no time at all
+function ttTime(ms){
+  ms = Math.max(0, ms | 0);
+  if (!ms) return "—";
+  const m = Math.floor(ms / 60000), sec = Math.floor(ms / 1000) % 60, cs = Math.floor(ms / 10) % 100;
+  return (m ? m + ":" + String(sec).padStart(2, "0") : String(sec)) + "." + String(cs).padStart(2, "0");
+}
+function startTrial(){
+  const P = ttPlan(ttWeek());
+  TT.on = true; TT.running = false; TT.done = false;
+  TT.week = P.week; TT.seed = P.seed; TT.track = P.track; TT.bike = P.bike;
+  TT.ms = 0; TT.pen = 0; TT.split = 0;
+  TT.best = ttBest(P.week); TT.was = TT.best;
+  tRnd = seedRnd(P.seed);                        // seeded before the track is built
+  CUR = buildBike(P.bike, STOCK_TUNE);
+  startMode("ramp");
+}
+function ttStop(){
+  if (!TT.on) return;
+  TT.on = false; TT.running = false;
+  tRnd = Math.random;
+  refreshBike();
+}
+/* The clock only starts once you have actually set off, so sitting on the
+   line reading the course costs nothing. */
+function ttTick(){
+  if (!TT.on || TT.done) return;
+  if (!TT.running) { if (R.dist > 1 || Math.abs(R.vx) > 1.2) TT.running = true; else return; }
+  TT.ms += TICK;
+  while (TT.split < TT_SPLITS.length && R.dist >= TT_SPLITS[TT.split]) {
+    TT.split++;
+    rampMsg("SPLIT " + TT.split + "   " + ttTime(ttTotal()));
+    sfx.coin();
+  }
+  if (R.dist >= TT_DIST) ttFinish();
+}
+const ttTotal = () => (TT.ms | 0) + (TT.pen | 0);
+function ttFinish(){
+  if (TT.done) return;
+  TT.done = true; TT.running = false;
+  const t = ttTotal();
+  const st = ttState(), key = String(TT.week);
+  const had = st[key] | 0;
+  if (!had || t < had) { st[key] = t; TT.best = t; }
+  const coins = Math.max(200, Math.round(60000 / Math.max(1, t / 1000)));
+  SAVE.coins += coins;
+  S.lastXP = awardXP(runXP(Math.max(0, 40000 - t) / 8, 0));
+  qMax("ttDone", 1);
+  rampMsg("FINISHED  " + ttTime(t));
+  sfx.quest();
+  persist();
+  ttPush().catch(() => {});
+}
+function drawTrialHUD(){
+  if (!TT.on) return;
+  const x = W/2 - 118, y = 16, w = 236, h = 74;
+  panel(x, y, w, h);
+  label("time", x + 14, y + 19);
+  ctx.font = '700 34px "Saira Condensed", sans-serif';
+  ctx.fillStyle = TT.done ? "#3CF08C" : "#F2F6FA";
+  ctx.fillText(ttTime(ttTotal()) || "0.00", x + 14, y + 50);
+  ctx.font = '600 13px "Barlow Condensed", sans-serif';
+  ctx.fillStyle = "rgba(255,194,75,.8)";
+  ctx.textAlign = "right";
+  ctx.fillText(TT.was ? "best " + ttTime(TT.was) : "no time yet", x + w - 14, y + 30);
+  ctx.fillStyle = "rgba(231,237,243,.55)";
+  ctx.fillText(Math.max(0, TT_DIST - Math.floor(R.dist)) + " m to go", x + w - 14, y + 50);
+  ctx.textAlign = "left";
+  statBar(x + 14, y + 62, w - 28, Math.min(1, R.dist / TT_DIST), "#3CF08C");
+  if (TT.pen > 0) {
+    ctx.font = '700 15px "Saira Condensed", sans-serif';
+    ctx.fillStyle = "#FF3D7F";
+    ctx.textAlign = "center";
+    ctx.fillText("+" + (TT.pen / 1000).toFixed(0) + "s PENALTY", W/2, y + h + 18);
+    ctx.textAlign = "left";
+  }
+  if (TT.done) {
+    ctx.fillStyle = "rgba(60,240,140,.10)"; ctx.fillRect(0, 0, W, H);
+    ctx.textAlign = "center";
+    ctx.font = '400 44px "Archivo Black", sans-serif'; ctx.fillStyle = "#3CF08C";
+    ctx.fillText(ttTime(ttTotal()), W/2, H/2);
+    ctx.font = '600 18px "Barlow Condensed", sans-serif'; ctx.fillStyle = "rgba(231,237,243,.8)";
+    ctx.fillText(TT.was && ttTotal() >= TT.was
+      ? "your best is " + ttTime(TT.was) + "  ·  Esc for the menu"
+      : "a new best  ·  Esc for the menu", W/2, H/2 + 26);
+    ctx.textAlign = "left";
+  }
+}
+function renderTrialCard(){
+  const el = document.getElementById("mTrial");
+  if (!el) return;
+  const P = ttPlan(ttWeek()), B = BIKES[P.bike] || BIKES[0], K = RTRACKS[P.track] || RTRACKS[0];
+  const best = ttBest();
+  el.querySelector(".tt-sub").innerHTML =
+    `${TT_DIST} m against the clock. ${esc(B.name)}, stock, on ${esc(K.name)}. ` +
+    `New course in ${ttEndsIn()}.`;
+  el.querySelector(".rec").textContent = best ? "BEST " + ttTime(best) : "NO TIME YET";
+}
+
+/* ============================================================
    RAMP MODE — endless randomised track
    ============================================================ */
 const RTRACKS = [
@@ -5081,7 +5385,8 @@ const RTRACKS = [
     hill1:"#5C7C68", hill2:"#38564A", tree:true, water:"#2C6D86",
     sky:[[0,"#6FB6DE"],[.48,"#A8D2E4"],[.84,"#D2E2CE"],[1,"#DFE7C6"]] },
 ];
-const rtrack = () => (DAILY.on ? RTRACKS[DAILY.track] : RTRACKS[SAVE.track]) || RTRACKS[0];
+const rtrack = () => (TT.on ? RTRACKS[TT.track] : DAILY.on ? RTRACKS[DAILY.track]
+                                                : RTRACKS[SAVE.track]) || RTRACKS[0];
 
 const RSC = 0.80;
 const R = {
@@ -5212,7 +5517,7 @@ function tickRamp(){
 
   if (R.dead) {
     R.deadT--; stepPartsRamp();
-    if (R.deadT <= 0 && !DAILY.on) rampReset(false);   // the daily run has one life
+    if (R.deadT <= 0 && !DAILY.on && !(TT.on && TT.done)) rampReset(false);   // the daily has one life
     if (S.shake > 0) S.shake *= 0.86;
     return;
   }
@@ -5249,9 +5554,9 @@ function tickRamp(){
       let Ft = -vt * 0.018;
       if (w === 0) {
         if (THROTTLE()) Ft += 1.5 + B.torque * 2.6;
-        if (BRAKE())    Ft -= 0.9 + B.brake * 0.9;
-      } else if (BRAKE()) Ft -= 0.5;
-      const grip = (Fn * 3.2 + 0.25) * (B.gripMul || 1);
+        if (BRAKE())    Ft -= (0.9 + B.brake * 0.9) * brakeMulWx();
+      } else if (BRAKE()) Ft -= 0.5 * brakeMulWx();
+      const grip = (Fn * 3.2 + 0.25) * (B.gripMul || 1) * gripMulWx();
       Ft = Math.max(-grip, Math.min(grip, Ft));
       const Fx = Fn*n.x + Ft*tx, Fy = Fn*n.y + Ft*ty;
       R.vx += Fx * h; R.vy += Fy * h;
@@ -5290,6 +5595,7 @@ function tickRamp(){
     R.air = 0; R.spin = 0;
   } else {
     R.air++;
+    R.av += windNow() * 0.011;         // in the air a gust is all you can feel
     if (R.air === 2 && R.vy < -2.5) sfx.jump();
     if (leanBack) R.av -= 0.016;
     if (leanFwd)  R.av += 0.016;
@@ -5308,12 +5614,13 @@ function tickRamp(){
   while (R.rot < -Math.PI*4) R.rot += Math.PI*4;
 
   terrainEnsure(R.cx);
+  ttTick();
 
   const d = Math.max(0, (R.cx - R.startX) / 12);
   if (d > R.dist) {
     earn((d - R.dist) * 1.2);
     R.dist = d;
-    if (!DAILY.on && Math.floor(d) > SAVE.rampBest) SAVE.rampBest = Math.floor(d);
+    if (!DAILY.on && !TT.on && Math.floor(d) > SAVE.rampBest) SAVE.rampBest = Math.floor(d);
     qMax("rampDist", d);
   }
   // remember the last place we were genuinely upright on solid ground
@@ -5379,7 +5686,8 @@ function rampDie(why){
   R.dead = true; R.deadT = 50; R.crashMsg = true;
   S.shake = REDUCED ? 0 : 12;
   sfx.crash();
-  if (DAILY.on) dailyFinish();          // a seeded run banks on the crash; records stay untouched
+  if (TT.on) { if (!TT.done) { TT.pen += TT_PENALTY; rampMsg("+3s"); } }
+  else if (DAILY.on) dailyFinish();     // a seeded run banks on the crash; records stay untouched
   else {
     if (Math.floor(R.dist) > SAVE.rampBest) { SAVE.rampBest = Math.floor(R.dist); }
     S.lastXP = awardXP(runXP(Math.floor(R.dist) * 6, 0));
@@ -5574,6 +5882,7 @@ function renderRamp(){
   }
   ctx.restore();
 
+  drawWeather(R.cx - R.camX, R.cy - R.camY);
   if (!S.photo) drawRampHUD();
   if (S.photo) drawPhotoHint();
   if (S.paused) drawPause();
@@ -5587,9 +5896,11 @@ function drawRampHUD(){
   ctx.font = '700 40px "Saira Condensed", sans-serif'; ctx.fillStyle = "#F2F6FA";
   ctx.fillText(Math.floor(R.dist) + " m", 32, 73);
   ctx.font = '600 14px "Barlow Condensed", sans-serif'; ctx.fillStyle = "rgba(255,194,75,.78)";
-  ctx.fillText(DAILY.on
+  ctx.fillText(TT.on ? "week " + TT.week + " trial"
+    : DAILY.on
     ? "daily #" + DAILY.day + "  \u00b7  " + (Math.floor(R.dist) + Math.floor(R.score)) + " pts"
     : "best " + SAVE.rampBest + " m", 32, 91);
+  drawTrialHUD();
 
   drawRival(DAILY.on ? Math.floor(R.dist) + Math.floor(R.score) : R.dist);
 
@@ -5607,6 +5918,7 @@ function drawRampHUD(){
   ctx.textAlign = "right"; ctx.fillText(B.name, W-28, H-44);
   ctx.font = '600 13px "Barlow Condensed", sans-serif'; ctx.fillStyle = "rgba(231,237,243,.45)";
   ctx.fillText(rtrack().name, W-28, H-27); ctx.textAlign = "left";
+  drawWeatherTag(W-28, H-84);
 
   if (!R.dead && R.air === 0 && R.dist < 30) {
     ctx.textAlign = "center";
@@ -5725,6 +6037,7 @@ function syncWallet(){
   renderChallenges();
   renderSpots();
   renderTracks();
+  renderWeatherPick();
   document.getElementById("coinsMenu").textContent = money(SAVE.coins);
   document.getElementById("coinsShop").textContent = money(SAVE.coins);
   const cc = document.getElementById("coinsCrew");
@@ -6264,6 +6577,7 @@ document.getElementById("mShop").addEventListener("click", openShop);
 document.getElementById("mStreet").addEventListener("click", () => startMode("street"));
 document.getElementById("mRide").addEventListener("click", () => startMode("rideout"));
 document.getElementById("mRamp").addEventListener("click", () => startMode("ramp"));
+document.getElementById("mTrial").addEventListener("click", startTrial);
 
 /* ---------- mode control ---------- */
 const elExit = document.getElementById("exit");
@@ -6307,6 +6621,7 @@ function renderWho(){
 }
 function openMenu(){
   if (DAILY.on) { dailyFinish(); dailyStop(); }   // walking out still banks the run
+  ttStop();                                      // an unfinished trial is simply not a time
   RIV.on = false;
   VS.on = false;
   S.mode = "menu"; S.paused = false;
@@ -6320,7 +6635,7 @@ function openMenu(){
   audio.setStyle("menu");
   sfx.ui();
   syncWallet(); persist(); renderWho(); renderLevel(); renderSeasonBanner(); renderCrewLink();
-  renderDailyCard(); renderProfileLink();
+  renderDailyCard(); renderTrialCard(); renderProfileLink();
   renderBroadcast(); pullBroadcasts();
 }
 function openShop(){
@@ -6371,6 +6686,7 @@ function loop(now){
     while (acc >= TICK && guard++ < 6) {
       if (VS.on) { vsTick(1); vsTick(2); }
       else S.mode === "street" ? tickStreet() : tickRamp();
+      wxT++;
       acc -= TICK;
     }
     if (!VS.on) rivalCheck(S.mode === "ramp"
@@ -6647,6 +6963,8 @@ const LB_BOARDS = [
   { key:"ramp_best", name:"Ramp",     pick:s => s.rampBest || 0 },
   // the daily lives in its own table: one row per rider per day, insert only
   { key:"daily",     name:"Daily",    daily:true, pick:s => (s.daily && s.daily.score) || 0 },
+  // and the trial in its own, where the smallest number wins rather than the largest
+  { key:"trial",     name:"Trial",    trial:true, pick:s => 0 },
 ];
 let lbCache = {}, lbTab = "best", lbBusy = false;
 
@@ -6682,6 +7000,33 @@ async function dailyPush(){
       dist:  Math.max(0, st.dist  | 0),
     }) });
   return true;
+}
+/* One row per rider per week, and the trigger only ever lets a time go down,
+   so a slower run cannot overwrite a faster one from another device. */
+async function ttPush(){
+  if (!cloudOn() || !AUTH.uid) return false;
+  const t = ttBest(ttWeek());
+  if (!t) return false;
+  if (!await freshToken()) return false;
+  await api("/rest/v1/trials", { method:"POST",
+    headers:{ "Prefer":"resolution=merge-duplicates,return=minimal" },
+    body:JSON.stringify({ user_id:AUTH.uid, username:AUTH.name || "rider",
+                          week:ttWeek() | 0, ms:t | 0 }) });
+  return true;
+}
+async function ttTop(week){
+  const rows = await api("/rest/v1/trials?select=username,ms&ms=gt.0&week=eq." + (week | 0) +
+    "&order=ms.asc&limit=50");
+  return rows || [];
+}
+async function ttRank(week, ms){
+  if (!AUTH.uid || !ms) return null;
+  const r = await fetch(CLOUD.url + "/rest/v1/trials?select=user_id&ms=gt.0&week=eq." + (week | 0) +
+      "&ms=lt." + (ms | 0), {
+    headers:{ apikey:CLOUD.key, Authorization:"Bearer " + AUTH.token, Prefer:"count=exact", Range:"0-0" } });
+  const cr = r.headers.get("content-range") || "";
+  const total = parseInt(cr.split("/")[1], 10);
+  return isFinite(total) ? total + 1 : null;
 }
 async function dailyTop(day){
   const rows = await api("/rest/v1/daily?select=username,score,dist&day=eq." + (day | 0) +
@@ -7216,11 +7561,14 @@ async function showBoard(){
   const board = LB_BOARDS.find(b => b.key === lbTab) || LB_BOARDS[0];
   try {
     if (!await freshToken()) { lbNote("Sign in to see the leaderboard."); lbBusy = false; return; }
-    const rows = board.daily ? await dailyTop(dailyState().day) : await scoresTop(board.key);
+    const rows = board.daily ? await dailyTop(dailyState().day)
+              : board.trial ? await ttTop(ttWeek())
+              : await scoresTop(board.key);
     lbCache[board.key] = rows;
     const body = document.getElementById("lbBody");
     if (!rows.length) {
       lbNote(board.daily ? "Nobody has ridden today's seed yet.<br>Go be first."
+           : board.trial ? "Nobody has set a time on this week's course yet.<br>Go be first."
                          : "Nobody has set a score here yet.<br>Go be first.");
     } else {
       body.innerHTML = "";
@@ -7235,35 +7583,42 @@ async function showBoard(){
         d.title = "See this rider";
         d.addEventListener("click", () => openProfile(r.username || "rider", "board"));
         const sc  = document.createElement("div"); sc.className  = "sc";
-        sc.textContent = Number((board.daily ? r.score : r[board.key]) || 0).toLocaleString();
+        sc.textContent = board.trial ? ttTime(r.ms)
+          : Number((board.daily ? r.score : r[board.key]) || 0).toLocaleString();
         d.append(pos, who, sc);
         body.appendChild(d);
       });
     }
     // where you sit, even if you are off the bottom of the top 50
     const st = dailyState();
-    const mineScore = Math.floor(board.daily ? (st.done ? st.score | 0 : 0) : board.pick(SAVE));
+    const mineScore = Math.floor(board.trial ? ttBest(ttWeek())
+      : board.daily ? (st.done ? st.score | 0 : 0) : board.pick(SAVE));
     const foot = document.createElement("div");
     foot.className = "lbrow lbmine";
     if (mineScore > 0) {
-      const rank = board.daily ? await dailyRank(st.day, mineScore) : await myRank(board.key);
-      // rows come back best first, so the last one still above you is the
-      // rider you are chasing - no extra request to work it out
-      const above = rows.filter(r => Number((board.daily ? r.score : r[board.key]) || 0) > mineScore).pop();
-      foot.innerHTML = (board.daily ? `Today <b>${mineScore.toLocaleString()}</b>`
+      const rank = board.trial ? await ttRank(ttWeek(), mineScore)
+                : board.daily ? await dailyRank(st.day, mineScore) : await myRank(board.key);
+      // rows come back best first - which on the trial board means fastest
+      // first - so the last one still ahead of you is who you are chasing
+      const above = board.trial
+        ? rows.filter(r => (r.ms | 0) > 0 && r.ms < mineScore).pop()
+        : rows.filter(r => Number((board.daily ? r.score : r[board.key]) || 0) > mineScore).pop();
+      foot.innerHTML = (board.trial ? `This week <b>${ttTime(mineScore)}</b>`
+                     : board.daily ? `Today <b>${mineScore.toLocaleString()}</b>`
                                     : `Your best <b>${mineScore.toLocaleString()}</b>`) +
         (rank ? ` · rank <b>#${rank}</b>` : "") +
         (above ? ` · chasing <b>${esc(above.username || "rider")}</b>` : " · nobody above you");
     } else {
       foot.innerHTML = board.daily ? `You haven't ridden today's seed yet`
+                     : board.trial ? `You haven't set a time on this week's course yet`
                                    : `You haven't set a score in ${board.name} yet`;
     }
     document.getElementById("lbBody").appendChild(foot);
   } catch(e){
     // the daily table is newer than the game: say so plainly rather than
     // leaving a dead screen, because the run itself still counted locally
-    if (board.daily && (e.status === 404 || e.status === 400))
-      lbNote("The daily board isn't set up on the server yet.<br>Your run still counted on this device.");
+    if ((board.daily || board.trial) && (e.status === 404 || e.status === 400))
+      lbNote("That board isn't set up on the server yet.<br>Your run still counted on this device.");
     else lbNote("Couldn't load the leaderboard.<br>" + String(e.message || e));
   }
   lbBusy = false;
@@ -7274,6 +7629,7 @@ function openBoard(){
   sfx.ui();
   scoresPush().catch(() => {});     // make sure your own record is up there first
   dailyPush().catch(() => {});      // and a daily run banked while offline
+  ttPush().catch(() => {});
   showBoard();
 }
 function closeBoard(){ elBoard.hidden = true; openMenu(); }
@@ -7587,6 +7943,7 @@ document.getElementById("openMyProfile").addEventListener("click", () => openPro
 
 syncWallet();
 renderDailyCard();
+renderTrialCard();
 renderProfileLink();
 renderStreet();
 bootAuth();
