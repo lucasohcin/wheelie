@@ -84,7 +84,7 @@ It happened on 3 Sep: a second session committed the same feature concurrently
 | Worlds | `setWorld()` swaps `WORLD_FIELDS` with `SAVE.alt`; `worldSplit()` / `mergeWorld()` for the merge |
 | Backdrop props | `prop()` dispatches on `sp.prop`; billboards from `BOARDS` / `BOARDS_W2` via `sp.boards` |
 | Live events | `EVENTS` catalogue, `pullEvents()` on the announcement beat, `evtMul(kind)` at the multipliers |
-| Admin limits | all of it in `admin.sql`: `grants_guard()` trigger and `grant_budget()` |
+| Admin limits | all of it in `admin-limits.sql`: `grants_guard()` trigger and `grant_budget()` |
 | Mini bodywork | `drawMini()`, silhouettes in `MINI_TANK` |
 | Daily seed run | `startDaily()` / `dailyFinish()` / `dailyStop()`, plan in `dailyPlan(day)` |
 | Rider profiles | `openProfile(name, from)` / `profileFetch()` / `renderProfile()` / `profilePush()` |
@@ -241,7 +241,8 @@ Handing one player a pile of coins is invisible to everybody else and makes
 the game worse for them, so the boring power is now capped and the interesting
 one was built.
 
-Every cap is in `admin.sql`, not in the panel, and that is the whole point.
+Every cap is in `admin-limits.sql`, not in the panel, and that is the whole
+point.
 The passphrase is a door; anyone who reads the page source can POST to the
 REST endpoint directly, so a limit written in JavaScript is decoration. The
 `grants_guard()` trigger enforces, against `auth.uid()`: no gifting yourself,
@@ -405,7 +406,8 @@ level security is what actually protects data.
 | `events` | public | admins insert/delete, author stamped by trigger, one live per kind; `events.sql` |
 
 SQL lives in `supabase-setup.sql`, `leaderboard.sql`, `crews.sql`, `admin.sql`,
-`daily.sql`, `profiles.sql`, `trials.sql`, `world2.sql`, `events.sql`.
+`daily.sql`, `profiles.sql`, `trials.sql`, `world2.sql`, `events.sql`,
+`admin-limits.sql`.
 All are idempotent — safe to re-run.
 
 **Auth quirk:** usernames map to internal addresses `name@wheelie.local`, which
@@ -442,7 +444,7 @@ curl -s -X POST -H "apikey: $KEY" -H "Content-Type: application/json" \
 | Rebirth | `REBIRTH_LEVEL 25`, `REBIRTH_MULT 1.5`, `REBIRTH_BIKES` (80–87), `REBIRTH_PAYOUT 250000` |
 | Worlds | `W2_REBIRTHS 5`, `W2_RATE 0.012`, `W2_BIKE0 88`, `W1_SPOTS 4`, `W1_TRACKS 2`, `W2_SPOTS 5`, `W2_TRACKS 3` |
 | Live events | `EVENTS` (five kinds), `RAIN_PAY 250`, turbo `1.22`, moon gravity `0.42` |
-| Admin gift caps | `COIN_ONE 100000`, `COIN_DAY 250000`, `XP_ONE 5000`, `XP_DAY 20000`, `ROWS_DAY 20` — **all in `admin.sql`** |
+| Admin gift caps | `COIN_ONE 100000`, `COIN_DAY 250000`, `XP_ONE 5000`, `XP_DAY 20000`, `ROWS_DAY 20` — **all in `admin-limits.sql`** |
 
 Seasons roll over from the clock — no scheduling, no server job. So does the
 daily seed, off a **UTC** day number, which means it turns over at 20:00 in
@@ -558,11 +560,15 @@ bike, or asserting on a stub that a live fetch had replaced.
 - **The time trial board needs `trials.sql` run.** Until it is, the mode plays
   and your own best still saves; only the shared board is missing, and the
   board tab says so.
-- **Events need `events.sql` run**, and the gift caps need **`admin.sql`
-  re-run**. Until `events.sql` is run no event can start, the menu card and
-  the riding banner never appear, and the admin card says so. Until `admin.sql`
-  is re-run **there are no caps at all** - the panel still shows the limits as
-  text, but nothing enforces them.
+- **The gift caps need `admin-limits.sql` run.** Until it is, **there are no
+  caps at all** - the panel says so in red rather than listing limits nobody
+  is enforcing, and `listBroadcasts` falls back to an unsigned select so
+  announcements keep working on the older schema.
+  *It is a separate file for a reason.* It started as an edit in the middle of
+  `admin.sql`, which had already been run once, and an edit buried in a file
+  somebody has already run is an edit nobody runs: the columns went in from a
+  snippet pasted into chat while every function and trigger in the same file
+  stayed missing. New SQL goes in a new file.
 - **The Afterburn board needs `world2.sql` run.** Until it is, the second
   world plays and pays normally and your own records still save; only the
   shared board is missing, and the board tab says so. `scoresPush()` swallows
