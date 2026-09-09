@@ -421,6 +421,25 @@
      gone for good. */
   [hidden]{display:none !important}
 
+  .evtcard{width:min(560px,92vw); margin:0 auto 16px; display:flex; flex-direction:column; gap:8px}
+  .evtrow{display:flex; align-items:center; gap:12px; padding:10px 14px; border-radius:13px;
+          text-align:left; font-family:var(--ui);
+          background:linear-gradient(96deg, rgba(20,25,34,.92), rgba(12,16,22,.92));
+          border:1px solid var(--ec); box-shadow:0 0 22px -12px var(--ec)}
+  .evtrow .ic{font-size:20px; flex:none; line-height:1}
+  .evtrow .mid{flex:1; display:flex; flex-direction:column; gap:2px; min-width:80px}
+  .evtrow .mid b{font-family:var(--num); font-weight:700; font-size:15px; letter-spacing:.02em; color:var(--ec)}
+  .evtrow .mid i{font-style:normal; font-size:12.5px; color:var(--text); opacity:.85}
+  .evtrow .left{flex:none; font-family:var(--num); font-weight:700; font-size:12px;
+                letter-spacing:.06em; color:var(--dim)}
+  .evtrow .by{flex:none; font-size:11px; color:var(--dim); opacity:.8}
+
+  .adevts{display:flex; gap:8px; flex-wrap:wrap; margin-top:4px}
+  .adevts .e{display:flex; align-items:center; gap:8px; padding:7px 12px; border-radius:11px;
+             border:1px solid var(--edge); background:rgba(20,25,34,.7); font-size:13px}
+  .adevts .e b{font-family:var(--num); letter-spacing:.02em}
+  .adevts .e .btn{padding:5px 12px; font-size:12px}
+
   .rbsheet{width:min(760px,94vw); text-align:left}
   .rbhero{margin-top:6px; padding:20px 20px 18px; border-radius:16px; text-align:center;
           background:linear-gradient(150deg, rgba(38,12,48,.92), rgba(12,17,24,.92));
@@ -728,6 +747,7 @@
     <button class="passbanner" id="openSeason"></button>
     <button class="rbbanner" id="openRebirth"></button>
     <button class="w2banner" id="openWorld"></button>
+    <div class="evtcard" id="evtCard" hidden></div>
     <div class="dailycard" id="dailyCard"></div>
     <div class="whoami"><button id="openBoard">View the leaderboard</button>
       <span style="opacity:.4">·</span><button id="openCrew">Crews</button>
@@ -2265,9 +2285,13 @@ function buildBike(idx, tOverride){
   const pm = k => P.reduce((n, x) => n * (x[k] === undefined ? 1 : x[k]), 1);
   const pa = k => P.reduce((n, x) => n + (x[k] || 0), 0);
   const C = Object.assign({}, B);
-  C.limit  = Math.round(B.limit  * (1 + 0.07 * t.up.motor) * E.limit * pm("limit"));
-  C.torque = B.torque * (1 + 0.09 * t.up.motor) * E.torque * pm("torque");
-  C.rpmMax = B.rpmMax * (1 + 0.04 * t.up.motor) * E.rpm * pm("rpm");
+  // Turbo Hour rides on the very end of the pipeline, after upgrades, engine
+  // and parts, so it lifts a stock bike and a fully built one by the same
+  // proportion. refreshBike() is called when the live event set changes.
+  const TB = evtOn("turbo") ? 1.22 : 1;
+  C.limit  = Math.round(B.limit  * (1 + 0.07 * t.up.motor) * E.limit * pm("limit") * TB);
+  C.torque = B.torque * (1 + 0.09 * t.up.motor) * E.torque * pm("torque") * TB;
+  C.rpmMax = B.rpmMax * (1 + 0.04 * t.up.motor) * E.rpm * pm("rpm") * TB;
   C.brake  = B.brake  * (1 + 0.11 * t.up.brakes) * E.brake * pm("brake");
   C.weight = B.weight * (1 - 0.055 * t.up.susp) * E.weight * pm("weight");
   C.loop   = B.loop   - 4 * t.up.tyres + pa("loop");
@@ -2457,7 +2481,7 @@ function unclaimedCount(){
 
 /* ---------- earning ---------- */
 function awardXP(n){
-  n = Math.max(0, Math.round(n));
+  n = Math.max(0, Math.round(n * evtMul("xp")));
   if (!n) return 0;
   const before = riderLevel().lvl;
   SAVE.xp = (SAVE.xp || 0) + n;
@@ -2661,6 +2685,76 @@ function setWorld(w){
   return true;
 }
 
+/* ============================================================
+   LIVE EVENTS
+   ------------------------------------------------------------
+   Handing one player a pile of coins is invisible to everybody else and makes
+   the game worse for them. Starting an hour of triple coins is visible to all
+   of them at once and makes the game better. So the interesting admin power is
+   this one, and the boring one is capped in `admin.sql`.
+
+   Five kinds, all polled on the same 45 second beat the announcements already
+   use, all applied straight into the existing multipliers rather than needing
+   their own path through the physics. Nothing is stored per player.
+
+   None of it reaches Afterburn. That economy is meant to be slow and earned,
+   and a 100x coin hour would flatten it in an afternoon - so `evtMul` returns
+   1 in the second world and the ride effects check the same thing.
+   ============================================================ */
+const EVENTS = {
+  coins: { name:"Coin Rush",   ic:"\u{1F4B0}", col:"#FFC24B",
+           blurb:m => m + "\u00d7 coins on every run" },
+  xp:    { name:"Double Time", ic:"\u2B50", col:"#7BE7FF",
+           blurb:m => m + "\u00d7 XP on every run" },
+  rain:  { name:"Raining Coins", ic:"\u{1F327}\uFE0F", col:"#FFD11A",
+           blurb:() => "Coins fall on the street - ride under them" },
+  moon:  { name:"Moon Gravity", ic:"\u{1F319}", col:"#B06BFF",
+           blurb:() => "Ramp gravity cut - everything floats" },
+  turbo: { name:"Turbo Hour",  ic:"\u{1F525}", col:"#FF3D7F",
+           blurb:() => "Every bike pulls harder and revs further" },
+};
+const EVT = { list:[], fetched:0 };
+
+async function listEvents(){
+  const rows = await api("/rest/v1/events?select=id,kind,mult,author,expires_at" +
+    "&expires_at=gt." + new Date().toISOString() + "&order=created_at.desc&limit=10");
+  return rows || [];
+}
+async function startEvent(kind, mult, hours){
+  if (!await freshToken()) throw new Error("Session expired - sign in again");
+  const ms = Math.max(5, Math.min(360, Math.round((hours || 1) * 60))) * 60000;
+  await api("/rest/v1/events", { method:"POST", headers:{ Prefer:"return=minimal" },
+    body:JSON.stringify({ kind, mult:Math.max(1, Math.min(100, +mult || 2)),
+                          expires_at:new Date(Date.now() + ms).toISOString() }) });
+}
+async function endEvent(id){
+  await api("/rest/v1/events?id=eq." + id, { method:"DELETE", headers:{ Prefer:"return=minimal" } });
+}
+async function pullEvents(){
+  if (!cloudOn()) return;
+  if (Date.now() - EVT.fetched < 45000) return;
+  EVT.fetched = Date.now();
+  const was = EVT.list.map(e => e.kind + e.mult).sort().join();
+  try { EVT.list = await listEvents(); } catch(e){ EVT.list = []; }
+  // Turbo is baked into CUR by buildBike, so an event that starts or ends
+  // mid-session does nothing until the bike is rebuilt
+  if (EVT.list.map(e => e.kind + e.mult).sort().join() !== was) refreshBike();
+}
+// live right now, this world, this kind
+function evtOn(kind){
+  if (inW2()) return null;
+  const now = Date.now();
+  let best = null;
+  for (const e of EVT.list) {
+    if (e.kind !== kind) continue;
+    if (new Date(e.expires_at).getTime() <= now) continue;
+    if (!best || (+e.mult || 1) > (+best.mult || 1)) best = e;
+  }
+  return best;
+}
+const evtMul = kind => { const e = evtOn(kind); return e ? Math.max(1, +e.mult || 1) : 1; };
+const evtLive = () => inW2() ? [] : EVT.list.filter(e => new Date(e.expires_at).getTime() > Date.now());
+
 function persistLocal(){
   SAVE.ts = Date.now();
   try { localStorage.setItem("soflo.save", JSON.stringify(SAVE)); } catch(e){}
@@ -2810,7 +2904,8 @@ const inCrew = () => !!(SAVE.crew && SAVE.crew.id);
    but neither reaches Afterburn. Everybody standing there has at least five
    rebirths, so letting the stack through would hand them a 5x head start on
    a currency whose whole point is that it is slow. Embers are flat. */
-const coinMult = () => inW2() ? W2_RATE : (inCrew() ? CREW_BONUS : 1) * rebirthMul();
+const coinMult = () => inW2() ? W2_RATE
+                       : (inCrew() ? CREW_BONUS : 1) * rebirthMul() * evtMul("coins");
 function earn(n){
   if (VS.on) return;
   S.coinAcc += n * coinMult();
@@ -3943,6 +4038,7 @@ const sfx = audio;
    ============================================================ */
 function tickStreet(){
   const B = bike();
+  rainTick();
 
   if (S.over) {                       // crash animation: everything else is frozen
     S.crashT--; S.crashSpin += 7; S.spd *= 0.90;
@@ -6120,6 +6216,7 @@ function renderStreet(){
 
   drawScene();
   if (S.rideOut) { drawCars(); drawPack(0); drawPack(1); drawHazards(); }
+  drawRain();
 
   const sq = Math.max(0.25, 1 - Math.abs(90 - S.dir)/130);
   const shx = S.dir > 90.4 ? BIKE_X + bike().wb * BIKE_SCALE - 44*sq : BIKE_X + 44*sq;
@@ -6148,7 +6245,7 @@ function renderStreet(){
 
   drawWeather();
   if (S.mode === "street" && !S.photo && !VS.on) drawHUD();
-  if (!S.photo && !VS.on) drawBroadcast();
+  if (!S.photo && !VS.on) { drawBroadcast(); drawEventHUD(); }
   if (S.photo) drawPhotoHint();
   if (S.paused) drawPause();
 }
@@ -7057,7 +7154,7 @@ function tickRamp(){
   const I = L * L * 0.12;
   let grounded = false;
   for (let sub = 0; sub < SUB; sub++) {
-    R.vy += 0.92 * h;
+    R.vy += 0.92 * h * (evtOn("moon") ? 0.42 : 1);      // Moon Gravity event
     for (let w = 0; w < 2; w++) {
       const ox = (w ? 1 : -1) * L/2;
       const wr = (w ? B.rf : B.rr) * RSC;
@@ -8190,7 +8287,7 @@ function openMenu(){
   audio.setStyle("menu");
   sfx.ui();
   syncWallet(); persist(); renderWho(); renderLevel(); renderSeasonBanner(); renderCrewLink();
-  renderRebirthBanner(); renderWorldBanner();
+  renderRebirthBanner(); renderWorldBanner(); renderEventCard();
   renderDailyCard(); renderTrialCard(); renderProfileLink();
   renderBroadcast(); pullBroadcasts();
   applyWorldChrome();
@@ -8285,7 +8382,7 @@ function loop(now){
   if (VS.on) renderVersus();
   else if (S.mode === "ramp") renderRamp();
   else renderStreet();
-  if (S.mode === "ramp" && !S.photo) drawBroadcast();
+  if (S.mode === "ramp" && !S.photo) { drawBroadcast(); drawEventHUD(); }
   if (cloudOn() && AUTH.uid) pullBroadcasts();      // throttled to once a minute inside
   if (S.mode === "shop" && shopTab === "cust") drawCustomPreview();
 }
@@ -8339,7 +8436,7 @@ async function sendBroadcast(message, hours){
                           expires_at:new Date(Date.now() + ms).toISOString() }) });
 }
 async function listBroadcasts(){
-  const rows = await api("/rest/v1/broadcasts?select=id,message,created_at,expires_at" +
+  const rows = await api("/rest/v1/broadcasts?select=id,message,author,created_at,expires_at" +
     "&expires_at=gt." + new Date().toISOString() + "&order=created_at.desc&limit=20");
   return rows || [];
 }
@@ -8356,15 +8453,29 @@ async function pullGrants(){
     rows = await api("/rest/v1/grants?select=id,kind,amount,note&user_id=eq." +
       AUTH.uid + "&claimed_at=is.null&limit=50") || [];
   } catch(e){ return 0; }
+  /* Everything an admin can send is a South Florida thing, and `SAVE` means
+     whichever world you are standing in - so a coin gift arriving while you
+     were in Afterburn used to land as that many EMBERS, and a world 1 bike
+     went into the Afterburn garage where normaliseSave threw it straight back
+     out. Grants are written into world 0 explicitly, wherever you are. */
+  const away = inW2();
+  const W1 = () => {
+    if (!away) return SAVE;
+    if (!SAVE.alt || typeof SAVE.alt !== "object") SAVE.alt = worldDefaults(0);
+    return SAVE.alt;
+  };
   let n = 0;
   for (const g of rows) {
     let what = "";
-    if (g.kind === "coins")      { SAVE.coins += Math.max(0, g.amount | 0); what = money(g.amount) + " coins"; }
+    const w1 = W1();
+    if (g.kind === "coins")      { w1.coins = (w1.coins | 0) + Math.max(0, g.amount | 0); what = money(g.amount) + " coins"; }
     else if (g.kind === "xp")    { awardXP(Math.max(0, g.amount | 0)); what = money(g.amount) + " XP"; }
     else if (g.kind === "pass")  { seasonState().prem = true; what = "the premium pass"; }
     else if (g.kind === "bike")  {
       const i = g.amount | 0;
-      if (BIKES[i] && !SAVE.bikes.includes(i)) { SAVE.bikes.push(i); what = BIKES[i].name; }
+      if (!BIKES[i] || BIKES[i].w2) what = "nothing - Afterburn is not an admin's to give";
+      else if (!Array.isArray(w1.bikes)) what = "a bike";
+      else if (!w1.bikes.includes(i)) { w1.bikes.push(i); what = BIKES[i].name; }
       else what = "a bike you already had";
     }
     else if (g.kind === "trick") {
@@ -8377,11 +8488,62 @@ async function pullGrants(){
         headers:{ Prefer:"return=minimal" },
         body:JSON.stringify({ claimed_at:new Date().toISOString() }) });
       n++;
-      toast("ADMIN GIFT — " + what);
+      toast("ADMIN GIFT — " + what + (away ? " (waiting in South Florida)" : ""));
     } catch(e){ /* leave unclaimed, it will retry next sync */ }
   }
   if (n) { persist(); syncWallet(); refreshBike(); }
   return n;
+}
+
+/* Raining coins. Screen space rather than world space: the coin falls, drifts
+   left at road speed, and is collected when it crosses the rider. Nothing
+   about it touches the terrain or the physics, so it cannot change a run's
+   handling - it only pays. Off in versus, which pays nothing, and off in
+   Afterburn like every other event. */
+const RAIN_PAY = 250;                      // coins per drop, flat, unmultiplied
+const RAIN = { drops:[] };
+function rainTick(){
+  if (!evtOn("rain") || VS.on || S.mode !== "street" || S.over) {
+    if (RAIN.drops.length) RAIN.drops.length = 0;
+    return;
+  }
+  if (RAIN.drops.length < 22 && Math.random() < 0.30)
+    RAIN.drops.push({ x: W * 0.2 + Math.random() * W * 0.95, y: -30 - Math.random() * 160,
+                      vy: 2.6 + Math.random() * 2.4, sp: 0.5 + Math.random() * 0.4, t: 0 });
+  const drift = Math.max(1.2, S.spd * 0.22);
+  for (let i = RAIN.drops.length - 1; i >= 0; i--) {
+    const d = RAIN.drops[i];
+    d.y += d.vy; d.x -= drift * d.sp; d.t++;
+    // the rider's box: from the front wheel back, shoulder height to the road
+    const hit = d.x > BIKE_X - 40 && d.x < BIKE_X + 150 && d.y > GROUND - 150 && d.y < GROUND + 6;
+    if (hit) {
+      RAIN.drops.splice(i, 1);
+      /* Paid flat, straight to the wallet, rather than through earn(). A drop
+         is a fixed event payout like the daily reward, not coins earned by
+         riding - and putting it through earn() meant Coin Rush multiplied it
+         too, so 100x plus rain minted 419,000 coins in thirty seconds. Two
+         events that each make sense should not compound into a third that
+         does not. Rain is world 1 only, so this never touches embers. */
+      SAVE.coins += RAIN_PAY; S.score += 250; sfx.coin(); qAdd("coinsGot", 1);
+      spark({ x:d.x, y:d.y }, "#FFD11A");
+      continue;
+    }
+    if (d.y > GROUND + 20 || d.x < -40) RAIN.drops.splice(i, 1);
+  }
+}
+function drawRain(){
+  if (!RAIN.drops.length) return;
+  ctx.save();
+  for (const d of RAIN.drops) {
+    const r = 8;
+    ctx.globalAlpha = Math.min(1, d.t / 6);
+    ctx.fillStyle = "#FFD11A";
+    ctx.beginPath(); ctx.ellipse(d.x, d.y, r * 0.62, r, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = "#B8860B";
+    ctx.beginPath(); ctx.ellipse(d.x, d.y, r * 0.28, r * 0.62, 0, 0, 7); ctx.fill();
+  }
+  ctx.restore();
+  ctx.globalAlpha = 1;
 }
 
 /* broadcasts everyone sees */
@@ -8390,7 +8552,9 @@ async function pullBroadcasts(){
   if (Date.now() - BCAST.fetched < 45000) return;
   BCAST.fetched = Date.now();
   try { BCAST.list = await listBroadcasts(); } catch(e){}
+  try { await pullEvents(); } catch(e){}
   renderBroadcast();
+  renderEventCard();
   popBroadcast();
 }
 const bcastPlaying = () => (S.mode === "street" || S.mode === "ramp") && !S.paused && !S.photo;
@@ -8406,7 +8570,7 @@ function popBroadcast(){
   const b = BCAST.list.find(x => !bcastRun.has(x.id));
   if (!b) return;
   for (const x of BCAST.list) bcastRun.add(x.id);   // one per run; a newer one still interrupts
-  S.bcast = { msg:b.message, t:420 };               // ~14s on screen
+  S.bcast = { msg:b.message, who:b.author || "", t:420 };   // ~14s on screen
   sfx.quest();
 }
 function drawBroadcast(){
@@ -8429,7 +8593,8 @@ function drawBroadcast(){
   ctx.fillStyle = "#3CF08C";
   ctx.font = '700 11px "Barlow Condensed", sans-serif';
   ctx.textAlign = "left";
-  ctx.fillText("ANNOUNCEMENT", x + 16, y + 16);
+  // signed. An anonymous "ANNOUNCEMENT" made admin abuse anonymous with it
+  ctx.fillText((b.who ? b.who.toUpperCase() : "ANNOUNCEMENT"), x + 16, y + 16);
   ctx.fillStyle = "#F2F6FA";
   ctx.font = '700 17px "Saira Condensed", sans-serif';
   ctx.fillText(b.msg, x + 16, y + 32);
@@ -8444,7 +8609,8 @@ function renderBroadcast(){
     if (!b) el.hidden = true;
     else {
       el.hidden = false;
-      el.innerHTML = `<span class="tagline">Announcement</span><span class="msg">${esc(b.message)}</span>`;
+      el.innerHTML = `<span class="tagline">${esc(b.author || "Announcement")}</span>` +
+                     `<span class="msg">${esc(b.message)}</span>`;
     }
   }
   showLiveBroadcast();
@@ -8463,7 +8629,8 @@ function showLiveBroadcast(){
   SAVE.seenBc.push(b.id);
   if (SAVE.seenBc.length > 60) SAVE.seenBc = SAVE.seenBc.slice(-60);
   persistLocal();
-  live.innerHTML = `<span class="tagline">Announcement</span><span class="msg">${esc(b.message)}</span>`;
+  live.innerHTML = `<span class="tagline">${esc(b.author || "Announcement")}</span>` +
+                   `<span class="msg">${esc(b.message)}</span>`;
   live.hidden = false;
   live.classList.remove("in"); void live.offsetWidth; live.classList.add("in");
   clearTimeout(showLiveBroadcast._t);
@@ -8847,13 +9014,38 @@ async function renderAdmin(){
       <label class="fld" id="adAmtRow"><span>Amount</span>
         <input id="adAmt" type="number" value="10000"></label>
       <label class="fld" id="adBikeRow" hidden><span>Which bike</span>
-        <select id="adBike">${BIKES.map((b, i) => `<option value="${i}">${esc(b.name)}</option>`).join("")}</select></label>
+        <select id="adBike">${BIKES.map((b, i) => b.w2 ? "" :
+          `<option value="${i}">${esc(b.name)}</option>`).join("")}</select></label>
       <label class="fld" id="adTrickRow" hidden><span>Which trick</span>
         <select id="adTrick">${TRICKS.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join("")}</select></label>
       <button class="btn pri" id="adGive">Send it</button>
     </div>
-    <div class="admsg" id="adGiveOut">They get it the next time their game syncs.</div>`;
+    <div class="admsg" id="adGiveOut">They get it the next time their game syncs.</div>
+    <div class="admsg" id="adBudget">Checking today's budget...</div>`;
   body.appendChild(gr);
+
+  /* The caps are enforced by the database, not here - anyone who reads the
+     page source can POST to the endpoint directly, so a limit in JavaScript
+     is decoration. This just shows the numbers before they type rather than
+     after the server refuses them. */
+  async function showBudget(){
+    const el = document.getElementById("adBudget");
+    if (!el) return;
+    try {
+      const r = (await api("/rest/v1/rpc/grant_budget", { method:"POST", body:"{}" })) || [];
+      const b = Array.isArray(r) ? r[0] : r;
+      if (!b) throw new Error("no budget");
+      el.textContent = "Today you have given " + money(b.coins_day | 0) + " / 250,000 coins · " +
+        money(b.xp_day | 0) + " / 20,000 XP · " + (b.rows_day | 0) + " / 20 gifts. " +
+        "Nobody may take more than 100,000 coins a day from you, you cannot gift yourself, " +
+        "and Afterburn is off limits.";
+    } catch(e){
+      el.textContent = "Limits: 100,000 coins per rider per day, 250,000 a day in total, " +
+        "20 gifts a day, no gifting yourself, nothing from Afterburn. " +
+        "(Re-run admin.sql to see your running total here.)";
+    }
+  }
+  showBudget();
 
   const kindEl = document.getElementById("adKind");
   function syncKind(){
@@ -8868,6 +9060,9 @@ async function renderAdmin(){
     const name = document.getElementById("adUser").value.trim();
     const kind = kindEl.value;
     if (!name) return adSay("adGiveOut", "Type a username", "no");
+    // the database refuses this anyway; saying so here is just faster
+    if (AUTH.name && name.toLowerCase() === String(AUTH.name).toLowerCase())
+      return adSay("adGiveOut", "You cannot gift yourself", "no");
     let amount = 0, note = "";
     if (kind === "coins" || kind === "xp") amount = Math.max(0, +document.getElementById("adAmt").value || 0);
     if (kind === "bike")  amount = +document.getElementById("adBike").value || 0;
@@ -8877,8 +9072,85 @@ async function renderAdmin(){
       const who = await sendGrant(name, kind, amount, note);
       adSay("adGiveOut", "Sent to " + who.username + " - lands on their next sync", "ok");
       sfx.buy();
-    } catch(e){ adSay("adGiveOut", "Refused: " + String(e.message || e), "no"); }
+      showBudget();
+    } catch(e){
+      adSay("adGiveOut", "Refused: " + String(e.message || e), "no");
+      showBudget();
+    }
   });
+
+  /* ---------- events ----------
+     The point of this card. Giving one player coins is invisible to everyone
+     else; starting an hour of triple coins is the opposite. */
+  const ev = document.createElement("div");
+  ev.className = "adcard";
+  ev.innerHTML = `<h3>Start a live event</h3>
+    <div class="adrow">
+      <label class="fld"><span>Event</span>
+        <select id="adEvtKind">${Object.keys(EVENTS).map(k =>
+          `<option value="${k}">${EVENTS[k].ic} ${esc(EVENTS[k].name)}</option>`).join("")}</select></label>
+      <label class="fld" id="adEvtMultRow"><span>Strength</span>
+        <input id="adEvtMult" type="number" min="1" max="100" value="3"></label>
+      <label class="fld"><span>Hours</span>
+        <input id="adEvtHrs" type="number" min="0.25" max="6" step="0.25" value="1"></label>
+      <button class="btn pri" id="adEvtGo">Start it</button>
+    </div>
+    <div class="admsg" id="adEvtOut">Everyone sees it within a minute, wherever they are.
+      Events never reach Afterburn - that economy is meant to be earned.</div>
+    <div class="adevts" id="adEvtList"></div>`;
+  body.appendChild(ev);
+
+  const evKind = document.getElementById("adEvtKind");
+  const syncEvt = () => {
+    const k = evKind.value;
+    document.getElementById("adEvtMultRow").hidden = !(k === "coins" || k === "xp");
+  };
+  evKind.addEventListener("change", syncEvt); syncEvt();
+
+  async function refreshEvents(){
+    const list = document.getElementById("adEvtList");
+    if (!list) return;
+    let rows = [];
+    try { rows = await listEvents(); } catch(e){
+      list.innerHTML = `<div class="admsg">Events aren't set up on the server yet - run events.sql.</div>`;
+      return;
+    }
+    EVT.list = rows; renderEventCard();
+    list.innerHTML = rows.length ? "" : `<div class="admsg">Nothing running right now.</div>`;
+    for (const e of rows) {
+      const K = EVENTS[e.kind] || { name:e.kind, ic:"\u2728" };
+      const mins = Math.max(0, Math.round((new Date(e.expires_at).getTime() - Date.now()) / 60000));
+      const d = document.createElement("div");
+      d.className = "e";
+      d.innerHTML = `<b>${K.ic} ${esc(K.name)}` +
+        ((e.kind === "coins" || e.kind === "xp") ? " " + (+e.mult || 1) + "\u00d7" : "") +
+        `</b><span style="color:var(--dim)">${mins}m left${e.author ? " · " + esc(e.author) : ""}</span>`;
+      const x = document.createElement("button");
+      x.className = "btn"; x.textContent = "End";
+      x.addEventListener("click", async () => {
+        x.disabled = true;
+        try { await endEvent(e.id); } catch(err){ adSay("adEvtOut", String(err.message || err), "no"); }
+        EVT.fetched = 0; refreshEvents();
+      });
+      d.appendChild(x);
+      list.appendChild(d);
+    }
+  }
+  document.getElementById("adEvtGo").addEventListener("click", async () => {
+    const k = evKind.value;
+    const m = +document.getElementById("adEvtMult").value || 2;
+    const h = +document.getElementById("adEvtHrs").value || 1;
+    adSay("adEvtOut", "Starting...");
+    try {
+      await startEvent(k, m, h);
+      adSay("adEvtOut", (EVENTS[k] || {}).name + " is live - everyone gets it within a minute", "ok");
+      sfx.quest();
+      EVT.fetched = 0; refreshEvents(); refreshBike();
+    } catch(err){
+      adSay("adEvtOut", "Refused - " + String(err.message || err), "no");
+    }
+  });
+  refreshEvents();
 
   /* Bios are the one thing in the game a player can type for other players to
      read, so there has to be a way to take one down. The policy on `profiles`
@@ -9298,6 +9570,51 @@ function renderRebirth(){
    locked until the fifth, and a plain toggle after that. Switching is free:
    each world's wallet, garage, records and maps sit untouched while you are
    in the other one. */
+/* What is running right now, on the menu. Drawn from the same list the
+   multipliers read, so the card and the maths can never disagree. */
+function renderEventCard(){
+  const el = document.getElementById("evtCard");
+  if (!el) return;
+  const live = evtLive();
+  el.hidden = !live.length;
+  if (!live.length) return;
+  el.innerHTML = live.map(e => {
+    const K = EVENTS[e.kind] || { name:e.kind, ic:"\u2728", col:"#3CF08C", blurb:() => "" };
+    const mins = Math.max(0, Math.round((new Date(e.expires_at).getTime() - Date.now()) / 60000));
+    const left = mins >= 60 ? Math.floor(mins / 60) + "h " + (mins % 60) + "m" : mins + "m";
+    return `<div class="evtrow" style="--ec:${K.col}">
+      <span class="ic">${K.ic}</span>
+      <span class="mid"><b>${esc(K.name)}</b>
+        <i>${esc(K.blurb(+e.mult || 1))}</i></span>
+      <span class="left">${left} left</span>
+      ${e.author ? `<span class="by">by ${esc(e.author)}</span>` : ""}
+    </div>`;
+  }).join("");
+}
+function drawEventHUD(){
+  const live = evtLive();
+  if (!live.length) return;
+  ctx.save();
+  ctx.font = '700 12px "Barlow Condensed", sans-serif';
+  ctx.textAlign = "left";
+  let y = 96;
+  for (const e of live.slice(0, 3)) {
+    const K = EVENTS[e.kind] || { name:e.kind, ic:"\u2728", col:"#3CF08C" };
+    const label = K.ic + "  " + K.name.toUpperCase() +
+                  ((e.kind === "coins" || e.kind === "xp") ? "  " + (+e.mult || 1) + "\u00d7" : "");
+    const w = ctx.measureText(label).width + 22;
+    ctx.fillStyle = "rgba(8,12,17,.80)";
+    rr(W - w - 14, y, w, 22, 7); ctx.fill();
+    ctx.strokeStyle = K.col; ctx.lineWidth = 1.2;
+    rr(W - w - 14, y, w, 22, 7); ctx.stroke();
+    ctx.fillStyle = K.col;
+    ctx.fillText(label, W - w - 3, y + 15);
+    y += 27;
+  }
+  ctx.restore();
+  ctx.textAlign = "left";
+}
+
 function renderWorldBanner(){
   const el = document.getElementById("openWorld");
   if (!el) return;

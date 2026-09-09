@@ -1,6 +1,6 @@
 # SoFlo Wheelie Life — handoff
 
-Everything a fresh session needs to pick this up. Written 3 Sep 2026, updated 9 Sep 2026 (worlds).
+Everything a fresh session needs to pick this up. Written 3 Sep 2026, updated 9 Sep 2026 (worlds, admin limits, events).
 
 ---
 
@@ -83,6 +83,8 @@ It happened on 3 Sep: a second session committed the same feature concurrently
 | Rebirth | `canRebirth()` / `doRebirth()`, cost card in `rebirthCost()`, screen in `renderRebirth()` |
 | Worlds | `setWorld()` swaps `WORLD_FIELDS` with `SAVE.alt`; `worldSplit()` / `mergeWorld()` for the merge |
 | Backdrop props | `prop()` dispatches on `sp.prop`; billboards from `BOARDS` / `BOARDS_W2` via `sp.boards` |
+| Live events | `EVENTS` catalogue, `pullEvents()` on the announcement beat, `evtMul(kind)` at the multipliers |
+| Admin limits | all of it in `admin.sql`: `grants_guard()` trigger and `grant_budget()` |
 | Mini bodywork | `drawMini()`, silhouettes in `MINI_TANK` |
 | Daily seed run | `startDaily()` / `dailyFinish()` / `dailyStop()`, plan in `dailyPlan(day)` |
 | Rider profiles | `openProfile(name, from)` / `profileFetch()` / `renderProfile()` / `profilePush()` |
@@ -234,6 +236,57 @@ Past the eighth rebirth there are no bikes left, so it pays `REBIRTH_PAYOUT`
 coins instead and the multiplier keeps stacking. Nobody is likely to get
 there; it exists so the button never has nothing to give.
 
+**Admin limits and live events** exist because the game was being given away.
+Handing one player a pile of coins is invisible to everybody else and makes
+the game worse for them, so the boring power is now capped and the interesting
+one was built.
+
+Every cap is in `admin.sql`, not in the panel, and that is the whole point.
+The passphrase is a door; anyone who reads the page source can POST to the
+REST endpoint directly, so a limit written in JavaScript is decoration. The
+`grants_guard()` trigger enforces, against `auth.uid()`: no gifting yourself,
+100,000 coins per recipient per day, 250,000 a day per admin across everyone,
+5,000 XP a gift and 20,000 a day, 20 gifts a day, and nothing with a bike
+index of 88 or above because that is Afterburn. The panel calls
+`grant_budget()` to show the running total before an admin types a number
+rather than after the database refuses it. PostgREST passes a `raise exception`
+message straight through as `data.message`, which `api()` already surfaces, so
+the trigger's own words are what the admin reads.
+
+**Grants had a world bug worth remembering.** Everything an admin can send is
+a South Florida thing, but `SAVE` means whichever world you are standing in -
+so a 100,000 coin gift arriving while the player was in Afterburn landed as
+100,000 *embers*, and a world 1 bike went into the Afterburn garage where
+`normaliseSave` threw it straight back out. `pullGrants()` now writes into
+world 0 explicitly, wherever the player happens to be.
+
+**Announcements are signed.** They used to arrive as "ANNOUNCEMENT", which
+made admin abuse anonymous. `broadcasts` gained `author`, stamped by a trigger
+off the account rather than taken from the request, for exactly the reason a
+profile username is.
+
+**Events** are five kinds - Coin Rush, Double Time, Raining Coins, Moon
+Gravity, Turbo Hour - polled on the same 45 second beat as the announcements
+and applied straight into multipliers that already existed. Nothing is stored
+per player and nothing needs claiming. One live per kind, enforced by a
+trigger rather than a partial unique index, because `now()` is not immutable
+and Postgres will not accept it in an index predicate. Two of a kind would
+have meant the client inventing a meaning for stacked multipliers; `evtMul`
+takes the higher of a kind and never the product, for the same reason.
+
+None of it reaches Afterburn. `evtMul` returns 1 there and every ride effect
+checks the same thing, because a 100x coin hour would flatten a currency whose
+whole point is that it is slow.
+
+Two things to know. Turbo is baked into `CUR` by `buildBike`, so `pullEvents`
+calls `refreshBike()` when the live set changes or an event that starts
+mid-session does nothing. And **Raining Coins pays flat, straight to the
+wallet, not through `earn()`** - a drop is a fixed event payout like the daily
+reward, not coins earned by riding. Putting it through `earn()` meant Coin
+Rush multiplied it too: measured at 419,000 coins in thirty seconds with 100x
+plus rain, against 19,000 once it was flat. Two events that each make sense
+should not compound into a third that does not.
+
 **Afterburn** is the second world, and five rebirths is the door. It has its
 own currency (embers), its own forty bikes, its own five street maps and three
 ramp tracks, and its own leaderboard. You cannot spend coins there, the season
@@ -349,9 +402,10 @@ level security is what actually protects data.
 | `profiles` | public | own row only, plus `is_admin()` for taking a bio down. `badges` / `badge_count`, then `rebirths`, were added later; re-run `profiles.sql` for them |
 | `trials` | public | own row only, and a trigger that only ever lets a time come down |
 | `scores2` | public | own row only, scores monotonic (trigger). The Afterburn board; `world2.sql` |
+| `events` | public | admins insert/delete, author stamped by trigger, one live per kind; `events.sql` |
 
 SQL lives in `supabase-setup.sql`, `leaderboard.sql`, `crews.sql`, `admin.sql`,
-`daily.sql`, `profiles.sql`, `trials.sql`, `world2.sql`.
+`daily.sql`, `profiles.sql`, `trials.sql`, `world2.sql`, `events.sql`.
 All are idempotent — safe to re-run.
 
 **Auth quirk:** usernames map to internal addresses `name@wheelie.local`, which
@@ -387,6 +441,8 @@ curl -s -X POST -H "apikey: $KEY" -H "Content-Type: application/json" \
 | Versus | `VS_LENGTHS` (60/90/150s), `VS_KEYS`, `VS_TINT`, `vsWidth()` clamp |
 | Rebirth | `REBIRTH_LEVEL 25`, `REBIRTH_MULT 1.5`, `REBIRTH_BIKES` (80–87), `REBIRTH_PAYOUT 250000` |
 | Worlds | `W2_REBIRTHS 5`, `W2_RATE 0.012`, `W2_BIKE0 88`, `W1_SPOTS 4`, `W1_TRACKS 2`, `W2_SPOTS 5`, `W2_TRACKS 3` |
+| Live events | `EVENTS` (five kinds), `RAIN_PAY 250`, turbo `1.22`, moon gravity `0.42` |
+| Admin gift caps | `COIN_ONE 100000`, `COIN_DAY 250000`, `XP_ONE 5000`, `XP_DAY 20000`, `ROWS_DAY 20` — **all in `admin.sql`** |
 
 Seasons roll over from the clock — no scheduling, no server job. So does the
 daily seed, off a **UTC** day number, which means it turns over at 20:00 in
@@ -502,6 +558,11 @@ bike, or asserting on a stub that a live fetch had replaced.
 - **The time trial board needs `trials.sql` run.** Until it is, the mode plays
   and your own best still saves; only the shared board is missing, and the
   board tab says so.
+- **Events need `events.sql` run**, and the gift caps need **`admin.sql`
+  re-run**. Until `events.sql` is run no event can start, the menu card and
+  the riding banner never appear, and the admin card says so. Until `admin.sql`
+  is re-run **there are no caps at all** - the panel still shows the limits as
+  text, but nothing enforces them.
 - **The Afterburn board needs `world2.sql` run.** Until it is, the second
   world plays and pays normally and your own records still save; only the
   shared board is missing, and the board tab says so. `scoresPush()` swallows
