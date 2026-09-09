@@ -8435,10 +8435,22 @@ async function sendBroadcast(message, hours){
     body:JSON.stringify({ message:String(message).slice(0, 240),
                           expires_at:new Date(Date.now() + ms).toISOString() }) });
 }
+/* `author` arrived with the gift caps. A database that predates them rejects
+   the whole select, which would take announcements down for everybody rather
+   than just leaving them unsigned - so ask again without it. Same shape as the
+   fallback profilePush already uses for its late columns. */
+let bcastNoAuthor = false;
 async function listBroadcasts(){
-  const rows = await api("/rest/v1/broadcasts?select=id,message,author,created_at,expires_at" +
-    "&expires_at=gt." + new Date().toISOString() + "&order=created_at.desc&limit=20");
-  return rows || [];
+  const tail = "&expires_at=gt." + new Date().toISOString() + "&order=created_at.desc&limit=20";
+  if (!bcastNoAuthor) {
+    try {
+      return (await api("/rest/v1/broadcasts?select=id,message,author,created_at,expires_at" + tail)) || [];
+    } catch(e){
+      if (!/author/i.test(String(e.message || ""))) throw e;
+      bcastNoAuthor = true;
+    }
+  }
+  return (await api("/rest/v1/broadcasts?select=id,message,created_at,expires_at" + tail)) || [];
 }
 async function dropBroadcast(id){
   await api("/rest/v1/broadcasts?id=eq." + id, { method:"DELETE", headers:{ Prefer:"return=minimal" } });
@@ -9040,9 +9052,12 @@ async function renderAdmin(){
         "Nobody may take more than 100,000 coins a day from you, you cannot gift yourself, " +
         "and Afterburn is off limits.";
     } catch(e){
-      el.textContent = "Limits: 100,000 coins per rider per day, 250,000 a day in total, " +
-        "20 gifts a day, no gifting yourself, nothing from Afterburn. " +
-        "(Re-run admin.sql to see your running total here.)";
+      // Say so plainly. A panel that lists limits nobody is enforcing is worse
+      // than one that admits there are none.
+      el.innerHTML = `<b style="color:var(--hot)">No limits are in force.</b> ` +
+        `Re-run <b>admin.sql</b> to switch on the caps: 100,000 coins per rider per day, ` +
+        `250,000 a day in total, 20 gifts a day, no gifting yourself, nothing from Afterburn. ` +
+        `Until then this panel can hand out anything.`;
     }
   }
   showBudget();
