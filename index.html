@@ -393,6 +393,34 @@
   .rbbanner .go{flex:none; font-family:var(--num); font-weight:700; font-size:12px;
                 letter-spacing:.12em; color:#B06BFF; text-transform:uppercase}
 
+  .w2banner{
+    display:flex; align-items:center; gap:14px; width:min(560px,92vw); margin:0 auto 16px;
+    padding:11px 16px; border-radius:14px; cursor:pointer; text-align:left;
+    background:linear-gradient(96deg, rgba(30,14,6,.90), rgba(12,14,20,.90));
+    border:1px solid rgba(255,106,19,.50); color:var(--text); font-family:var(--ui);
+  }
+  .w2banner:hover{border-color:#FF6A13;
+                  background:linear-gradient(96deg, rgba(46,20,8,.95), rgba(18,20,28,.95))}
+  .w2banner.locked{border-color:var(--edge); background:rgba(20,25,34,.72)}
+  .w2banner .lab{font-family:var(--num); font-weight:700; font-size:14.5px; letter-spacing:.02em; flex:none}
+  .w2banner .mid{flex:1; display:flex; flex-direction:column; gap:4px; min-width:90px}
+  .w2banner .sub{font-size:11.5px; color:var(--dim); font-family:var(--num); letter-spacing:.04em}
+  .w2banner .track{display:block; height:7px; border-radius:5px; background:rgba(255,255,255,.12); overflow:hidden}
+  .w2banner .track i{display:block; height:100%; background:linear-gradient(90deg,#FF6A13,var(--amber))}
+  .w2banner .go{flex:none; font-family:var(--num); font-weight:700; font-size:12px;
+                letter-spacing:.12em; color:#FF6A13; text-transform:uppercase}
+  .w2banner .badge{flex:none; font-family:var(--num); font-weight:700; font-size:11.5px; letter-spacing:.08em;
+                   color:#170A02; background:#FF6A13; border-radius:20px; padding:5px 11px}
+  body.w2 .logo{background:linear-gradient(94deg,#FF6A13 0%,#FFB347 34%,#FF3D7F 68%,#B06BFF 100%);
+                -webkit-background-clip:text; background-clip:text}
+
+  /* Every one of these sets its own `display`, which outranks the browser's
+     own [hidden] rule, so setting el.hidden on them did nothing at all. The
+     empty broadcast pill under the level bar was this bug and had been
+     sitting on the menu for months. One rule, and the whole class of it is
+     gone for good. */
+  [hidden]{display:none !important}
+
   .rbsheet{width:min(760px,94vw); text-align:left}
   .rbhero{margin-top:6px; padding:20px 20px 18px; border-radius:16px; text-align:center;
           background:linear-gradient(150deg, rgba(38,12,48,.92), rgba(12,17,24,.92));
@@ -693,12 +721,13 @@
   <div>
     <h1 class="logo">SoFlo Wheelie Life</h1>
     <p class="tag">Feather the throttle. Find the balance point. Don't loop out.</p>
-    <div class="wallet"><span class="dot"></span><span id="coinsMenu">0</span> <span style="opacity:.65">coins</span></div>
+    <div class="wallet"><span class="dot"></span><span id="coinsMenu">0</span> <span class="curlab" style="opacity:.65">coins</span></div>
     <div class="lvlbar" id="lvlbar"></div>
     <div class="whoami" id="whoami" hidden></div>
     <div class="bcast" id="bcast" hidden></div>
     <button class="passbanner" id="openSeason"></button>
     <button class="rbbanner" id="openRebirth"></button>
+    <button class="w2banner" id="openWorld"></button>
     <div class="dailycard" id="dailyCard"></div>
     <div class="whoami"><button id="openBoard">View the leaderboard</button>
       <span style="opacity:.4">·</span><button id="openCrew">Crews</button>
@@ -821,7 +850,7 @@
     <div class="shophead">
       <h2>Crews</h2>
       <div class="tabs" id="crewTabs"></div>
-      <div class="wallet"><span class="dot"></span><span id="coinsCrew">0</span> <span style="opacity:.65">coins</span></div>
+      <div class="wallet"><span class="dot"></span><span id="coinsCrew">0</span> <span class="curlab" style="opacity:.65">coins</span></div>
       <button class="btn" id="crewBack">Back</button>
     </div>
     <div class="crewbody" id="crewBody"></div>
@@ -842,7 +871,7 @@
   <div class="passsheet">
     <div class="shophead">
       <h2>Season Pass</h2>
-      <div class="wallet"><span class="dot"></span><span id="coinsSeason">0</span> <span style="opacity:.65">coins</span></div>
+      <div class="wallet"><span class="dot"></span><span id="coinsSeason">0</span> <span class="curlab" style="opacity:.65">coins</span></div>
       <button class="btn" id="seasonBack">Back</button>
     </div>
     <div id="seasonBody"></div>
@@ -853,7 +882,7 @@
   <div class="rbsheet">
     <div class="shophead">
       <h2>Rebirth</h2>
-      <div class="wallet"><span class="dot"></span><span id="coinsRb">0</span> <span style="opacity:.65">coins</span></div>
+      <div class="wallet"><span class="dot"></span><span id="coinsRb">0</span> <span class="curlab" style="opacity:.65">coins</span></div>
       <button class="btn" id="rbBack">Back</button>
     </div>
     <div id="rbBody"></div>
@@ -886,7 +915,7 @@
         <button class="tab" id="tabTricks" aria-selected="false">Tricks</button>
         <button class="tab" id="tabKeys" aria-selected="false">Controls</button>
       </div>
-      <div class="wallet"><span class="dot"></span><span id="coinsShop">0</span> <span style="opacity:.65">coins</span></div>
+      <div class="wallet"><span class="dot"></span><span id="coinsShop">0</span> <span class="curlab" style="opacity:.65">coins</span></div>
       <button class="btn" id="shopBack">Back</button>
     </div>
     <div class="grid" id="shopGrid"></div>
@@ -1623,6 +1652,272 @@ const BIKES = [
     seatCol:"#07090D",
     decal:{ text:"VIII", x:100, y:66, size:12, rot:-0.20, col:"#3CF08C" },
     wheel:{tire:"street", spokes:"cast", rim:"#FF3D7F", disc:true}, gear:"street" },
+
+  /* ---------- 88-127: the Afterburn garage ----------
+     Forty bikes that exist only in the second world, bought only with embers.
+     `w2:true` is what keeps the two garages apart - the shop filters on it,
+     `normaliseSave` throws out any bike that does not belong to the world you
+     are standing in, and `mergeSaves` will not let one cross over. `secret`
+     keeps them off a first-world shop shelf entirely.
+     They run cheap-and-slow to fast-and-dear across five body classes, and
+     the top of the range is the quickest thing in either world - the eighth
+     rebirth bike is 232 mph, Ashfall RR is 245. ---------- */
+
+  { name:"Cinder 125", cls:"mini", w2:true, secret:true, pipe:"can",
+    limit:26, torque:0.20, sl:6.40, brake:0.40, weight:0.19, bp:38, loop:-14, rpmMax:5000,
+    wb:106, rf:25, rr:25, head:[96,58], grip:[90,64], peg:[39,7], seat:[18,41], lean:66,
+    body:"#3A3438", body2:"#FF6A13", frame:"#1A181C", fork:"#6E6870", rim:"#6E6870", seatCol:"#0B0F14",
+    shape:{ mini:"trail" },
+    wheel:{tire:"street", spokes:"cast", rim:"#6E6870", disc:true}, gear:"street" },
+
+  { name:"Ashling", cls:"mini", w2:true, secret:true,
+    limit:37, torque:0.31, sl:5.66, brake:0.52, weight:0.18, bp:37, loop:-16, rpmMax:6400,
+    wb:108, rf:25, rr:25, head:[96,58], grip:[90,64], peg:[39,7], seat:[18,41], lean:66,
+    body:"#2A2630", body2:"#B06BFF", frame:"#141218", fork:"#8A8290", rim:"#8A8290", seatCol:"#0B0F14",
+    shape:{ mini:"monkey" },
+    wheel:{tire:"street", spokes:"cast", rim:"#8A8290", disc:true}, gear:"street" },
+
+  { name:"Coalpup", cls:"mini", w2:true, secret:true, pipe:"can",
+    limit:48, torque:0.42, sl:4.93, brake:0.63, weight:0.17, bp:36, loop:-18, rpmMax:7900,
+    wb:109, rf:25, rr:25, head:[96,58], grip:[90,64], peg:[39,7], seat:[18,41], lean:66,
+    body:"#101014", body2:"#FFB347", frame:"#0A0A0C", fork:"#5A5450", rim:"#FFB347", seatCol:"#0B0F14",
+    shape:{ mini:"pit" },
+    wheel:{tire:"street", spokes:"cast", rim:"#FFB347", disc:true}, gear:"street" },
+
+  { name:"Slagpocket", cls:"mini", w2:true, secret:true,
+    limit:67, torque:0.61, sl:3.73, brake:0.82, weight:0.16, bp:35, loop:-22, rpmMax:10200,
+    wb:112, rf:25, rr:25, head:[96,58], grip:[90,64], peg:[39,7], seat:[18,41], lean:66,
+    body:"#1E1A16", body2:"#C9A227", frame:"#0E0C0A", fork:"#C9A227", rim:"#C9A227", seatCol:"#0B0F14",
+    shape:{ mini:"pocket" },
+    wheel:{tire:"street", spokes:"cast", rim:"#C9A227", disc:true}, gear:"street" },
+
+  { name:"Spitfire Mini", cls:"mini", w2:true, secret:true,
+    limit:78, torque:0.72, sl:3.00, brake:0.93, weight:0.15, bp:34, loop:-24, rpmMax:11700,
+    wb:113, rf:25, rr:25, head:[96,58], grip:[90,64], peg:[39,7], seat:[18,41], lean:66,
+    body:"#07090D", body2:"#FF3D7F", frame:"#07090D", fork:"#FF3D7F", rim:"#FF3D7F", seatCol:"#0B0F14",
+    shape:{ mini:"grom" },
+    wheel:{tire:"street", spokes:"cast", rim:"#FF3D7F", disc:true}, gear:"street" },
+
+  { name:"Ember GP", cls:"mini", w2:true, secret:true,
+    limit:90, torque:0.84, sl:2.17, brake:1.06, weight:0.14, bp:32, loop:-27, rpmMax:13300,
+    wb:115, rf:25, rr:25, head:[96,58], grip:[90,64], peg:[39,7], seat:[18,41], lean:66,
+    body:"#0E1116", body2:"#FF6A13", frame:"#0A0C10", fork:"#FF6A13", rim:"#FFB347", seatCol:"#0B0F14",
+    shape:{ mini:"pocket" },
+    wheel:{tire:"street", spokes:"cast", rim:"#FFB347", disc:true}, gear:"street" },
+
+  { name:"Static 40", cls:"ebike", w2:true, secret:true, electric:true,
+    limit:48, torque:0.34, sl:4.91, brake:0.66, weight:0.33, bp:33, loop:-20, rpmMax:8300,
+    wb:149, rf:37, rr:35, head:[125,78], grip:[115,96], peg:[57,13], seat:[27,62], lean:66,
+    body:"#2E3238", body2:"#7BE7FF", frame:"#16181D", fork:"#9AA2AC", rim:"#9AA2AC", seatCol:"#0B0F14",
+    wheel:{tire:"knobby", spokes:"wire", rim:"#9AA2AC", disc:true}, gear:"street" },
+
+  { name:"Blackout Bee", cls:"ebike", w2:true, secret:true, electric:true,
+    limit:57, torque:0.41, sl:4.41, brake:0.75, weight:0.31, bp:31, loop:-23, rpmMax:8900,
+    wb:151, rf:37, rr:35, head:[125,78], grip:[115,96], peg:[57,13], seat:[27,62], lean:66,
+    body:"#0E1116", body2:"#3CF08C", frame:"#0A0C10", fork:"#4A5058", rim:"#3CF08C", seatCol:"#0B0F14",
+    wheel:{tire:"knobby", spokes:"wire", rim:"#3CF08C", disc:true}, gear:"street" },
+
+  { name:"Voltash", cls:"ebike", w2:true, secret:true, electric:true,
+    limit:67, torque:0.47, sl:3.90, brake:0.85, weight:0.30, bp:29, loop:-27, rpmMax:9400,
+    wb:152, rf:37, rr:35, head:[125,78], grip:[115,96], peg:[57,13], seat:[27,62], lean:66,
+    body:"#1A1E28", body2:"#00E5FF", frame:"#0E1218", fork:"#00E5FF", rim:"#C0C0C0", seatCol:"#0B0F14",
+    wheel:{tire:"knobby", spokes:"wire", rim:"#C0C0C0", disc:true}, gear:"street" },
+
+  { name:"Nightcurrent", cls:"ebike", w2:true, secret:true, electric:true,
+    limit:77, torque:0.54, sl:3.40, brake:0.95, weight:0.28, bp:27, loop:-30, rpmMax:10000,
+    wb:154, rf:37, rr:35, head:[125,78], grip:[115,96], peg:[57,13], seat:[27,62], lean:66,
+    body:"#120A20", body2:"#B06BFF", frame:"#0A0614", fork:"#B06BFF", rim:"#7A2BE2", seatCol:"#0B0F14",
+    wheel:{tire:"knobby", spokes:"wire", rim:"#7A2BE2", disc:true}, gear:"street" },
+
+  { name:"Arcline", cls:"ebike", w2:true, secret:true, electric:true,
+    limit:85, torque:0.60, sl:2.97, brake:1.03, weight:0.27, bp:25, loop:-33, rpmMax:10500,
+    wb:155, rf:37, rr:35, head:[125,78], grip:[115,96], peg:[57,13], seat:[27,62], lean:66,
+    body:"#07090D", body2:"#00E5FF", frame:"#07090D", fork:"#7BE7FF", rim:"#00E5FF", seatCol:"#0B0F14",
+    wheel:{tire:"knobby", spokes:"wire", rim:"#00E5FF", disc:true}, gear:"street" },
+
+  { name:"Faraday FX", cls:"ebike", w2:true, secret:true, electric:true,
+    limit:94, torque:0.66, sl:2.54, brake:1.12, weight:0.25, bp:24, loop:-36, rpmMax:11000,
+    wb:157, rf:37, rr:35, head:[125,78], grip:[115,96], peg:[57,13], seat:[27,62], lean:66,
+    body:"#E8E2D0", body2:"#0E1116", frame:"#0E1116", fork:"#00E5FF", rim:"#0E1116", seatCol:"#0B0F14",
+    wheel:{tire:"knobby", spokes:"wire", rim:"#0E1116", disc:true}, gear:"street" },
+
+  { name:"Stormcell", cls:"ebike", w2:true, secret:true, electric:true,
+    limit:102, torque:0.71, sl:2.10, brake:1.20, weight:0.24, bp:22, loop:-39, rpmMax:11400,
+    wb:158, rf:37, rr:35, head:[125,78], grip:[115,96], peg:[57,13], seat:[27,62], lean:66,
+    body:"#0A1826", body2:"#7BE7FF", frame:"#08121C", fork:"#2E5C74", rim:"#7BE7FF", seatCol:"#0B0F14",
+    wheel:{tire:"knobby", spokes:"wire", rim:"#7BE7FF", disc:true}, gear:"street" },
+
+  { name:"Zero Hour", cls:"ebike", w2:true, secret:true, electric:true,
+    limit:112, torque:0.78, sl:1.60, brake:1.30, weight:0.22, bp:20, loop:-42, rpmMax:12000,
+    wb:160, rf:37, rr:35, head:[125,78], grip:[115,96], peg:[57,13], seat:[27,62], lean:66,
+    body:"#07090D", body2:"#FF3D7F", frame:"#07090D", fork:"#B06BFF", rim:"#FF3D7F", seatCol:"#0B0F14",
+    wheel:{tire:"knobby", spokes:"wire", rim:"#FF3D7F", disc:true}, gear:"street" },
+
+  { name:"Sootcross", cls:"mx", w2:true, secret:true,
+    limit:91, torque:0.55, sl:1.25, brake:0.87, weight:0.31, bp:27, loop:-28, rpmMax:10800,
+    wb:170, rf:43, rr:41, head:[143,107], grip:[129,125], peg:[63,17], seat:[35,75], lean:69,
+    body:"#3A3438", body2:"#E8E2D0", frame:"#1A181C", fork:"#8A929C", rim:"#8A929C", seatCol:"#0B0F14",
+    shape:{ tank:"stock", tail:"flat", guards:true },
+    wheel:{tire:"knobby", spokes:"wire", rim:"#8A929C", disc:true}, gear:"mx" },
+
+  { name:"Ashcross 250", cls:"mx", w2:true, secret:true, pipe:"chamber",
+    limit:109, torque:0.62, sl:1.18, brake:0.96, weight:0.30, bp:26, loop:-31, rpmMax:11900,
+    wb:172, rf:43, rr:41, head:[143,107], grip:[129,125], peg:[63,17], seat:[35,75], lean:69,
+    body:"#2A2630", body2:"#FF6A13", frame:"#141218", fork:"#8A929C", rim:"#FF6A13", seatCol:"#0B0F14",
+    shape:{ tank:"slim", tail:"stock", plate:true },
+    wheel:{tire:"knobby", spokes:"wire", rim:"#FF6A13", disc:true}, gear:"mx" },
+
+  { name:"Cindertrack", cls:"mx", w2:true, secret:true, pipe:"can",
+    limit:122, torque:0.66, sl:1.13, brake:1.03, weight:0.29, bp:25, loop:-33, rpmMax:12700,
+    wb:173, rf:43, rr:41, head:[143,107], grip:[129,125], peg:[63,17], seat:[35,75], lean:69,
+    body:"#1E1C1E", body2:"#FFB347", frame:"#101012", fork:"#C6CDD6", rim:"#FFB347", seatCol:"#0B0F14",
+    shape:{ tank:"beefy", tail:"high", guards:true },
+    wheel:{tire:"knobby", spokes:"wire", rim:"#FFB347", disc:true}, gear:"mx" },
+
+  { name:"Pyre 300", cls:"mx", w2:true, secret:true, pipe:"chamber",
+    limit:138, torque:0.72, sl:1.07, brake:1.11, weight:0.27, bp:23, loop:-35, rpmMax:13700,
+    wb:175, rf:43, rr:41, head:[143,107], grip:[129,125], peg:[63,17], seat:[35,75], lean:69,
+    body:"#160C08", body2:"#FF6A13", frame:"#0E0806", fork:"#FF6A13", rim:"#FFB347", seatCol:"#0B0F14",
+    shape:{ tank:"wasp", tail:"high", plate:true, guards:true },
+    wheel:{tire:"knobby", spokes:"wire", rim:"#FFB347", disc:true}, gear:"mx" },
+
+  { name:"Drossfield", cls:"mx", w2:true, secret:true,
+    limit:148, torque:0.76, sl:1.03, brake:1.17, weight:0.27, bp:23, loop:-37, rpmMax:14300,
+    wb:175, rf:43, rr:41, head:[143,107], grip:[129,125], peg:[63,17], seat:[35,75], lean:69,
+    body:"#22301E", body2:"#B0FF3B", frame:"#121A10", fork:"#8A929C", rim:"#B0FF3B", seatCol:"#0B0F14",
+    shape:{ tank:"boxy", tail:"flat", guards:true },
+    wheel:{tire:"knobby", spokes:"wire", rim:"#B0FF3B", disc:true}, gear:"mx" },
+
+  { name:"Slagcross 450", cls:"mx", w2:true, secret:true,
+    limit:161, torque:0.81, sl:0.98, brake:1.24, weight:0.26, bp:22, loop:-39, rpmMax:15100,
+    wb:177, rf:43, rr:41, head:[143,107], grip:[129,125], peg:[63,17], seat:[35,75], lean:69,
+    body:"#2A2018", body2:"#C9A227", frame:"#161008", fork:"#C9A227", rim:"#C9A227", seatCol:"#0B0F14",
+    shape:{ tank:"beefy", tail:"stock", plate:true, guards:true },
+    wheel:{tire:"knobby", spokes:"wire", rim:"#C9A227", disc:true}, gear:"mx" },
+
+  { name:"Firebreak", cls:"mx", w2:true, secret:true, pipe:"chamber",
+    limit:172, torque:0.85, sl:0.94, brake:1.29, weight:0.25, bp:21, loop:-40, rpmMax:15800,
+    wb:178, rf:43, rr:41, head:[143,107], grip:[129,125], peg:[63,17], seat:[35,75], lean:69,
+    body:"#0E1116", body2:"#FF3D7F", frame:"#0A0C10", fork:"#FF3D7F", rim:"#FF6FD8", seatCol:"#0B0F14",
+    shape:{ tank:"slim", tail:"high", plate:true },
+    wheel:{tire:"knobby", spokes:"wire", rim:"#FF6FD8", disc:true}, gear:"mx" },
+
+  { name:"Kilnwork", cls:"mx", w2:true, secret:true, pipe:"can",
+    limit:182, torque:0.88, sl:0.90, brake:1.34, weight:0.24, bp:20, loop:-42, rpmMax:16400,
+    wb:179, rf:43, rr:41, head:[143,107], grip:[129,125], peg:[63,17], seat:[35,75], lean:69,
+    body:"#4E3212", body2:"#FFB347", frame:"#241A0C", fork:"#8A5E2E", rim:"#FFB347", seatCol:"#0B0F14",
+    shape:{ tank:"boxy", tail:"stock", guards:true },
+    wheel:{tire:"knobby", spokes:"wire", rim:"#FFB347", disc:true}, gear:"mx" },
+
+  { name:"Emberpit 500", cls:"mx", w2:true, secret:true, pipe:"chamber",
+    limit:195, torque:0.93, sl:0.85, brake:1.41, weight:0.23, bp:19, loop:-44, rpmMax:17200,
+    wb:180, rf:43, rr:41, head:[143,107], grip:[129,125], peg:[63,17], seat:[35,75], lean:69,
+    body:"#07090D", body2:"#FF6A13", frame:"#FF6A13", fork:"#E8E2D0", rim:"#FF6A13", seatCol:"#0B0F14",
+    shape:{ tank:"wasp", tail:"high", plate:true, guards:true },
+    wheel:{tire:"knobby", spokes:"wire", rim:"#FF6A13", disc:true}, gear:"mx" },
+
+  { name:"Scoria X", cls:"mx", w2:true, secret:true, electric:true,
+    limit:208, torque:0.98, sl:0.80, brake:1.48, weight:0.22, bp:18, loop:-46, rpmMax:18000,
+    wb:181, rf:43, rr:41, head:[143,107], grip:[129,125], peg:[63,17], seat:[35,75], lean:69,
+    body:"#0A0810", body2:"#B06BFF", frame:"#7A2BE2", fork:"#B06BFF", rim:"#B06BFF", seatCol:"#0B0F14",
+    shape:{ tank:"wasp", tail:"high", plate:true, guards:true },
+    wheel:{tire:"knobby", spokes:"wire", rim:"#B06BFF", disc:true}, gear:"mx" },
+
+  { name:"Ironsmoke", cls:"naked", w2:true, secret:true,
+    limit:121, torque:0.58, sl:1.87, brake:0.93, weight:0.31, bp:28, loop:-22, rpmMax:11500,
+    wb:157, rf:36, rr:38, head:[134,98], grip:[126,112], peg:[53,8], seat:[27,66], lean:65,
+    body:"#3A3E44", body2:"#E8E2D0", frame:"#20242C", fork:"#C9D0D8", rim:"#2A2F38", seatCol:"#0B0F14",
+    wheel:{tire:"street", spokes:"cast", rim:"#2A2F38", disc:true}, gear:"street" },
+
+  { name:"Charline", cls:"naked", w2:true, secret:true,
+    limit:135, torque:0.67, sl:1.69, brake:1.05, weight:0.29, bp:26, loop:-25, rpmMax:12900,
+    wb:159, rf:36, rr:38, head:[134,98], grip:[126,112], peg:[53,8], seat:[27,66], lean:65,
+    body:"#1A1418", body2:"#FF6A13", frame:"#100C10", fork:"#8A929C", rim:"#FF6A13", seatCol:"#0B0F14",
+    wheel:{tire:"street", spokes:"cast", rim:"#FF6A13", disc:true}, gear:"street" },
+
+  { name:"Backdraft", cls:"naked", w2:true, secret:true,
+    limit:146, torque:0.73, sl:1.56, brake:1.14, weight:0.28, bp:24, loop:-27, rpmMax:13900,
+    wb:161, rf:36, rr:38, head:[134,98], grip:[126,112], peg:[53,8], seat:[27,66], lean:65,
+    body:"#2A1008", body2:"#FFB347", frame:"#160806", fork:"#FFB347", rim:"#C9A227", seatCol:"#0B0F14",
+    wheel:{tire:"street", spokes:"cast", rim:"#C9A227", disc:true}, gear:"street" },
+
+  { name:"Gasworks", cls:"naked", w2:true, secret:true,
+    limit:157, torque:0.79, sl:1.43, brake:1.22, weight:0.27, bp:23, loop:-29, rpmMax:14900,
+    wb:162, rf:36, rr:38, head:[134,98], grip:[126,112], peg:[53,8], seat:[27,66], lean:65,
+    body:"#22301E", body2:"#C9A227", frame:"#121A10", fork:"#C9A227", rim:"#8A929C", seatCol:"#0B0F14",
+    wheel:{tire:"street", spokes:"cast", rim:"#8A929C", disc:true}, gear:"street" },
+
+  { name:"Smoulder R", cls:"naked", w2:true, secret:true,
+    limit:169, torque:0.86, sl:1.27, brake:1.33, weight:0.25, bp:21, loop:-32, rpmMax:16100,
+    wb:164, rf:36, rr:38, head:[134,98], grip:[126,112], peg:[53,8], seat:[27,66], lean:65,
+    body:"#0E1116", body2:"#FF3D7F", frame:"#0A0C10", fork:"#FF3D7F", rim:"#FF3D7F", seatCol:"#0B0F14",
+    wheel:{tire:"street", spokes:"cast", rim:"#FF3D7F", disc:true}, gear:"street" },
+
+  { name:"Flashpoint", cls:"naked", w2:true, secret:true,
+    limit:180, torque:0.93, sl:1.14, brake:1.42, weight:0.24, bp:20, loop:-34, rpmMax:17100,
+    wb:165, rf:36, rr:38, head:[134,98], grip:[126,112], peg:[53,8], seat:[27,66], lean:65,
+    body:"#E8E2D0", body2:"#FF6A13", frame:"#16181D", fork:"#FF6A13", rim:"#16181D", seatCol:"#0B0F14",
+    wheel:{tire:"street", spokes:"cast", rim:"#16181D", disc:true}, gear:"street" },
+
+  { name:"Blastwork", cls:"naked", w2:true, secret:true,
+    limit:189, torque:0.98, sl:1.03, brake:1.49, weight:0.23, bp:18, loop:-36, rpmMax:18000,
+    wb:167, rf:36, rr:38, head:[134,98], grip:[126,112], peg:[53,8], seat:[27,66], lean:65,
+    body:"#120A20", body2:"#00E5FF", frame:"#0A0614", fork:"#00E5FF", rim:"#7A2BE2", seatCol:"#0B0F14",
+    wheel:{tire:"street", spokes:"cast", rim:"#7A2BE2", disc:true}, gear:"street" },
+
+  { name:"Tarblack", cls:"naked", w2:true, secret:true,
+    limit:200, torque:1.04, sl:0.90, brake:1.58, weight:0.22, bp:17, loop:-38, rpmMax:19000,
+    wb:168, rf:36, rr:38, head:[134,98], grip:[126,112], peg:[53,8], seat:[27,66], lean:65,
+    body:"#07090D", body2:"#585054", frame:"#07090D", fork:"#8A929C", rim:"#3A3438", seatCol:"#0B0F14",
+    wheel:{tire:"street", spokes:"cast", rim:"#3A3438", disc:true}, gear:"street" },
+
+  { name:"Afterglow", cls:"sport", w2:true, secret:true,
+    limit:155, torque:0.56, sl:1.90, brake:1.00, weight:0.32, bp:30, loop:-24, rpmMax:13100,
+    wb:163, rf:37, rr:39, head:[143,84], grip:[141,84], peg:[50,6], seat:[24,66], lean:51,
+    body:"#2E3238", body2:"#FFB347", frame:"#16181D", fork:"#9AA2AC", rim:"#FFB347", seatCol:"#0B0F14",
+    wheel:{tire:"street", spokes:"cast", rim:"#FFB347", disc:true}, gear:"street" },
+
+  { name:"Combustion", cls:"sport", w2:true, secret:true,
+    limit:172, torque:0.65, sl:1.68, brake:1.11, weight:0.30, bp:28, loop:-30, rpmMax:14400,
+    wb:165, rf:37, rr:39, head:[143,84], grip:[141,84], peg:[50,6], seat:[24,66], lean:51,
+    body:"#1E1008", body2:"#FF6A13", frame:"#100804", fork:"#FF6A13", rim:"#FF6A13", seatCol:"#0B0F14",
+    wheel:{tire:"street", spokes:"cast", rim:"#FF6A13", disc:true}, gear:"street" },
+
+  { name:"Reignition", cls:"sport", w2:true, secret:true,
+    limit:186, torque:0.74, sl:1.48, brake:1.21, weight:0.29, bp:25, loop:-34, rpmMax:15500,
+    wb:166, rf:37, rr:39, head:[143,84], grip:[141,84], peg:[50,6], seat:[24,66], lean:51,
+    body:"#0E1116", body2:"#B0FF3B", frame:"#0A0C10", fork:"#B0FF3B", rim:"#B0FF3B", seatCol:"#0B0F14",
+    wheel:{tire:"street", spokes:"cast", rim:"#B0FF3B", disc:true}, gear:"street" },
+
+  { name:"Flashover", cls:"sport", w2:true, secret:true,
+    limit:201, torque:0.82, sl:1.29, brake:1.31, weight:0.27, bp:23, loop:-39, rpmMax:16600,
+    wb:168, rf:37, rr:39, head:[143,84], grip:[141,84], peg:[50,6], seat:[24,66], lean:51,
+    body:"#12042A", body2:"#FF6FD8", frame:"#0A0218", fork:"#FF6FD8", rim:"#FF3D7F", seatCol:"#0B0F14",
+    wheel:{tire:"street", spokes:"cast", rim:"#FF3D7F", disc:true}, gear:"street" },
+
+  { name:"Wildfire GP", cls:"sport", w2:true, secret:true,
+    limit:214, torque:0.89, sl:1.12, brake:1.39, weight:0.26, bp:22, loop:-42, rpmMax:17600,
+    wb:169, rf:37, rr:39, head:[143,84], grip:[141,84], peg:[50,6], seat:[24,66], lean:51,
+    body:"#E8E2D0", body2:"#FF3D7F", frame:"#16181D", fork:"#FF3D7F", rim:"#FF3D7F", seatCol:"#0B0F14",
+    wheel:{tire:"street", spokes:"cast", rim:"#FF3D7F", disc:true}, gear:"street" },
+
+  { name:"Thermal R1", cls:"sport", w2:true, secret:true,
+    limit:226, torque:0.96, sl:0.95, brake:1.47, weight:0.24, bp:20, loop:-46, rpmMax:18600,
+    wb:171, rf:37, rr:39, head:[143,84], grip:[141,84], peg:[50,6], seat:[24,66], lean:51,
+    body:"#0A1826", body2:"#00E5FF", frame:"#08121C", fork:"#00E5FF", rim:"#7BE7FF", seatCol:"#0B0F14",
+    wheel:{tire:"street", spokes:"cast", rim:"#7BE7FF", disc:true}, gear:"street" },
+
+  { name:"Overburn", cls:"sport", w2:true, secret:true,
+    limit:237, torque:1.01, sl:0.81, brake:1.54, weight:0.23, bp:18, loop:-49, rpmMax:19400,
+    wb:172, rf:37, rr:39, head:[143,84], grip:[141,84], peg:[50,6], seat:[24,66], lean:51,
+    body:"#07090D", body2:"#FF6A13", frame:"#C9A227", fork:"#FF6A13", rim:"#C9A227", seatCol:"#0B0F14",
+    wheel:{tire:"street", spokes:"cast", rim:"#C9A227", disc:true}, gear:"street" },
+
+  { name:"Ashfall RR", cls:"sport", w2:true, secret:true,
+    limit:245, torque:1.06, sl:0.70, brake:1.60, weight:0.22, bp:17, loop:-52, rpmMax:20000,
+    wb:173, rf:37, rr:39, head:[143,84], grip:[141,84], peg:[50,6], seat:[24,66], lean:51,
+    body:"#07090D", body2:"#FF3D7F", frame:"#7A2BE2", fork:"#3CF08C", rim:"#FF3D7F", seatCol:"#0B0F14",
+    wheel:{tire:"street", spokes:"cast", rim:"#FF3D7F", disc:true}, gear:"street" },
 ];
 
 const HELMETS = [
@@ -1659,6 +1954,58 @@ const SPOTS = [
     city:"rgba(96,124,112,.42)", cityLit:false, haze:"rgba(255,238,196,.10)", night:false,
     ridge1:"#7C9A88", ridge2:"#4E6B5C", tree:"#265041", tree2:"#1A3B31",
     grass:"#6E8A47", grassD:"#4E6733", dirt:"#8E6E48", dirtD:"#6B5134", rut:"#5B452C" },
+
+  /* ---------- 4-8: Afterburn ----------
+     The second world's five maps. Indexes 4 upward, and `W1_SPOTS` is frozen
+     at 4 so the two ranges can never slide into each other. Every one of them
+     is dark or washed out, because the point is that you can tell at a glance
+     which world you are standing in without reading a word. */
+  { name:"Storm Causeway", w2:true, boards:"w2", prop:"pylon",
+    sky:[[0,"#070C18"],[.38,"#132038"],[.66,"#26364F"],[1,"#3E4A5E"]],
+    sun:"#9FB6CE", sunGlow:"rgba(150,180,215,.22)", sunY:.44,
+    sea:"#0A1826", seaHi:"#2E5C74", sand:"#4A4E52", curb:"#5A5E63",
+    road:"#1C2028", roadFar:"#242932", line:"#8FA0AE",
+    palmT:"#2A3340", palmL:"#7E8A99", palmL2:"#5A6675",   // tower, stays
+    city:"#0C1424", cityLit:true, haze:"rgba(120,160,200,.16)", night:true },
+
+  { name:"The Port", w2:true, boards:"w2", prop:"crane",
+    sky:[[0,"#0A0904"],[.40,"#1E1608"],[.70,"#42280C"],[1,"#6E4212"]],
+    sun:"#FFB347", sunGlow:"rgba(255,150,50,.30)", sunY:.56,
+    sea:"#141008", seaHi:"#3E3418", sand:"#5A4A2E", curb:"#4E4638",
+    road:"#1E1C18", roadFar:"#26241E", line:"#C9A227",
+    palmT:"#2A2418", palmL:"#C97A18", palmL2:"#8A5210",   // legs, gantry, cab
+    city:"#100C06", cityLit:true, haze:"rgba(255,150,50,.14)", night:true },
+
+  { name:"Glades Run", kind:"trail", w2:true, boards:"w2", prop:"grass",
+    sky:[[0,"#120B26"],[.42,"#2A1440"],[.72,"#5A2148"],[1,"#8E3A44"]],
+    sun:"#FFC9A0", sunGlow:"rgba(255,140,110,.28)", sunY:.60,
+    sea:"#243A22", seaHi:"#3A5A32", sand:"#3E3524", curb:"#37301F",
+    road:"#3E3524", roadFar:"#342C1E", line:"#7E7050",
+    palmT:"#2A2018", palmL:"#1E5238", palmL2:"#143C28",
+    city:"rgba(60,40,80,.46)", cityLit:false, haze:"rgba(160,70,110,.16)", night:true,
+    ridge1:"#3A4A52", ridge2:"#22303A", tree:"#16382C", tree2:"#0E2620",
+    grass:"#2E4A28", grassD:"#1E3419", dirt:"#3E3524", dirtD:"#2C2618", rut:"#221D12" },
+
+  /* Not a trail map: the trail renderer plants pine trees, and a salt flat
+     with a forest on it is neither. A long straight road under a huge pale
+     sky with one marker post every few hundred metres is the whole idea. */
+  { name:"Saltflat", w2:true, boards:"w2", prop:"post",
+    sky:[[0,"#4A5A78"],[.40,"#8894A8"],[.74,"#C8C2B8"],[1,"#E4D8C4"]],
+    sun:"#FFFFFF", sunGlow:"rgba(255,250,235,.42)", sunY:.30,
+    sea:"#B8B2A4", seaHi:"#D8D2C4", sand:"#DCD4C2", curb:"#BEB6A4",
+    road:"#CFC7B4", roadFar:"#C0B8A6", line:"#8E8676",
+    palmT:"#8A8070", palmL:"#C8C0AE", palmL2:"#9A9280",   // post, sign face
+    city:"rgba(150,150,160,.30)", cityLit:false, haze:"rgba(255,255,250,.16)", night:false,
+    ridge1:"#A8A296", ridge2:"#7E786C", tree:"#8A8878", tree2:"#6E6C5E",
+    grass:"#C4BCA8", grassD:"#A69E8C", dirt:"#DCD4C2", dirtD:"#C2BAA8", rut:"#A8A08E" },
+
+  { name:"Neon Mile", w2:true, boards:"w2", prop:"neon",
+    sky:[[0,"#0A0114"],[.40,"#1E0430"],[.70,"#4A0850"],[1,"#8A1060"]],
+    sun:"#FF6FD8", sunGlow:"rgba(255,60,200,.34)", sunY:.48,
+    sea:"#12042A", seaHi:"#4A1070", sand:"#2A1C34", curb:"#3A2A46",
+    road:"#140A1E", roadFar:"#1C1028", line:"#00E5FF",
+    palmT:"#2A1038", palmL:"#00E5FF", palmL2:"#FF6FD8",   // the two neon tubes
+    city:"#0E0420", cityLit:true, haze:"rgba(200,40,180,.20)", night:true },
 ];
 
 /* ---------- the trick book ----------
@@ -1717,7 +2064,11 @@ const PRICES  = [0, 900, 2400, 13000, 8000, 7000, 9500, 9000, 8500, 4800, 26000,
                  7600, 12400, 13800, 17500, 23000, 29000,            // 68-73: motocross + supermoto
                  19500, 37000, 46000, 43000, 8800,                   // 74-78: road + e-moto
                  96000,                                             // 79: the drag bike
-                 0, 0, 0, 0, 0, 0, 0, 0];                           // 80-87: rebirth bikes, never for sale
+                 0, 0, 0, 0, 0, 0, 0, 0,                            // 80-87: rebirth bikes, never for sale
+                 // 88-127: Afterburn, priced in EMBERS not coins. The shop
+                 // reads SAVE.coins, which holds embers while you are in the
+                 // second world, so one price list serves both currencies.
+                 0, 14, 48, 190, 360, 690, 8, 26, 62, 125, 215, 345, 540, 880, 11, 34, 72, 140, 175, 250, 320, 430, 640, 1050, 17, 44, 96, 160, 265, 400, 600, 980, 21, 56, 118, 205, 300, 470, 760, 1500];
 const HPRICES = [0, 0, 700, 1500, 2600, 400];
 BIKES.forEach((b, i) => { b.price = PRICES[i] || 0; b.idx = i; });
 HELMETS.forEach((h, i) => { h.price = HPRICES[i] || 0; h.idx = i; });
@@ -1784,13 +2135,18 @@ const CODES = {
   dev2:        { m:"600,000 coins dropped in", coins:600000 },
   caleb:       { m:"CL2 MX unlocked — 120mph, huge grip and stopping power", bike:51 },
   eli:         { m:"Eli Custom unlocked — 109mph in pearl and gold", bike:52 },
+  /* Opens Afterburn without the five rebirths. It grants the door, not the
+     multiplier and not a wiped garage - a code that quietly reset somebody's
+     save would be a trap, and this is how the second world gets tested and
+     shown to people before anybody has ground five rebirths out. */
+  afterburn:   { m:"Afterburn unlocked — a second world, and a second currency", w2:true },
 };
 
 const SAVE = { coins:0, codes:[], bikes:[0], lids:[0,1], bike:0, lid:0, best:0, rampBest:0,
                quests:[], qp:{}, qdone:[], tune:{}, spot:0, bestRide:0,
                tricks:[], slots:["stand","knee","drag","nohand","fob","onehand"],
                rider:{}, track:0, daily:{}, dailyBest:0, profile:{}, badges:[], pins:[],
-               weather:0, tt:{}, rebirths:0 };
+               weather:0, tt:{}, rebirths:0, world:0, alt:null };
 
 /* ---------- tuning ---------- */
 const PAINT = ["#FF6A13","#E01B24","#D0111B","#1D5FD8","#2452D8","#2FBF6B","#00C2C7",
@@ -2162,7 +2518,9 @@ const REBIRTH_PAYOUT = 250000;
 
 const rebirths    = () => Math.max(0, SAVE.rebirths | 0);
 const rebirthMul  = () => Math.pow(REBIRTH_MULT, rebirths());
-const canRebirth  = () => riderLevel().lvl >= REBIRTH_LEVEL;
+// rebirth is a South Florida loop: the level, the pass and the coins it hands
+// back do not exist in Afterburn, so the door is simply not there
+const canRebirth  = () => !inW2() && riderLevel().lvl >= REBIRTH_LEVEL;
 // the bike the nth rebirth hands over, or null once the eight run out
 const rebirthBike = n => (n >= 1 && n <= REBIRTH_BIKES.length) ? REBIRTH_BIKES[n - 1] : null;
 // how it reads on a card: 1.5x, 2.25x, 3.4x ...
@@ -2181,7 +2539,7 @@ function keptBikes(){
     if (c && c.bike !== undefined && (SAVE.codes || []).includes(k)) keep.add(c.bike | 0);
   }
   for (let i = 0; i < rebirths() && i < REBIRTH_BIKES.length; i++) keep.add(REBIRTH_BIKES[i]);
-  return keep;
+  return keep;   // Afterburn bikes are not in here: they live in SAVE.alt
 }
 
 /* Everything a rebirth clears, in one place, so the sheet can list exactly
@@ -2212,7 +2570,10 @@ function doRebirth(){
   SAVE.bikes  = Array.from(keep).filter(i => BIKES[i]).sort((a, b) => a - b);
   SAVE.lids   = [0, 1];
   SAVE.tricks = [];                                // the free ones are free again by price
-  SAVE.tune   = {};                                // every upgrade, part, engine and paint job
+  // every upgrade, part, engine and paint job - but only on this side. Tune is
+  // keyed by bike index and the two worlds' indexes never overlap, so an
+  // Afterburn garage sitting in SAVE.alt keeps what embers paid for
+  for (const k of Object.keys(SAVE.tune || {})) if (!w2Bike(k | 0)) delete SAVE.tune[k];
   SAVE.slots  = ["stand","knee","drag","nohand","fob","onehand"];
   SAVE.bike   = gift !== null ? gift : SAVE.bikes[0];
   SAVE.lid    = 0;
@@ -2222,19 +2583,112 @@ function doRebirth(){
   return { n, gift, mult: rebirthMul() };
 }
 
+/* ============================================================
+   WORLDS
+   ------------------------------------------------------------
+   Five rebirths open a second world, Afterburn: its own currency, its own
+   forty bikes, its own maps and its own boards. Nothing crosses over. You
+   cannot spend coins there, the season pass does not exist there, and none
+   of your South Florida bikes came with you.
+
+   It is built as a **swap**, not a second set of fields. `SAVE.coins`,
+   `SAVE.bikes`, `SAVE.best` and the rest always describe the world you are
+   standing in; the other world's copies sit in `SAVE.alt` until you switch,
+   and then the two trade places. That is why the shop, the garage, the HUD,
+   the physics and every record write needed no changes at all - they were
+   already reading "the current wallet" and "the current garage".
+
+   The price of that trick is `mergeSaves`, which has to pull both saves apart
+   into world 0 and world 1 before it can merge anything, or a phone in
+   Afterburn would merge its embers into a laptop's coins. See there.
+
+   Switching is free and nothing is ever lost by it. A one-way door would mean
+   a mis-click at the entrance costs somebody their whole garage.
+   ============================================================ */
+const W2_REBIRTHS = 5;        // rebirths needed before the road out appears
+const W2_BIKE0    = 88;       // the bike you are handed at the door
+const W2_RATE     = 0.012;    // embers per coin's worth of riding: ~83x rarer
+
+/* Frozen counts. World 1 has exactly these many maps and always did; the
+   daily seed and the time trial draw their track with `W1_TRACKS`, NOT with
+   `RTRACKS.length`, so appending Afterburn's tracks cannot move the track any
+   past day or week was ridden on - and cannot drop a South Florida daily onto
+   an Afterburn map. Never change these two numbers. */
+const W1_SPOTS  = 4;
+const W1_TRACKS = 2;
+const W2_SPOTS  = 5;
+const W2_TRACKS = 3;
+
+// the fields that describe a world rather than a rider
+const WORLD_FIELDS = ["coins","bikes","bike","best","bestRide","rampBest","spot","track"];
+const WORLDS = [
+  { name:"South Florida", tag:"SOFLO",     cur:"coins",  one:"coin",  dot:"#FFC24B" },
+  { name:"Afterburn",     tag:"AFTERBURN", cur:"embers", one:"ember", dot:"#FF6A13" },
+];
+const inW2    = () => (SAVE.world | 0) === 1;
+const world   = () => WORLDS[inW2() ? 1 : 0];
+const curName = () => world().cur;
+const w2Open  = () => rebirths() >= W2_REBIRTHS || !!SAVE.w2key;
+// index ranges per world, so a picker and a clamp agree without a lookup
+const spotBase  = w => (w ? W1_SPOTS  : 0);
+const spotCount = w => (w ? W2_SPOTS  : W1_SPOTS);
+const trackBase = w => (w ? W1_TRACKS : 0);
+const trackCount= w => (w ? W2_TRACKS : W1_TRACKS);
+
+const w2Bike = i => !!(BIKES[i] && BIKES[i].w2);
+function worldDefaults(w){
+  return { coins:0, bikes:[w ? W2_BIKE0 : 0], bike:w ? W2_BIKE0 : 0,
+           best:0, bestRide:0, rampBest:0,
+           spot:spotBase(w), track:trackBase(w) };
+}
+
+/* Trade the eight world fields with whatever is in `SAVE.alt`. Everything
+   else on the save - level, badges, quests, codes, crew, helmets, tricks,
+   rebirths - belongs to the rider and does not move. */
+function setWorld(w){
+  w = w ? 1 : 0;
+  if (w === 1 && !w2Open()) return false;    // the gate lives here, not only on the button
+  if ((SAVE.world | 0) === w) return false;
+  const stash = {}, alt = (SAVE.alt && typeof SAVE.alt === "object" && !Array.isArray(SAVE.alt))
+                          ? SAVE.alt : null;
+  for (const k of WORLD_FIELDS) stash[k] = SAVE[k];
+  const def = worldDefaults(w);
+  for (const k of WORLD_FIELDS) SAVE[k] = alt && alt[k] !== undefined ? alt[k] : def[k];
+  SAVE.alt = stash;
+  SAVE.world = w;
+  normaliseSave();
+  persist();
+  return true;
+}
+
 function persistLocal(){
   SAVE.ts = Date.now();
   try { localStorage.setItem("soflo.save", JSON.stringify(SAVE)); } catch(e){}
 }
 function persist(){ badgeCheck(); persistLocal(); cloudMark(); }
 function normaliseSave(){
-  if (!Array.isArray(SAVE.bikes) || !SAVE.bikes.length) SAVE.bikes = [0];
+  // which world we are standing in decides what half of these fields mean
+  SAVE.world = (SAVE.world | 0) === 1 ? 1 : 0;
+  const w = SAVE.world, B0 = w ? W2_BIKE0 : 0;
+  if (!SAVE.alt || typeof SAVE.alt !== "object" || Array.isArray(SAVE.alt)) SAVE.alt = null;
+  if (!Array.isArray(SAVE.bikes) || !SAVE.bikes.length) SAVE.bikes = [B0];
+  // a garage only ever holds its own world's bikes. This is what stops an old
+  // save, a bad merge or a hand-edited localStorage putting a South Florida
+  // bike in Afterburn, where it cannot be priced, bought or sold
+  SAVE.bikes = SAVE.bikes.filter(i => BIKES[i] && !!BIKES[i].w2 === !!w);
+  if (!SAVE.bikes.length) SAVE.bikes = [B0];
   if (!Array.isArray(SAVE.lids)  || !SAVE.lids.length)  SAVE.lids  = [0,1];
   if (!SAVE.tune || typeof SAVE.tune !== "object") SAVE.tune = {};
-  if (!SAVE.bikes.includes(SAVE.bike)) SAVE.bike = SAVE.bikes[0] ?? 0;
+  if (!SAVE.bikes.includes(SAVE.bike)) SAVE.bike = SAVE.bikes[0] ?? B0;
   if (!SAVE.lids.includes(SAVE.lid))   SAVE.lid  = SAVE.lids[0] ?? 0;
   if (!SAVE.qp) SAVE.qp = {};
-  SAVE.spot = Math.max(0, Math.min(SPOTS.length - 1, SAVE.spot | 0));
+  SAVE.coins = Math.max(0, SAVE.coins | 0);
+  // clamped into this world's slice of SPOTS. RTRACKS is declared far below
+  // this function and normaliseSave runs at load, so the track range is the
+  // frozen constants rather than a lookup - a TDZ throw here bricks the game
+  SAVE.spot = Math.max(spotBase(w),
+              Math.min(Math.min(SPOTS.length, spotBase(w) + spotCount(w)) - 1, SAVE.spot | 0));
+  SAVE.track = Math.max(trackBase(w), Math.min(trackBase(w) + trackCount(w) - 1, SAVE.track | 0));
   SAVE.bestRide = SAVE.bestRide || 0;
   if (!Array.isArray(SAVE.tricks)) SAVE.tricks = [];
   if (!Array.isArray(SAVE.slots) || !SAVE.slots.length)
@@ -2246,7 +2700,6 @@ function normaliseSave(){
   seasonState();
   if (!SAVE.rider) SAVE.rider = {};
   if (!SAVE.keys || typeof SAVE.keys !== "object" || Array.isArray(SAVE.keys)) SAVE.keys = {};
-  SAVE.track = SAVE.track | 0;
   SAVE.weather = Math.max(0, SAVE.weather | 0);
   if (!SAVE.daily || typeof SAVE.daily !== "object" || Array.isArray(SAVE.daily)) SAVE.daily = {};
   if (!SAVE.profile || typeof SAVE.profile !== "object" || Array.isArray(SAVE.profile)) SAVE.profile = {};
@@ -2343,6 +2796,7 @@ function redeem(raw){
   if (c.lid !== undefined && !SAVE.lids.includes(c.lid)) { SAVE.lids.push(c.lid); SAVE.lid = c.lid; }
   if (c.trick && !SAVE.tricks.includes(c.trick)) { SAVE.tricks.push(c.trick); }
   if (c.fx) { const t = tuneOf(SAVE.bike); t.own[c.fx] = 1; t.fx[c.fx] = 1; refreshBike(); }
+  if (c.w2) { SAVE.w2key = true; renderWorldBanner(); }
   persist(); syncWallet(); sfx.buy();
   say(c.m, true);
   const inp = document.getElementById("codeIn"); if (inp) inp.value = "";
@@ -2352,8 +2806,11 @@ const ownsTrick = id => { const t = trickById(id); return !!t && (t.price === 0 
 const ownsLid  = i => SAVE.lids.includes(i);
 const CREW_BONUS = 1.5, CREW_PRICE = 50000;
 const inCrew = () => !!(SAVE.crew && SAVE.crew.id);
-// crew bonus and rebirth stack, because they are earned different ways
-const coinMult = () => (inCrew() ? CREW_BONUS : 1) * rebirthMul();
+/* Crew bonus and rebirth stack, because they are earned different ways -
+   but neither reaches Afterburn. Everybody standing there has at least five
+   rebirths, so letting the stack through would hand them a 5x head start on
+   a currency whose whole point is that it is slow. Embers are flat. */
+const coinMult = () => inW2() ? W2_RATE : (inCrew() ? CREW_BONUS : 1) * rebirthMul();
 function earn(n){
   if (VS.on) return;
   S.coinAcc += n * coinMult();
@@ -2497,6 +2954,42 @@ function mergeDaily(a, b){
   out.streak = win;
   return out;
 }
+/* One save, pulled apart into [world 0 fields, world 1 fields], whichever way
+   round it happened to be stored. Missing sides come back as defaults so the
+   caller never has to test for them. */
+function worldSplit(s){
+  const act = {}, oth = (s && s.alt && typeof s.alt === "object" && !Array.isArray(s.alt)) ? s.alt : {};
+  for (const k of WORLD_FIELDS) act[k] = s ? s[k] : undefined;
+  const at = ((s && s.world) | 0) === 1 ? 1 : 0;
+  const out = [null, null];
+  out[at]     = act;
+  out[1 - at] = oth;
+  return [Object.assign(worldDefaults(0), stripUndef(out[0])),
+          Object.assign(worldDefaults(1), stripUndef(out[1]))];
+}
+function stripUndef(o){
+  const r = {};
+  for (const k in (o || {})) if (o[k] !== undefined) r[k] = o[k];
+  return r;
+}
+/* One world merged against its opposite number, by the same rules the rest of
+   the save uses: records and wallet take the higher number, the garage is
+   unioned, and what you had equipped follows the newer save. */
+function mergeWorld(x, y, w, pref){
+  const hi = k => Math.max(x[k] | 0, y[k] | 0);
+  const bikes = Array.from(new Set([].concat(x.bikes || [], y.bikes || [])))
+                  .filter(i => BIKES[i] && !!BIKES[i].w2 === !!w);
+  if (!bikes.length) bikes.push(w ? W2_BIKE0 : 0);
+  const o = { coins:hi("coins"), best:hi("best"), bestRide:hi("bestRide"), rampBest:hi("rampBest"),
+              bikes, bike:pref.bike, spot:pref.spot, track:pref.track };
+  if (!bikes.includes(o.bike)) o.bike = bikes[0];
+  const sLo = spotBase(w), sHi = sLo + spotCount(w) - 1;
+  const tLo = trackBase(w), tHi = tLo + trackCount(w) - 1;
+  o.spot  = Math.max(sLo, Math.min(sHi, o.spot  | 0));
+  o.track = Math.max(tLo, Math.min(tHi, o.track | 0));
+  return o;
+}
+
 function mergeSaves(a, b){
   if (!a) return b; if (!b) return a;
   const newer = (b.ts || 0) >= (a.ts || 0) ? b : a;   // for preference-style fields
@@ -2517,12 +3010,11 @@ function mergeSaves(a, b){
     const pick = (sb && (!sa || sb.id > sa.id)) ? sb : sa;
     out.season = pick || null;
   }
-  out.best      = max("best");
-  out.rampBest  = max("rampBest");
-  out.bestRide  = max("bestRide");
+  // best / rampBest / bestRide / coins / bikes / bike / spot / track are all
+  // per-world now and are merged further down, once both saves have been
+  // pulled apart into world 0 and world 1
   out.dailyBest = max("dailyBest");
   out.daily     = mergeDaily(a.daily, b.daily);
-  out.bikes  = uni("bikes");
   out.lids   = uni("lids");
   out.codes  = uni("codes");
   out.tricks = uni("tricks");
@@ -2560,30 +3052,55 @@ function mergeSaves(a, b){
     out.tune[id] = t;
   }
 
-  for (const k of ["bike","lid","spot","track","slots","rider","keys","quests","crew","profile","pins","weather"])
+  for (const k of ["lid","slots","rider","keys","quests","crew","profile","pins","weather"])
     if (newer[k] !== undefined) out[k] = newer[k];
 
+  /* ---------- the two worlds ----------
+     A save only ever holds one world in its own fields; the other is in
+     `alt`. Two devices can easily be standing in different worlds, so merging
+     `coins` against `coins` would pour embers into a coin wallet and lose one
+     of them. Both saves are pulled apart into world 0 and world 1 first, each
+     world is merged against its own opposite number, and the result is
+     reassembled facing whichever way the newer save was facing. */
+  const wa = worldSplit(a), wb = worldSplit(b);
+  const merged = [0, 1].map(i => mergeWorld(wa[i], wb[i], i, newer === b ? wb[i] : wa[i]));
+
   /* Rebirth is the one event that legitimately takes progress away, so every
-     rule above it - keep the bigger number, union anything owned - would hand
-     the whole garage straight back the next time the other device synced. A
-     save that has been through more rebirths is by definition the later one,
-     so it wins outright on everything a rebirth clears. Records, badges and
-     quest progress are not in that list: a rebirth never touched them, so
-     they merge normally and a best set on the old device still counts. */
+     rule above - keep the bigger number, union anything owned - would hand the
+     whole garage straight back the next time the other device synced. A save
+     that has been through more rebirths is by definition the later one, so it
+     wins outright on everything a rebirth clears. Records, badges and quest
+     progress are not in that list: a rebirth never touched them, so they merge
+     normally and a best set on the old device still counts.
+     It only ever applies to world 0. Rebirth cannot be taken in Afterburn and
+     takes nothing from it. */
+  out.w2key = !!(a.w2key || b.w2key);        // owned on either device is owned
   const ra = a.rebirths | 0, rb = b.rebirths | 0;
   out.rebirths = Math.max(ra, rb);
   if (ra !== rb) {
-    const rn = ra > rb ? a : b;
-    out.coins  = rn.coins | 0;
+    const rn = ra > rb ? a : b, rw = worldSplit(rn)[0];
     out.xp     = rn.xp | 0;
     out.season = rn.season || null;
-    out.bikes  = Array.from(new Set(rn.bikes  || [0]));
     out.lids   = Array.from(new Set(rn.lids   || [0, 1]));
     out.tricks = Array.from(new Set(rn.tricks || []));
     out.paints = Array.from(new Set(rn.paints || []));
-    out.tune   = Object.assign({}, rn.tune || {});
-    for (const k of ["bike","lid","slots"]) if (rn[k] !== undefined) out[k] = rn[k];
+    // world 0 only: an Afterburn garage is not a coin purchase and survives
+    out.tune   = {};
+    for (const k of Object.keys(rn.tune || {})) out.tune[k] = rn.tune[k];
+    for (const k of Object.keys((ra > rb ? b : a).tune || {}))
+      if ((k | 0) >= W2_BIKE0 && out.tune[k] === undefined) out.tune[k] = ((ra > rb ? b : a).tune)[k];
+    // the wallet and the garage only. Records, and which map you were last on,
+    // are not things a rebirth takes, so they keep the merged values - this is
+    // the same line the flat merge drew before worlds existed
+    merged[0] = Object.assign({}, merged[0],
+                  { coins:rw.coins | 0, bikes:rw.bikes, bike:rw.bike });
+    if (!merged[0].bikes.includes(merged[0].bike)) merged[0].bike = merged[0].bikes[0];
+    if (rn.slots !== undefined) out.slots = rn.slots;
   }
+
+  out.world = (newer.world | 0) === 1 ? 1 : 0;
+  for (const k of WORLD_FIELDS) out[k] = merged[out.world][k];
+  out.alt = merged[1 - out.world];
 
   out.ts = Math.max(a.ts || 0, b.ts || 0);
   return out;
@@ -3115,7 +3632,11 @@ addEventListener("keydown", e => {
   if (act === "nextBike") cycleBike(1);
   if (act === "prevBike") cycleBike(-1);
   if (act === "lid") cycleLid();
-  if (act === "spot") { SAVE.spot = (SAVE.spot + 1) % SPOTS.length; persist(); toast(spot().name); if (S.mode === "street" && S.rideOut) spawnRideOut(); }
+  if (act === "spot") {
+    const w = SAVE.world | 0, lo = spotBase(w), n = Math.min(spotCount(w), SPOTS.length - lo);
+    SAVE.spot = lo + ((SAVE.spot - lo + 1) % Math.max(1, n));
+    persist(); toast(spot().name); if (S.mode === "street" && S.rideOut) spawnRideOut();
+  }
 }, {passive:false});
 addEventListener("keyup", e => { if (e.target && e.target.tagName === "INPUT") return; keys[e.key.toLowerCase()] = false; });
 addEventListener("keydown", e => {
@@ -4929,6 +5450,63 @@ function drawHazards(){
    ============================================================ */
 function rand(i){ const x = Math.sin(i * 127.1) * 43758.5453; return x - Math.floor(x); }
 
+/* What stands at the roadside. World 1 has palms everywhere; each Afterburn
+   map names its own, because a bridge, a container port, a swamp and a salt
+   flat do not share a skyline let alone a tree. Everything is drawn in the
+   spot's own palette so a prop cannot clash with the sky behind it. */
+function prop(x, base, s, sp, dark){
+  const kind = sp.prop || "palm";
+  if (kind === "palm") return palm(x, base, s, sp, dark);
+  ctx.save(); ctx.translate(x, base); ctx.scale(s, s);
+  ctx.lineCap = "round";
+  if (kind === "pylon") {                       // suspension bridge tower + stays
+    ctx.strokeStyle = sp.palmT; ctx.lineWidth = 9;
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -128); ctx.stroke();
+    ctx.lineWidth = 6;
+    ctx.beginPath(); ctx.moveTo(-16, -78); ctx.lineTo(16, -78); ctx.stroke();
+    ctx.strokeStyle = sp.palmL; ctx.lineWidth = 2.5;
+    for (let i = 1; i <= 5; i++) {
+      ctx.beginPath(); ctx.moveTo(0, -126); ctx.lineTo(-18 * i, -4); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, -126); ctx.lineTo( 18 * i, -4); ctx.stroke();
+    }
+    ctx.fillStyle = "#FF3D7F";                  // aircraft warning lamp
+    ctx.beginPath(); ctx.arc(0, -132, 3.4, 0, 7); ctx.fill();
+  } else if (kind === "crane") {                // container gantry
+    ctx.strokeStyle = sp.palmT; ctx.lineWidth = 7;
+    ctx.beginPath(); ctx.moveTo(-22, 0); ctx.lineTo(-14, -96);
+    ctx.moveTo(26, 0);  ctx.lineTo(18, -96); ctx.stroke();
+    ctx.strokeStyle = sp.palmL; ctx.lineWidth = 8;
+    ctx.beginPath(); ctx.moveTo(-52, -96); ctx.lineTo(60, -104); ctx.stroke();
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(40, -102); ctx.lineTo(40, -60); ctx.stroke();
+    ctx.fillStyle = sp.palmL2; ctx.fillRect(30, -60, 20, 13);
+    ctx.fillStyle = sp.palmT;  ctx.fillRect(-16, -122, 26, 20);   // cab
+  } else if (kind === "grass") {                // sawgrass clump
+    ctx.strokeStyle = dark ? sp.palmL2 : sp.palmL; ctx.lineWidth = 3;
+    for (let i = 0; i < 9; i++) {
+      const a = -1.7 + i * 0.20, len = 30 + (i % 4) * 14;
+      ctx.beginPath(); ctx.moveTo((i - 4) * 3, 0);
+      ctx.quadraticCurveTo(Math.cos(a) * len * 0.5, -len * 0.75,
+                           Math.cos(a) * len, -len * 0.95);
+      ctx.stroke();
+    }
+  } else if (kind === "post") {                 // lone distance marker
+    ctx.strokeStyle = sp.palmT; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-2, -58); ctx.stroke();
+    ctx.fillStyle = sp.palmL; ctx.fillRect(-11, -74, 22, 15);
+    ctx.fillStyle = sp.palmL2; ctx.fillRect(-11, -74, 22, 4);
+  } else if (kind === "neon") {                 // sign on a pole, lit
+    ctx.strokeStyle = sp.palmT; ctx.lineWidth = 6;
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -84); ctx.stroke();
+    const c = (Math.floor(x / 97) % 2) ? sp.palmL : sp.palmL2;
+    ctx.fillStyle = "rgba(0,0,0,.45)"; ctx.fillRect(-20, -112, 40, 30);
+    ctx.strokeStyle = c; ctx.lineWidth = 3.5; ctx.strokeRect(-20, -112, 40, 30);
+    ctx.fillStyle = c;
+    ctx.fillRect(-13, -104, 26, 4); ctx.fillRect(-13, -96, 18, 4); ctx.fillRect(-13, -88, 22, 4);
+  }
+  ctx.restore();
+}
+
 function palm(x, base, s, sp, dark){
   ctx.save(); ctx.translate(x, base); ctx.scale(s, s);
   ctx.strokeStyle = dark ? "#241A22" : sp.palmT; ctx.lineWidth = 7; ctx.lineCap = "round";
@@ -4953,8 +5531,19 @@ const BOARDS = [
   { t:"A1A",   s:"RIDE OUT", bg:"#FF3D7F", fg:"#12161C" },
   { t:"BIKE",  s:"LIFE",     bg:"#FFC24B", fg:"#12161C" },
 ];
+/* Afterburn's own signage. Recolouring a sky is not a different place if the
+   same A1A hoarding goes past every four seconds, and the boards are the most
+   recognisable furniture on the whole backdrop. A spot may name its own set. */
+const BOARDS_W2 = [
+  { t:"ASH",   s:"SALVAGE",  bg:"#12161C", fg:"#FF6A13" },
+  { t:"KM 0",  s:"NO SERVICE", bg:"#1A1218", fg:"#8A929C" },
+  { t:"EMBER", s:"EXCHANGE", bg:"#FF6A13", fg:"#12161C" },
+  { t:"NIGHT", s:"HAUL",     bg:"#0E1116", fg:"#00E5FF" },
+  { t:"BURN",  s:"CO.",      bg:"#B06BFF", fg:"#0B0F14" },
+];
 function billboard(x, base, i, sp){
-  const b = BOARDS[i % BOARDS.length], w = 96, h = 62, top = base - 118;
+  const set = sp.boards === "w2" ? BOARDS_W2 : BOARDS;
+  const b = set[i % set.length], w = 96, h = 62, top = base - 118;
   ctx.strokeStyle = "#3A4049"; ctx.lineWidth = 4;
   ctx.beginPath(); ctx.moveTo(x+16, base); ctx.lineTo(x+22, top+h);
   ctx.moveTo(x+w-16, base); ctx.lineTo(x+w-22, top+h); ctx.stroke();
@@ -5215,7 +5804,7 @@ function drawScene(){
   ctx.stroke();
 
   ctx.fillStyle = sp.sand; ctx.fillRect(0, 292, W, 24);
-  for (let i = 0; i < 10; i++) palm(((i*226 - sc*0.3) % (W+452)) - 226, 302, 0.9, sp, sp.night);
+  for (let i = 0; i < 10; i++) prop(((i*226 - sc*0.3) % (W+452)) - 226, 302, 0.9, sp, sp.night);
   for (let i = 0; i < 7; i++)  billboard(((i*384 - sc*0.42) % (W+768)) - 384, 300, i, sp);
 
   ctx.fillStyle = sp.curb; ctx.fillRect(0, 314, W, 10);
@@ -5231,7 +5820,7 @@ function drawScene(){
   for (let i = 0; i < 18; i++) ctx.rect(((i*112 - sc*0.86) % (W+224)) - 112, 394, 58, 8);
   ctx.fill();
 
-  for (let i = 0; i < 8; i++) palm(((i*322 - sc*0.55) % (W+644)) - 322, 324, 1.5, sp, sp.night);
+  for (let i = 0; i < 8; i++) prop(((i*322 - sc*0.55) % (W+644)) - 322, 324, 1.5, sp, sp.night);
 
   ctx.drawImage(LAYERS.road, 0, 406, W, H-406);
   ctx.fillStyle = "rgba(255,255,255,.05)";
@@ -5729,7 +6318,10 @@ function dailyPlan(day){
   const r = seedRnd(day * 2654435761);
   r();                                           // the first draw off a fresh seed is weakly mixed
   const bike  = DAILY_FLEET[Math.floor(r() * DAILY_FLEET.length)] | 0;
-  const track = Math.floor(r() * RTRACKS.length);
+  // W1_TRACKS, never RTRACKS.length: Afterburn appended three tracks, and
+  // drawing off the live length would have moved the track under every day
+  // already ridden and sent the daily to a world most riders cannot reach
+  const track = Math.floor(r() * W1_TRACKS);
   const seed  = Math.floor(r() * 4294967296);
   // Weather arrived after the daily did. Its draw goes on the END of the
   // stream so every day already ridden keeps the bike, track and terrain it
@@ -5952,6 +6544,19 @@ const BADGES = [
     got:() => rebirths() >= 3 },
   { id:"reborn8",   ic:"\u267E\uFE0F", tier:3, name:"Eternal",      need:"Rebirth eight times",
     got:() => rebirths() >= 8 },
+
+  /* --- Afterburn ---
+     Read through worldSplit rather than off SAVE directly, because SAVE holds
+     whichever world you are standing in and a badge must not stop being true
+     the moment you travel home. */
+  { id:"w2",        ic:"\u{1F311}", tier:3, name:"Afterburn",        need:"Reach the second world",
+    got:() => w2Open() },
+  { id:"w2five",    ic:"\u{1F3CD}\uFE0F", tier:2, name:"Second Garage", need:"Own 5 Afterburn bikes",
+    got:() => (worldSplit(SAVE)[1].bikes || []).length >= 5 },
+  { id:"w2ten",     ic:"\u{1F527}", tier:3, name:"Ten in the Dark",  need:"Own 10 Afterburn bikes",
+    got:() => (worldSplit(SAVE)[1].bikes || []).length >= 10 },
+  { id:"w2score",   ic:"\u{1F525}", tier:3, name:"Burning Up",       need:"Bank 25,000 on an Afterburn street run",
+    got:() => (worldSplit(SAVE)[1].best | 0) >= 25000 },
 ];
 const badgeById = id => BADGES.find(b => b.id === id) || null;
 function badgeState(){
@@ -6169,7 +6774,7 @@ function ttPlan(week){
   const r = seedRnd(week * 2246822519);
   r();
   const bike  = DAILY_FLEET[Math.floor(r() * DAILY_FLEET.length)] | 0;
-  const track = Math.floor(r() * RTRACKS.length);
+  const track = Math.floor(r() * W1_TRACKS);      // frozen, same reason as the daily
   return { week, bike, track, seed: Math.floor(r() * 4294967296) };
 }
 function ttState(){
@@ -6287,6 +6892,25 @@ const RTRACKS = [
     dirt:"#3B3226", shade:"rgba(0,0,0,.30)", top:"#4B6B34", top2:"#79A052",
     hill1:"#5C7C68", hill2:"#38564A", tree:true, water:"#2C6D86",
     sky:[[0,"#6FB6DE"],[.48,"#A8D2E4"],[.84,"#D2E2CE"],[1,"#DFE7C6"]] },
+
+  /* ---------- 2-4: Afterburn ----------
+     Indexes 2 upward. `W1_TRACKS` is frozen at 2 and the daily and the trial
+     both draw with it rather than with this array's length, so these three
+     can never turn up as today's seed. */
+  { id:"ash", name:"Ashfield", w2:true,
+    dirt:"#1E1C1E", shade:"rgba(0,0,0,.36)", top:"#3A3438", top2:"#585054",
+    hill1:"rgba(70,60,72,.60)", hill2:"rgba(34,30,38,.72)", tree:false,
+    sky:[[0,"#0A0810"],[.44,"#1A141F"],[.78,"#38242C"],[1,"#5A3428"]] },
+
+  { id:"flood", name:"Floodline", w2:true,
+    dirt:"#22301E", shade:"rgba(0,0,0,.34)", top:"#2E4A2A", top2:"#48704A",
+    hill1:"#2E4650", hill2:"#1A2A34", tree:true, water:"#123844",
+    sky:[[0,"#0C1626"],[.46,"#1E3448"],[.80,"#3E5462"],[1,"#5E6E70"]] },
+
+  { id:"scrap", name:"Scrapline", w2:true,
+    dirt:"#2A2018", shade:"rgba(0,0,0,.32)", top:"#5A3E22", top2:"#8A5E2E",
+    hill1:"rgba(90,64,40,.58)", hill2:"rgba(48,34,22,.70)", tree:false,
+    sky:[[0,"#0E0A06"],[.42,"#241A0C"],[.74,"#4E3212"],[1,"#7E4E18"]] },
 ];
 const rtrack = () => (TT.on ? RTRACKS[TT.track] : DAILY.on ? RTRACKS[DAILY.track]
                                                 : RTRACKS[SAVE.track]) || RTRACKS[0];
@@ -6699,9 +7323,12 @@ function renderRamp(){
       ctx.restore();
     }
   } else {
+    // through prop(), not palm(): a treeless Afterburn track was still lining
+    // the horizon with South Florida palms, because this call was the one
+    // outside drawScene and got missed the first time
     for (let i = 0; i < 9; i++) {
       const x = ((i*310 - R.camX*0.42) % (W+620)) - 310;
-      palm(x, H*0.72 - R.camY*0.2, 1.1, sp, true);
+      prop(x, H*0.72 - R.camY*0.2, 1.1, sp, true);
     }
   }
 
@@ -6898,6 +7525,7 @@ function renderSpots(){
   if (!el) return;
   el.innerHTML = `<div class="cap">Where you ride</div>`;
   SPOTS.forEach((sp, i) => {
+    if (!!sp.w2 !== inW2()) return;                   // the other world's maps
     const b = document.createElement("button");
     b.className = i === SAVE.spot ? "on" : "";
     b.innerHTML = `<i style="background:linear-gradient(160deg,${sp.sky[0][1]},${sp.sky[sp.sky.length-1][1]})"></i>${sp.name}`;
@@ -6910,6 +7538,7 @@ function renderTracks(){
   if (!el) return;
   el.innerHTML = `<div class="cap">Ramp track</div>`;
   RTRACKS.forEach((k, i) => {
+    if (!!k.w2 !== inW2()) return;
     const b = document.createElement("button");
     b.className = i === SAVE.track ? "on" : "";
     b.innerHTML = `<i style="background:linear-gradient(160deg,${k.top},${k.dirt})"></i>${k.name}`;
@@ -6920,7 +7549,8 @@ function renderTracks(){
 function renderChallenges(){
   const list = document.getElementById("chalList");
   if (!list) return;
-  const done = CHALLENGES.filter(c => SAVE.bikes.includes(c.bike)).length;
+  // legend bikes are a South Florida thing; in Afterburn the box is hidden
+  const done = CHALLENGES.filter(c => (SAVE.world | 0) === 0 && SAVE.bikes.includes(c.bike)).length;
   document.getElementById("chalCount").textContent = done + " / " + CHALLENGES.length + " unlocked";
   list.innerHTML = "";
   for (const c of CHALLENGES) {
@@ -6944,6 +7574,11 @@ function syncWallet(){
   renderSpots();
   renderTracks();
   renderWeatherPick();
+  // "coins" reads "embers" in Afterburn. One word, five places, and getting it
+  // wrong would have every price in the second world lying about itself
+  const cw = curName();
+  document.querySelectorAll(".curlab").forEach(e => { e.textContent = cw; });
+  document.querySelectorAll(".wallet .dot").forEach(e => { e.style.background = world().dot; });
   document.getElementById("coinsMenu").textContent = money(SAVE.coins);
   document.getElementById("coinsShop").textContent = money(SAVE.coins);
   const cc = document.getElementById("coinsCrew");
@@ -6955,7 +7590,8 @@ function syncWallet(){
   document.getElementById("bestStreet").textContent = "BEST " + money(SAVE.best);
   document.getElementById("bestRide").textContent = "BEST " + money(SAVE.bestRide);
   document.getElementById("bestRamp").textContent = "BEST " + SAVE.rampBest + " M";
-  document.getElementById("ownedCount").textContent = SAVE.bikes.length + " / " + BIKES.length + " BIKES";
+  const fleet = BIKES.filter(b => !!b.w2 === inW2()).length;
+  document.getElementById("ownedCount").textContent = SAVE.bikes.length + " / " + fleet + " BIKES";
 }
 
 function thumbBike(canvas, B){
@@ -6989,7 +7625,9 @@ function renderShop(){
   syncWallet();
   elGrid.innerHTML = "";
   const items = shopTab === "bikes"
-    ? BIKES.map((b,i) => ({ b, i, own:ownsBike(i), eq:SAVE.bike===i })).filter(x => !x.b.secret || x.own)
+    ? BIKES.map((b,i) => ({ b, i, own:ownsBike(i), eq:SAVE.bike===i }))
+           .filter(x => !!x.b.w2 === inW2())          // never the other world's garage
+           .filter(x => !x.b.secret || x.own || x.b.w2)
     : HELMETS.map((b,i) => ({ b, i, own:ownsLid(i),  eq:SAVE.lid===i }));
 
   for (const it of items) {
@@ -7013,8 +7651,11 @@ function renderShop(){
     const foot = document.createElement("div");
     foot.className = "foot";
     const afford = SAVE.coins >= it.b.price;
-    if (it.eq) foot.innerHTML = `<span class="owned">${it.b.secret ? "SECRET · EQUIPPED" : "EQUIPPED"}</span>`;
-    else if (it.own) foot.innerHTML = `<span class="owned">${it.b.secret ? "SECRET" : "OWNED"}</span><button class="btn pri">Equip</button>`;
+    // every Afterburn bike is `secret` so none of them show up in world 1's
+    // shop - but in Afterburn that is the whole shelf, so it says nothing
+    const sec = it.b.secret && !it.b.w2;
+    if (it.eq) foot.innerHTML = `<span class="owned">${sec ? "SECRET · EQUIPPED" : "EQUIPPED"}</span>`;
+    else if (it.own) foot.innerHTML = `<span class="owned">${sec ? "SECRET" : "OWNED"}</span><button class="btn pri">Equip</button>`;
     else foot.innerHTML = `<span class="price${afford ? "" : " no"}">${money(it.b.price)}</span><button class="btn${afford ? " pri" : ""}" ${afford ? "" : "disabled"}>Buy</button>`;
     card.appendChild(foot);
     elGrid.appendChild(card);
@@ -7502,9 +8143,11 @@ function renderLevel(){
     `<span class="lv">LVL ${L.lvl}</span>
      <span class="ti">${titleFor(L.lvl)}</span>
      <span class="track"><i style="width:${pct}%"></i></span>
-     <span class="xp">${L.done ? "MAX" : L.into.toLocaleString() + " / " + L.need.toLocaleString() + " XP"}
-       · season tier ${tier}/${SEASON_TIERS} · ${now.daysLeft}d left${
-         rebirths() ? " · rebirth \u00d7" + rebirths() + " \u00b7 " + rebirthMulText() + " coins" : ""}</span>`;
+     <span class="xp">${L.done ? "MAX" : L.into.toLocaleString() + " / " + L.need.toLocaleString() + " XP"}${
+       inW2() ? " · Afterburn"
+              : " · season tier " + tier + "/" + SEASON_TIERS + " · " + now.daysLeft + "d left" +
+                (rebirths() ? " · rebirth \u00d7" + rebirths() + " \u00b7 " + rebirthMulText() + " coins" : "")
+     }</span>`;
 }
 function renderProfileLink(){
   const b = document.getElementById("openMyProfile");
@@ -7547,10 +8190,30 @@ function openMenu(){
   audio.setStyle("menu");
   sfx.ui();
   syncWallet(); persist(); renderWho(); renderLevel(); renderSeasonBanner(); renderCrewLink();
-  renderRebirthBanner();
+  renderRebirthBanner(); renderWorldBanner();
   renderDailyCard(); renderTrialCard(); renderProfileLink();
   renderBroadcast(); pullBroadcasts();
+  applyWorldChrome();
 }
+/* The season pass, crews, the daily, the trial, quests, legend bikes and codes
+   are all South Florida systems: they pay coins, run on world 1 tracks or hand
+   over world 1 bikes. Rather than teach each of them about a second world,
+   Afterburn simply does not show them. */
+function applyWorldChrome(){
+  const w2 = inW2();
+  document.body.classList.toggle("w2", w2);
+  const hide = id => { const e = document.getElementById(id); if (e) e.hidden = w2; };
+  ["openSeason","dailyCard","questBox","chalBox","mTrial","openRebirth"].forEach(hide);
+  const cl = document.getElementById("openCrew");
+  if (cl) cl.style.display = w2 ? "none" : "";
+  const cs = document.querySelector(".codes");
+  if (cs) cs.hidden = w2;
+  const tag = document.querySelector("#menu .tag");
+  if (tag) tag.textContent = w2
+    ? "Second world. Embers are slow, the bikes are new, and none of it came with you."
+    : "Feather the throttle. Find the balance point. Don't loop out.";
+}
+
 function openShop(){
   S.mode = "shop"; elMenu.hidden = true; elShop.hidden = false;
   elExit.classList.remove("on");
@@ -7885,20 +8548,45 @@ const LB_BOARDS = [
   // and the trial in its own, where the smallest number wins rather than the largest
   { key:"trial",     name:"Trial",    trial:true, pick:s => 0 },
 ];
+/* Afterburn keeps its own board in its own table. Only the three riding modes
+   are there - the daily and the trial are South Florida systems and do not
+   exist in the second world - and `board.pick(SAVE)` still works untouched,
+   because SAVE always holds the records of the world you are standing in. */
+const LB_BOARDS_W2 = [
+  { key:"best",      name:"Street",   pick:s => s.best     || 0 },
+  { key:"best_ride", name:"Ride Out", pick:s => s.bestRide || 0 },
+  { key:"ramp_best", name:"Ramp",     pick:s => s.rampBest || 0 },
+];
+const lbBoards = () => inW2() ? LB_BOARDS_W2 : LB_BOARDS;
+const lbTable  = () => inW2() ? "scores2" : "scores";
 let lbCache = {}, lbTab = "best", lbBusy = false;
 
+/* Both worlds go up, each to its own table, whichever one you are standing
+   in - a record set in Afterburn last week must not sit unfiled just because
+   you happen to be back in South Florida today. `scores2` may not exist yet;
+   that is swallowed, exactly like the daily and trial tables were. */
 async function scoresPush(){
   if (!cloudOn() || !AUTH.uid) return false;
   if (!await freshToken()) return false;
+  const W = worldSplit(SAVE);
+  const row = w => ({
+    user_id: AUTH.uid,
+    username: AUTH.name || "rider",
+    best:      Math.max(0, Math.floor(W[w].best     || 0)),
+    best_ride: Math.max(0, Math.floor(W[w].bestRide || 0)),
+    ramp_best: Math.max(0, Math.floor(W[w].rampBest || 0)),
+  });
   await api("/rest/v1/scores", { method:"POST",
     headers:{ "Prefer":"resolution=merge-duplicates,return=minimal" },
-    body:JSON.stringify({
-      user_id: AUTH.uid,
-      username: AUTH.name || "rider",
-      best:      Math.max(0, Math.floor(SAVE.best     || 0)),
-      best_ride: Math.max(0, Math.floor(SAVE.bestRide || 0)),
-      ramp_best: Math.max(0, Math.floor(SAVE.rampBest || 0)),
-    }) });
+    body:JSON.stringify(row(0)) });
+  const w2 = W[1];
+  if ((w2.best | 0) || (w2.bestRide | 0) || (w2.rampBest | 0)) {
+    try {
+      await api("/rest/v1/scores2", { method:"POST",
+        headers:{ "Prefer":"resolution=merge-duplicates,return=minimal" },
+        body:JSON.stringify(row(1)) });
+    } catch(e){}      // world2.sql not run yet; the board says so in plain words
+  }
   return true;
 }
 /* One row per rider per day, and the table takes inserts only - there is no
@@ -7961,16 +8649,16 @@ async function dailyRank(day, score){
   const total = parseInt(cr.split("/")[1], 10);
   return isFinite(total) ? total + 1 : null;
 }
-async function scoresTop(col){
-  const rows = await api("/rest/v1/scores?select=username," + col +
+async function scoresTop(col, tbl){
+  const rows = await api("/rest/v1/" + (tbl || "scores") + "?select=username," + col +
     "&order=" + col + ".desc&limit=50&" + col + "=gt.0");
   return rows || [];
 }
-async function myRank(col){
+async function myRank(col, tbl){
   if (!AUTH.uid) return null;
   const mine = Math.floor((col === "best" ? SAVE.best : col === "best_ride" ? SAVE.bestRide : SAVE.rampBest) || 0);
   if (mine <= 0) return null;
-  const r = await fetch(CLOUD.url + "/rest/v1/scores?select=user_id&" + col + "=gt." + mine, {
+  const r = await fetch(CLOUD.url + "/rest/v1/" + (tbl || "scores") + "?select=user_id&" + col + "=gt." + mine, {
     headers:{ apikey:CLOUD.key, Authorization:"Bearer " + AUTH.token, Prefer:"count=exact", Range:"0-0" } });
   const cr = r.headers.get("content-range") || "";
   const total = parseInt(cr.split("/")[1], 10);
@@ -8605,6 +9293,40 @@ function renderRebirth(){
   if (no) no.addEventListener("click", () => { sfx.ui(); RB.armed = false; renderRebirth(); });
 }
 
+/* ---------- the door to the second world ----------
+   Shown from the first rebirth so the road is visible long before it opens,
+   locked until the fifth, and a plain toggle after that. Switching is free:
+   each world's wallet, garage, records and maps sit untouched while you are
+   in the other one. */
+function renderWorldBanner(){
+  const el = document.getElementById("openWorld");
+  if (!el) return;
+  const n = rebirths(), open = w2Open(), here = inW2();
+  el.hidden = !(open || n >= 1);          // no point teasing it before rebirth exists
+  if (el.hidden) return;
+  el.classList.toggle("locked", !open);
+  const pct = Math.min(100, Math.round(n / W2_REBIRTHS * 100));
+  el.innerHTML = open
+    ? `<span class="lab">${here ? "South Florida" : "Afterburn"}</span>
+       <span class="mid"><span class="sub">${here
+          ? "Back to coins, the pass and your old garage"
+          : "A second world. Embers, forty new bikes, its own board."}</span></span>
+       <span class="badge">${here ? "GO BACK" : "TRAVEL"}</span>`
+    : `<span class="lab">Afterburn</span>
+       <span class="mid"><span class="track"><i style="width:${pct}%"></i></span>
+         <span class="sub">A second world opens at ${W2_REBIRTHS} rebirths · you have ${n}</span></span>
+       <span class="go">Locked</span>`;
+}
+function toggleWorld(){
+  if (!w2Open()) { sfx.ui(); toast("AFTERBURN OPENS AT " + W2_REBIRTHS + " REBIRTHS"); return; }
+  const to = inW2() ? 0 : 1;
+  setWorld(to);
+  sfx.quest();
+  openMenu();
+  toast(to ? "AFTERBURN" : "SOUTH FLORIDA");
+}
+document.getElementById("openWorld").addEventListener("click", toggleWorld);
+
 function openRebirth(){
   S.mode = "rebirth"; S.paused = false;
   elMenu.hidden = true; elShop.hidden = true; elBoard.hidden = true;
@@ -8623,7 +9345,7 @@ function lbNote(t){ document.getElementById("lbBody").innerHTML = `<div class="l
 function renderLbTabs(){
   const t = document.getElementById("lbTabs");
   t.innerHTML = "";
-  for (const b of LB_BOARDS) {
+  for (const b of lbBoards()) {
     const btn = document.createElement("button");
     btn.className = "tab";
     btn.setAttribute("aria-selected", lbTab === b.key);
@@ -8638,13 +9360,16 @@ async function showBoard(){
   if (lbBusy) return;
   lbBusy = true;
   lbNote("Loading…");
-  const board = LB_BOARDS.find(b => b.key === lbTab) || LB_BOARDS[0];
+  // switching world can leave lbTab pointing at a board this world has not got
+  const BS = lbBoards();
+  const board = BS.find(b => b.key === lbTab) || BS[0];
+  lbTab = board.key;
   try {
     if (!await freshToken()) { lbNote("Sign in to see the leaderboard."); lbBusy = false; return; }
     const rows = board.daily ? await dailyTop(dailyState().day)
               : board.trial ? await ttTop(ttWeek())
-              : await scoresTop(board.key);
-    lbCache[board.key] = rows;
+              : await scoresTop(board.key, lbTable());
+    lbCache[(inW2() ? "w2." : "") + board.key] = rows;
     const body = document.getElementById("lbBody");
     if (!rows.length) {
       lbNote(board.daily ? "Nobody has ridden today's seed yet.<br>Go be first."
@@ -8677,7 +9402,7 @@ async function showBoard(){
     foot.className = "lbrow lbmine";
     if (mineScore > 0) {
       const rank = board.trial ? await ttRank(ttWeek(), mineScore)
-                : board.daily ? await dailyRank(st.day, mineScore) : await myRank(board.key);
+                : board.daily ? await dailyRank(st.day, mineScore) : await myRank(board.key, lbTable());
       // rows come back best first - which on the trial board means fastest
       // first - so the last one still ahead of you is who you are chasing
       const above = board.trial
@@ -8697,7 +9422,7 @@ async function showBoard(){
   } catch(e){
     // the daily table is newer than the game: say so plainly rather than
     // leaving a dead screen, because the run itself still counted locally
-    if ((board.daily || board.trial) && (e.status === 404 || e.status === 400))
+    if ((board.daily || board.trial || inW2()) && (e.status === 404 || e.status === 400))
       lbNote("That board isn't set up on the server yet.<br>Your run still counted on this device.");
     else lbNote("Couldn't load the leaderboard.<br>" + String(e.message || e));
   }

@@ -1,6 +1,6 @@
 # SoFlo Wheelie Life — handoff
 
-Everything a fresh session needs to pick this up. Written 3 Sep 2026, updated 9 Sep 2026.
+Everything a fresh session needs to pick this up. Written 3 Sep 2026, updated 9 Sep 2026 (worlds).
 
 ---
 
@@ -52,6 +52,13 @@ fields, so **adding** fields is free.
   See the rebirth section below.
 - Bike indexes are positional. **Append new bikes; never reorder `BIKES`.**
 - `PRICES` is index-aligned with `BIKES`. Pad it when you append.
+- **`SAVE` describes the world you are standing in.** `coins`, `bikes`, `bike`,
+  `best`, `bestRide`, `rampBest`, `spot` and `track` mean different things in
+  Afterburn; the other world's copies live in `SAVE.alt`. Anything new that is
+  per-world must go in `WORLD_FIELDS` *and* be handled in `mergeWorld`.
+- **`W1_SPOTS` and `W1_TRACKS` are frozen.** The daily and the trial draw
+  their track with `W1_TRACKS`, never `RTRACKS.length`. Changing either number
+  moves the track under every day and week already ridden.
 
 ### Do not run two Claude sessions on this repo at once
 
@@ -74,6 +81,8 @@ It happened on 3 Sep: a second session committed the same feature concurrently
 | Cloud sync | `cloudSyncNow()` |
 | Two-player | `vsOpenSetup()` → `startVersus()` / `vsTick()` / `vsRender()` / `renderVersus()` |
 | Rebirth | `canRebirth()` / `doRebirth()`, cost card in `rebirthCost()`, screen in `renderRebirth()` |
+| Worlds | `setWorld()` swaps `WORLD_FIELDS` with `SAVE.alt`; `worldSplit()` / `mergeWorld()` for the merge |
+| Backdrop props | `prop()` dispatches on `sp.prop`; billboards from `BOARDS` / `BOARDS_W2` via `sp.boards` |
 | Mini bodywork | `drawMini()`, silhouettes in `MINI_TANK` |
 | Daily seed run | `startDaily()` / `dailyFinish()` / `dailyStop()`, plan in `dailyPlan(day)` |
 | Rider profiles | `openProfile(name, from)` / `profileFetch()` / `renderProfile()` / `profilePush()` |
@@ -225,6 +234,62 @@ Past the eighth rebirth there are no bikes left, so it pays `REBIRTH_PAYOUT`
 coins instead and the multiplier keeps stacking. Nobody is likely to get
 there; it exists so the button never has nothing to give.
 
+**Afterburn** is the second world, and five rebirths is the door. It has its
+own currency (embers), its own forty bikes, its own five street maps and three
+ramp tracks, and its own leaderboard. You cannot spend coins there, the season
+pass does not exist there, and none of your South Florida bikes came with you.
+Street, Ride Out, Ramp and versus are the modes; the daily, the trial, quests,
+crews, legend bikes and codes are all South Florida systems and are simply not
+shown. Switching is free and costs nothing either way - a one-way door would
+mean a mis-click at the entrance costs somebody their entire garage.
+
+It is built as a **swap, not a second set of fields**. `SAVE.coins`,
+`SAVE.bikes`, `SAVE.best` and five more always describe the world you are
+standing in; the other world's copies sit in `SAVE.alt` and the two trade
+places in `setWorld()`. That is why the shop, the garage, the HUD, the physics
+and every record write needed no changes at all - they were already reading
+"the current wallet" and "the current garage". The same trick versus already
+used on the module globals, one level up.
+
+The price of it is `mergeSaves`. Two devices can easily be standing in
+different worlds, and merging `coins` against `coins` would pour embers into a
+coin wallet and lose one of them. Both saves are now pulled apart by
+`worldSplit()` into world 0 and world 1, each side merged against its opposite
+number by `mergeWorld()`, and the result reassembled facing whichever way the
+newer save faced. The rebirth override applies to world 0 only.
+
+Four things there are easy to get wrong.
+
+**The daily and the trial drew their track with `RTRACKS.length`.** Appending
+three Afterburn tracks would have moved the track under every day and week
+already ridden, and dropped South Florida dailies onto maps most riders cannot
+reach. Both now draw with the frozen `W1_TRACKS`. The test suite pins day 243,
+248 and 270 and weeks 2900 and 2960 to exact tuples computed before the change,
+and asserts that no day or week in the first 900 of either ever lands on an
+Afterburn track.
+
+**A garage must never hold the other world's bikes.** `normaliseSave` filters
+`SAVE.bikes` by `w2` against the active world and `mergeWorld` does the same,
+so a bad merge, an old save or a hand-edited `localStorage` cannot put a bike
+somewhere it cannot be priced, ridden or sold.
+
+**Rebirth is a South Florida loop and must not reach across.** `canRebirth()`
+is false in Afterburn, `keptBikes()` never sees world 2, and `doRebirth()`
+clears only the tune entries whose bike index is below `W2_BIKE0` - the two
+worlds' indexes never overlap, which is what makes that safe.
+
+**Embers are flat.** Everybody standing in Afterburn has at least five
+rebirths, so letting the rebirth stack or the crew bonus through would hand
+them a 7.6x head start on a currency whose entire point is that it is slow.
+`coinMult()` returns `W2_RATE` there and nothing else.
+
+The maps are not recolours. Each Afterburn spot names its own roadside `prop`
+- bridge pylons, container cranes, sawgrass, marker posts, neon signs - and
+its own billboard set, because a recoloured sky is not a different place if
+the same A1A hoarding goes past every four seconds. `palmT` / `palmL` /
+`palmL2` are read only by `palm()` and `prop()`, so on a world 2 spot they
+simply mean "the prop's three colours".
+
 **Versus** swaps the module globals (`S`, `POSE`, `CUR`, `ctx`, `target`,
 `SCALE/DPR/OFFX/OFFY`, and now `W`/`BIKE_X`) around each rider, renders each to
 its own offscreen canvas, and blits them into stacked halves. `S` is `let`, not
@@ -283,9 +348,10 @@ level security is what actually protects data.
 | `daily` | public | own row only, **insert only** — no update policy, so one attempt a day is enforced by the database |
 | `profiles` | public | own row only, plus `is_admin()` for taking a bio down. `badges` / `badge_count`, then `rebirths`, were added later; re-run `profiles.sql` for them |
 | `trials` | public | own row only, and a trigger that only ever lets a time come down |
+| `scores2` | public | own row only, scores monotonic (trigger). The Afterburn board; `world2.sql` |
 
 SQL lives in `supabase-setup.sql`, `leaderboard.sql`, `crews.sql`, `admin.sql`,
-`daily.sql`, `profiles.sql`, `trials.sql`.
+`daily.sql`, `profiles.sql`, `trials.sql`, `world2.sql`.
 All are idempotent — safe to re-run.
 
 **Auth quirk:** usernames map to internal addresses `name@wheelie.local`, which
@@ -320,6 +386,7 @@ curl -s -X POST -H "apikey: $KEY" -H "Content-Type: application/json" \
 | Time trial | `TT_DIST 900`, `TT_SPLITS`, `TT_PENALTY 3000`, course seeded per week |
 | Versus | `VS_LENGTHS` (60/90/150s), `VS_KEYS`, `VS_TINT`, `vsWidth()` clamp |
 | Rebirth | `REBIRTH_LEVEL 25`, `REBIRTH_MULT 1.5`, `REBIRTH_BIKES` (80–87), `REBIRTH_PAYOUT 250000` |
+| Worlds | `W2_REBIRTHS 5`, `W2_RATE 0.012`, `W2_BIKE0 88`, `W1_SPOTS 4`, `W1_TRACKS 2`, `W2_SPOTS 5`, `W2_TRACKS 3` |
 
 Seasons roll over from the clock — no scheduling, no server job. So does the
 daily seed, off a **UTC** day number, which means it turns over at 20:00 in
@@ -330,13 +397,16 @@ number shifts.
 Appending is safe between days; a reorder shipped mid-day puts two players on
 different tracks while they both think they are riding today's.
 
-**88 bikes.** Indexes 34–39 and 51–52 are code-unlocked secrets (`price 0`),
+**128 bikes.** Indexes 34–39 and 51–52 are code-unlocked secrets (`price 0`),
 54–59 are season pass bikes, 50 is the 500k Apex Omega. 60–79 were added on
 5 Sep: eight minis, six motocross (one of them a supermoto), four road bikes,
 an e-moto and a drag bike, all bought with coins. **80–87 are the rebirth
 bikes**, added 9 Sep: `secret` and `price 0`, so the garage never lists them
 to somebody who has not earned one, and they are the only bikes in the game
-with no purchase path at all.
+with no purchase path at all. **88–127 are the Afterburn garage**, forty bikes
+that exist only in the second world and are bought only with embers; they are
+`w2:true` and `secret:true`, and `PRICES` holds their ember price, which works
+because `SAVE.coins` *is* embers while you are over there.
 
 **`cls:"mini"` is a fifth body class**, drawn by `drawMini()`. A mini is not a
 big bike drawn small - the wheels are tiny beside the rider, the frame is one
@@ -351,7 +421,10 @@ the frame on half of them. The minis also fill the gap under the 2,600-coin
 Grom that the early game did not have - the Coleman is 1,200.
 
 **Codes:** `julian dev soflolucas penguinong a1a bikelife nohands miami braaap
-dev2 caleb eli`. Typing `adminabuse` opens the admin panel — but it is only a
+dev2 caleb eli afterburn`. `afterburn` opens the second world without the five
+rebirths - it grants the door only, not the multiplier and not a wiped garage,
+which is how Afterburn gets tested and shown before anybody has ground five
+rebirths out. Typing `adminabuse` opens the admin panel — but it is only a
 door. Every admin action is authorised server-side against the `admins` table,
 so a player who reads the passphrase out of the page source gets a panel where
 every button is refused.
@@ -377,6 +450,13 @@ That is why results go through an element.
 
 Always `node --check` the extracted script after editing. It has caught real
 typos and duplicate declarations that would have shipped.
+
+**Give the suite a known starting save.** It reads `SAVE` after load, so it
+inherited whatever the last harness left in `localStorage` on that origin: a
+leftover `world:1` sent every rebirth test through `canRebirth()`'s `!inW2()`
+guard and the whole run died on a null. It passed on the next reload. A suite
+whose result depends on which page you opened last is worth nothing - clear
+the key and set the world explicitly first.
 
 **`requestAnimationFrame` does not fire while the browser pane is hidden**, so
 a harness that starts a run and waits will measure a bike that never moved.
@@ -422,6 +502,14 @@ bike, or asserting on a stub that a live fetch had replaced.
 - **The time trial board needs `trials.sql` run.** Until it is, the mode plays
   and your own best still saves; only the shared board is missing, and the
   board tab says so.
+- **The Afterburn board needs `world2.sql` run.** Until it is, the second
+  world plays and pays normally and your own records still save; only the
+  shared board is missing, and the board tab says so. `scoresPush()` swallows
+  the rejection so nothing else breaks.
+- **A rider profile still shows South Florida numbers.** The card reads
+  `scores`, not `scores2`, so somebody deep in Afterburn shows their old
+  street bests next to an Afterburn bike as their avatar. Harmless, and worth
+  fixing when profiles next get touched.
 - **Rebirth added a `rebirths` column to `profiles`**, so `profiles.sql` needs
   running again. Until it is, `profilePush()` notices the rejected column and
   re-files the card without it, so nothing goes stale - only the REBIRTH chip
@@ -497,6 +585,19 @@ Each of these shipped or nearly shipped, and each has a lesson.
   added the one `addEventListener` line, so `startVersus()` was dead code for
   weeks and nobody noticed because the button looked like the others.
   *Lesson: a feature is not done until you have clicked it in the built page.*
+- **`[hidden]` loses to a class that sets `display`.** `.passbanner` and
+  `.rbbanner` set `display:flex`, which outranks the browser's own
+  `[hidden]{display:none}`, so `el.hidden = true` did nothing and both kept
+  showing in Afterburn. The empty broadcast pill that had been sitting under
+  the level bar on every menu for months was the same bug. One global
+  `[hidden]{display:none !important}` fixed all of it. *`.sheet[hidden]` was
+  already working around this further up the stylesheet - the workaround was
+  there, the lesson had not been written down.*
+- **The second call site is the one that bites.** Routing the roadside props
+  through `prop()` was done in `drawScene` and missed the copy in the ramp
+  renderer, so treeless Afterburn ramp tracks still lined the horizon with
+  South Florida palms. *Grep for the function you are replacing, do not fix
+  the one you happened to be reading.*
 - **Absolute coordinates do not scale.** The first mini bodywork used the MX
   tables' fixed y values, so a 104mm trail mini wore a tank halfway through
   its own frame. Normalising to wheelbase and seat height fixed all five
