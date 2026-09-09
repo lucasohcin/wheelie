@@ -652,6 +652,24 @@ Each of these shipped or nearly shipped, and each has a lesson.
   added the one `addEventListener` line, so `startVersus()` was dead code for
   weeks and nobody noticed because the button looked like the others.
   *Lesson: a feature is not done until you have clicked it in the built page.*
+- **plpgsql identifiers are case-insensitive.** `grants_guard()` declared
+  running totals `xp_day` and `rows_day`, then declared limits `XP_DAY` and
+  `ROWS_DAY` right under them. Those are the same two names, and Postgres
+  refused the whole function with `42601 duplicate declaration`. Nothing about
+  it is visible by eye - the two lines look different - and there is no local
+  Postgres here to compile against, so it shipped and was found by the owner
+  pasting the error back. The limits are now `lim_*`.
+  *Two mechanical checks catch this class without a database: lowercase every
+  name in a `DECLARE` block and look for repeats, and check no declared name
+  is also a column of a table the body selects from - that second one compiles
+  fine and then throws `column reference is ambiguous` at runtime, which is
+  worse.*
+- **SQL added to a file somebody has already run is SQL nobody runs.** The
+  gift caps went into the middle of `admin.sql`. The two `alter table` lines
+  got applied because they were pasted into chat as a snippet; every function
+  and trigger in the same file stayed missing, and `grant_budget` 404d for two
+  rounds before anyone noticed. Every other feature here has its own file and
+  every one of those was run first time. *New SQL goes in a new file.*
 - **`[hidden]` loses to a class that sets `display`.** `.passbanner` and
   `.rbbanner` set `display:flex`, which outranks the browser's own
   `[hidden]{display:none}`, so `el.hidden = true` did nothing and both kept

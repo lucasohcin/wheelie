@@ -30,15 +30,19 @@ create index if not exists grants_sent_by_day on public.grants (sent_by, created
 create or replace function public.grants_guard() returns trigger
   language plpgsql security definer as $$
 declare
+  -- running totals for this admin over the last 24 hours
   coins_day   bigint;
   coins_to    bigint;
   xp_day      bigint;
   rows_day    bigint;
-  COIN_ONE constant bigint := 100000;   -- per recipient, per day
-  COIN_DAY constant bigint := 250000;   -- per admin, per day, everyone
-  XP_ONE   constant bigint := 5000;
-  XP_DAY   constant bigint := 20000;
-  ROWS_DAY constant bigint := 20;
+  -- the limits themselves. Prefixed, because plpgsql identifiers are
+  -- case-insensitive: lim_xp_day and lim_rows_day collided with the xp_day and
+  -- rows_day above them and the function would not compile.
+  lim_coin_one constant bigint := 100000;   -- per recipient, per day
+  lim_coin_day constant bigint := 250000;   -- per admin, per day, everyone
+  lim_xp_one   constant bigint := 5000;
+  lim_xp_day   constant bigint := 20000;
+  lim_rows_day constant bigint := 20;
 begin
   -- the sender is who the request is from, never what the request claims
   new.sent_by = auth.uid();
@@ -58,38 +62,38 @@ begin
 
   select count(*) into rows_day from public.grants g
     where g.sent_by = auth.uid() and g.created_at > now() - interval '24 hours';
-  if rows_day >= ROWS_DAY then
-    raise exception 'Daily limit: % gifts in 24 hours', ROWS_DAY;
+  if rows_day >= lim_rows_day then
+    raise exception 'Daily limit: % gifts in 24 hours', lim_rows_day;
   end if;
 
   if new.kind = 'coins' then
-    if new.amount > COIN_ONE then
-      raise exception 'The most you can gift at once is % coins', COIN_ONE;
+    if new.amount > lim_coin_one then
+      raise exception 'The most you can gift at once is % coins', lim_coin_one;
     end if;
     select coalesce(sum(g.amount), 0) into coins_to from public.grants g
       where g.sent_by = auth.uid() and g.user_id = new.user_id
         and g.kind = 'coins' and g.created_at > now() - interval '24 hours';
-    if coins_to + new.amount > COIN_ONE then
+    if coins_to + new.amount > lim_coin_one then
       raise exception 'That rider has already had % of their % coin daily limit from you',
-        coins_to, COIN_ONE;
+        coins_to, lim_coin_one;
     end if;
     select coalesce(sum(g.amount), 0) into coins_day from public.grants g
       where g.sent_by = auth.uid() and g.kind = 'coins'
         and g.created_at > now() - interval '24 hours';
-    if coins_day + new.amount > COIN_DAY then
-      raise exception 'You have given % of your % coins for today', coins_day, COIN_DAY;
+    if coins_day + new.amount > lim_coin_day then
+      raise exception 'You have given % of your % coins for today', coins_day, lim_coin_day;
     end if;
   end if;
 
   if new.kind = 'xp' then
-    if new.amount > XP_ONE then
-      raise exception 'The most you can gift at once is % XP', XP_ONE;
+    if new.amount > lim_xp_one then
+      raise exception 'The most you can gift at once is % XP', lim_xp_one;
     end if;
     select coalesce(sum(g.amount), 0) into xp_day from public.grants g
       where g.sent_by = auth.uid() and g.kind = 'xp'
         and g.created_at > now() - interval '24 hours';
-    if xp_day + new.amount > XP_DAY then
-      raise exception 'You have given % of your % XP for today', xp_day, XP_DAY;
+    if xp_day + new.amount > lim_xp_day then
+      raise exception 'You have given % of your % XP for today', xp_day, lim_xp_day;
     end if;
   end if;
 
