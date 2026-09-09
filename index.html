@@ -370,6 +370,78 @@
                       letter-spacing:.08em; color:var(--neon)}
   .dailycard .dfoot .btn{padding:8px 16px; font-size:13px}
 
+  /* ---- rebirth ---- */
+  .rbbanner{
+    display:flex; align-items:center; gap:14px; width:min(560px,92vw); margin:0 auto 16px;
+    padding:11px 16px; border-radius:14px; cursor:pointer; text-align:left;
+    background:linear-gradient(96deg, rgba(30,10,38,.88), rgba(14,20,28,.88));
+    border:1px solid rgba(122,43,226,.55); color:var(--text); font-family:var(--ui);
+  }
+  .rbbanner:hover{border-color:#B06BFF;
+                  background:linear-gradient(96deg, rgba(44,15,56,.94), rgba(18,25,34,.94))}
+  .rbbanner.ready{border-color:var(--hot);
+                  background:linear-gradient(96deg, rgba(48,10,32,.9), rgba(28,10,38,.9))}
+  .rbbanner .lab{font-family:var(--num); font-weight:700; font-size:14.5px; letter-spacing:.02em; flex:none}
+  .rbbanner .lab i{font-style:normal; font-size:10px; letter-spacing:.14em; color:#0B0F14;
+                   background:#B06BFF; border-radius:5px; padding:2px 5px; margin-left:5px}
+  .rbbanner .mid{flex:1; display:flex; flex-direction:column; gap:4px; min-width:90px}
+  .rbbanner .track{display:block; height:7px; border-radius:5px; background:rgba(255,255,255,.12); overflow:hidden}
+  .rbbanner .track i{display:block; height:100%; background:linear-gradient(90deg,#7A2BE2,var(--hot))}
+  .rbbanner .sub{font-size:11.5px; color:var(--dim); font-family:var(--num); letter-spacing:.04em}
+  .rbbanner .badge{flex:none; font-family:var(--num); font-weight:700; font-size:11.5px; letter-spacing:.08em;
+                   color:#0B0F14; background:var(--hot); border-radius:20px; padding:5px 11px}
+  .rbbanner .go{flex:none; font-family:var(--num); font-weight:700; font-size:12px;
+                letter-spacing:.12em; color:#B06BFF; text-transform:uppercase}
+
+  .rbsheet{width:min(760px,94vw); text-align:left}
+  .rbhero{margin-top:6px; padding:20px 20px 18px; border-radius:16px; text-align:center;
+          background:linear-gradient(150deg, rgba(38,12,48,.92), rgba(12,17,24,.92));
+          border:1px solid rgba(122,43,226,.5)}
+  .rbhero .mul{font-family:var(--display); font-size:clamp(38px,9vw,62px); line-height:1;
+               background:linear-gradient(94deg,#B06BFF 0%,var(--hot) 60%,var(--amber) 100%);
+               -webkit-background-clip:text; background-clip:text; color:transparent}
+  .rbhero .cap{margin-top:6px; font-family:var(--num); font-weight:700; font-size:12.5px;
+               letter-spacing:.16em; text-transform:uppercase; color:var(--dim)}
+  .rbhero .next{margin-top:12px; font-size:14px; line-height:1.6; color:var(--text)}
+  .rbhero .next b{font-family:var(--num); color:var(--amber); letter-spacing:.02em}
+
+  .rbcols{display:flex; gap:14px; flex-wrap:wrap; margin-top:16px}
+  .rbcol{flex:1 1 240px; padding:14px 16px; border-radius:14px;
+         background:rgba(20,25,34,.72); border:1px solid var(--edge)}
+  .rbcol h3{margin:0 0 9px; font-family:var(--num); font-size:12px; letter-spacing:.16em;
+            text-transform:uppercase; color:var(--dim)}
+  .rbcol.keep h3{color:var(--neon)}
+  .rbcol.lose h3{color:var(--hot)}
+  .rbcol ul{margin:0; padding:0; list-style:none}
+  .rbcol li{display:flex; justify-content:space-between; gap:10px; padding:5px 0;
+            font-size:13.5px; border-bottom:1px solid rgba(255,255,255,.05)}
+  .rbcol li:last-child{border-bottom:0}
+  .rbcol li span{font-family:var(--num); color:var(--dim); letter-spacing:.02em}
+  .rbcol.lose li span{color:var(--hot)}
+
+  .rbgift{display:flex; align-items:center; gap:16px; margin-top:16px; padding:12px 16px;
+          border-radius:14px; background:linear-gradient(96deg, rgba(30,10,38,.8), rgba(14,20,28,.8));
+          border:1px solid rgba(255,61,127,.42)}
+  .rbgift canvas{width:210px; height:96px; flex:none}
+  .rbgift .gt{font-family:var(--num); font-weight:700; font-size:10.5px; letter-spacing:.16em;
+              color:var(--hot); text-transform:uppercase}
+  .rbgift .gn{font-family:var(--num); font-weight:700; font-size:21px; letter-spacing:.02em}
+  .rbgift .gs{margin-top:3px; font-size:12.5px; color:var(--dim); line-height:1.5}
+
+  .rbtrophy{margin-top:16px}
+  .rbtrophy h3{margin:0 0 9px; font-family:var(--num); font-size:12px; letter-spacing:.16em;
+               text-transform:uppercase; color:var(--dim)}
+  .rbtrophy .row{display:flex; gap:9px; flex-wrap:wrap}
+  .rbtrophy .tb{font-family:var(--num); font-weight:700; font-size:12px; letter-spacing:.06em;
+                padding:6px 11px; border-radius:20px; color:#B06BFF;
+                border:1px solid rgba(122,43,226,.55); background:rgba(122,43,226,.12)}
+  .rbtrophy .tb.next{color:var(--dim); border-color:var(--edge); background:transparent; opacity:.6}
+
+  .rbfoot{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-top:18px}
+  .rbfoot .btn.go{background:var(--hot); color:#0B0F14; border:0}
+  .rbwarn{flex:1 1 260px; font-size:12.5px; color:var(--dim); line-height:1.55}
+  .rbnote{padding:26px 18px; text-align:center; color:var(--dim); font-size:14px; line-height:1.6}
+
   .profsheet{width:min(720px,94vw); text-align:left}
   .profbody{margin-top:14px}
   .profnote{padding:30px 18px; text-align:center; color:var(--dim); font-size:14px; line-height:1.6}
@@ -392,6 +464,7 @@
   .chip.lv{color:#0B0F14; background:var(--amber); border-color:transparent}
   .chip.crew{color:var(--neon); border-color:rgba(60,240,140,.5)}
   .chip.streak{color:#7BE7FF; border-color:rgba(123,231,255,.5)}
+  .chip.rb{color:#0B0F14; background:linear-gradient(94deg,#B06BFF,var(--hot)); border-color:transparent}
   .pbio{margin-top:15px; font-size:14.5px; line-height:1.55; overflow-wrap:anywhere}
   .pbio.none{color:var(--dim); font-style:italic}
   .pstats{display:grid; grid-template-columns:repeat(auto-fit,minmax(126px,1fr)); gap:10px; margin-top:16px}
@@ -625,6 +698,7 @@
     <div class="whoami" id="whoami" hidden></div>
     <div class="bcast" id="bcast" hidden></div>
     <button class="passbanner" id="openSeason"></button>
+    <button class="rbbanner" id="openRebirth"></button>
     <div class="dailycard" id="dailyCard"></div>
     <div class="whoami"><button id="openBoard">View the leaderboard</button>
       <span style="opacity:.4">·</span><button id="openCrew">Crews</button>
@@ -772,6 +846,17 @@
       <button class="btn" id="seasonBack">Back</button>
     </div>
     <div id="seasonBody"></div>
+  </div>
+</div>
+
+<div class="sheet" id="rebirth" hidden>
+  <div class="rbsheet">
+    <div class="shophead">
+      <h2>Rebirth</h2>
+      <div class="wallet"><span class="dot"></span><span id="coinsRb">0</span> <span style="opacity:.65">coins</span></div>
+      <button class="btn" id="rbBack">Back</button>
+    </div>
+    <div id="rbBody"></div>
   </div>
 </div>
 
@@ -1461,6 +1546,83 @@ const BIKES = [
     body:"#FF3D7F", body2:"#0B1020", frame:"#F5F2EA", fork:"#C9A227", rim:"#C9A227",
     decal:{ text:"FLAMINGO", x:104, y:70, size:10, rot:-0.16, col:"#0B1020" },
     wheel:{tire:"street", spokes:"cast", rim:"#C9A227", disc:true}, gear:"street" },
+
+  /* ---------- 80-87: the rebirth bikes ----------
+     One per rebirth, in order, and the only way to get any of them. They are
+     `secret` so the garage does not list eight bikes at a price of zero to a
+     rider who has never rebirthed, and they are the one thing a rebirth does
+     not take back - a trophy you keep is the whole point of handing your
+     garage in. They climb: number one sits with the good 20k bikes, number
+     eight is the fastest thing in the game, because the eighth rebirth is
+     eight times through the whole economy. */
+  { name:"Phoenix R1", cls:"sport", secret:true,
+    limit:168, torque:0.80, sl:1.02, brake:1.10, weight:0.30, bp:26, loop:-30, rpmMax:13500,
+    wb:166, rf:37, rr:39, head:[142,84], grip:[140,84], peg:[50,6], seat:[24,66], lean:52,
+    body:"#FF6A13", body2:"#1B0F06", frame:"#0E1116", fork:"#FFC24B", rim:"#FFC24B",
+    seatCol:"#160D05",
+    decal:{ text:"REBORN", x:100, y:66, size:10, rot:-0.20, col:"#FFC24B" },
+    wheel:{tire:"street", spokes:"cast", rim:"#FFC24B", disc:true}, gear:"street" },
+
+  { name:"Ashes MX", cls:"mx", pipe:"chamber", secret:true,
+    limit:128, torque:0.72, sl:1.10, brake:1.20, weight:0.27, bp:25, loop:-36, rpmMax:13200,
+    wb:172, rf:42, rr:40, head:[140,106], grip:[126,124], peg:[62,16], seat:[34,74], lean:68,
+    body:"#2B2E36", body2:"#FF6A13", frame:"#14161B", fork:"#8A929C", rim:"#FF6A13",
+    seatCol:"#101216",
+    shape:{ tank:"slim", tail:"high", plate:true, guards:true },
+    decal:{ text:"II", x:104, y:88, size:14, rot:-0.40, col:"#FF6A13" },
+    wheel:{tire:"knobby", spokes:"wire", rim:"#FF6A13", disc:true}, gear:"mx" },
+
+  { name:"Second Life", cls:"ebike", electric:true, secret:true,
+    limit:96, torque:0.70, sl:2.30, brake:1.05, weight:0.22, bp:30, loop:-30, rpmMax:11000,
+    wb:156, rf:38, rr:36, head:[126,80], grip:[116,98], peg:[57,13], seat:[27,63], lean:66,
+    body:"#7A2BE2", body2:"#2A0F45", frame:"#0E1116", fork:"#C0C0C0", rim:"#C0C0C0",
+    seatCol:"#12141A",
+    decal:{ text:"III", x:84, y:64, size:11, rot:-0.16, col:"#E7EDF3" },
+    wheel:{tire:"knobby", spokes:"wire", rim:"#C0C0C0", disc:true}, gear:"street" },
+
+  { name:"Ouroboros", cls:"naked", secret:true,
+    limit:182, torque:0.86, sl:0.98, brake:1.22, weight:0.29, bp:24, loop:-34, rpmMax:12500,
+    wb:164, rf:36, rr:38, head:[136,100], grip:[128,114], peg:[53,8], seat:[27,67], lean:64,
+    body:"#0F3D2E", body2:"#C9A227", frame:"#123A2C", fork:"#C9A227", rim:"#C9A227",
+    seatCol:"#0A1712",
+    decal:{ text:"IV", x:98, y:76, size:12, rot:-0.22, col:"#C9A227" },
+    wheel:{tire:"street", spokes:"cast", rim:"#C9A227", disc:true}, gear:"street" },
+
+  { name:"Revenant GP", cls:"sport", secret:true,
+    limit:196, torque:0.90, sl:0.90, brake:1.32, weight:0.27, bp:22, loop:-38, rpmMax:15500,
+    wb:168, rf:37, rr:39, head:[144,84], grip:[142,84], peg:[50,6], seat:[24,66], lean:50,
+    body:"#E8E2D0", body2:"#8A0F1E", frame:"#16181D", fork:"#8A0F1E", rim:"#8A0F1E",
+    seatCol:"#14161B",
+    decal:{ text:"V", x:102, y:66, size:13, rot:-0.20, col:"#8A0F1E" },
+    wheel:{tire:"street", spokes:"cast", rim:"#8A0F1E", disc:true}, gear:"street" },
+
+  /* The joke that is not a joke. A 92 mph pocket bike with the shortest
+     wheelbase in the game will out-wheelie every big bike here - the whole
+     point of a sixth rebirth is that you have earned something silly. */
+  { name:"Nine Lives", cls:"mini", secret:true,
+    limit:92, torque:0.88, sl:1.60, brake:1.10, weight:0.16, bp:34, loop:-26, rpmMax:14000,
+    wb:118, rf:25, rr:25, head:[98,60], grip:[92,64], peg:[40,7], seat:[18,42], lean:62,
+    body:"#16181D", body2:"#3CF08C", frame:"#0B0F14", fork:"#3CF08C", rim:"#3CF08C",
+    seatCol:"#0B0F14", shape:{ mini:"pocket" },
+    decal:{ text:"IX", x:70, y:38, size:11, rot:-0.30, col:"#3CF08C" },
+    wheel:{tire:"street", spokes:"cast", rim:"#3CF08C", disc:true}, gear:"street" },
+
+  { name:"Halo Zero", cls:"mx", electric:true, secret:true,
+    limit:205, torque:0.94, sl:0.80, brake:1.40, weight:0.23, bp:19, loop:-42, rpmMax:17000,
+    wb:176, rf:43, rr:41, head:[144,108], grip:[130,126], peg:[63,17], seat:[35,76], lean:69,
+    body:"#F4F6F8", body2:"#7BE7FF", frame:"#7BE7FF", fork:"#E7EDF3", rim:"#7BE7FF",
+    seatCol:"#161A20",
+    shape:{ tank:"wasp", tail:"high", plate:true, guards:true },
+    decal:{ text:"VII", x:101, y:86, size:12, rot:-0.40, col:"#7BE7FF" },
+    wheel:{tire:"knobby", spokes:"wire", rim:"#7BE7FF", disc:true}, gear:"mx" },
+
+  { name:"Eternal", cls:"sport", secret:true,
+    limit:232, torque:1.02, sl:0.72, brake:1.55, weight:0.22, bp:17, loop:-50, rpmMax:19000,
+    wb:170, rf:37, rr:40, head:[146,82], grip:[144,82], peg:[50,6], seat:[24,66], lean:48,
+    body:"#07090D", body2:"#FF3D7F", frame:"#7A2BE2", fork:"#3CF08C", rim:"#FF3D7F",
+    seatCol:"#07090D",
+    decal:{ text:"VIII", x:100, y:66, size:12, rot:-0.20, col:"#3CF08C" },
+    wheel:{tire:"street", spokes:"cast", rim:"#FF3D7F", disc:true}, gear:"street" },
 ];
 
 const HELMETS = [
@@ -1554,7 +1716,8 @@ const PRICES  = [0, 900, 2400, 13000, 8000, 7000, 9500, 9000, 8500, 4800, 26000,
                  1200, 1900, 2100, 2800, 3400, 3900, 4600, 9900,     // 60-67: minis
                  7600, 12400, 13800, 17500, 23000, 29000,            // 68-73: motocross + supermoto
                  19500, 37000, 46000, 43000, 8800,                   // 74-78: road + e-moto
-                 96000];                                             // 79: the drag bike
+                 96000,                                             // 79: the drag bike
+                 0, 0, 0, 0, 0, 0, 0, 0];                           // 80-87: rebirth bikes, never for sale
 const HPRICES = [0, 0, 700, 1500, 2600, 400];
 BIKES.forEach((b, i) => { b.price = PRICES[i] || 0; b.idx = i; });
 HELMETS.forEach((h, i) => { h.price = HPRICES[i] || 0; h.idx = i; });
@@ -1627,7 +1790,7 @@ const SAVE = { coins:0, codes:[], bikes:[0], lids:[0,1], bike:0, lid:0, best:0, 
                quests:[], qp:{}, qdone:[], tune:{}, spot:0, bestRide:0,
                tricks:[], slots:["stand","knee","drag","nohand","fob","onehand"],
                rider:{}, track:0, daily:{}, dailyBest:0, profile:{}, badges:[], pins:[],
-               weather:0, tt:{} };
+               weather:0, tt:{}, rebirths:0 };
 
 /* ---------- tuning ---------- */
 const PAINT = ["#FF6A13","#E01B24","#D0111B","#1D5FD8","#2452D8","#2FBF6B","#00C2C7",
@@ -1966,6 +2129,99 @@ function runXP(score, secs){
 }
 
 
+/* ============================================================
+   REBIRTH
+   ------------------------------------------------------------
+   The only thing in the game that takes progress away, and the only reason
+   anyone would want that. A rebirth hands back your garage, your coins, your
+   level and your season pass, and pays a permanent 1.5x on every coin you
+   earn from then on. They stack and they never stop stacking, so the fourth
+   rebirth rides at 5x and the eighth at nearly 26x - the grind you just
+   repeated pays for itself several times over, which is the entire deal.
+
+   The gate is the same level every time rather than a rising one. A rising
+   gate would get slower each pass, because coins multiply and XP does not;
+   a flat gate gets faster each pass, because you are climbing it on better
+   bikes bought sooner. That is the loop worth having.
+
+   What survives is everything a coin never bought: records, badges, quest
+   progress, redeemed codes, your profile, your crew, and the rebirth bikes.
+   What goes is everything a coin did buy.
+
+   Records survive for a second reason as well as fairness. `scores` has a
+   monotonic trigger and `trials` a least() one, so a wiped best would come
+   straight back off the server on the next sync and only the local number
+   would ever have moved. Wiping them is not something this client can do.
+   ============================================================ */
+const REBIRTH_LEVEL = 25;                          // the gate, and it never moves
+const REBIRTH_MULT  = 1.5;                         // per rebirth, multiplicative, uncapped
+const REBIRTH_BIKES = [80, 81, 82, 83, 84, 85, 86, 87];
+// past the eighth there is still a rebirth to take: it pays coins instead of
+// a bike, and the multiplier keeps stacking, which is the reward that counts
+const REBIRTH_PAYOUT = 250000;
+
+const rebirths    = () => Math.max(0, SAVE.rebirths | 0);
+const rebirthMul  = () => Math.pow(REBIRTH_MULT, rebirths());
+const canRebirth  = () => riderLevel().lvl >= REBIRTH_LEVEL;
+// the bike the nth rebirth hands over, or null once the eight run out
+const rebirthBike = n => (n >= 1 && n <= REBIRTH_BIKES.length) ? REBIRTH_BIKES[n - 1] : null;
+// how it reads on a card: 1.5x, 2.25x, 3.4x ...
+const rebirthMulText = m => {
+  const v = m === undefined ? rebirthMul() : m;
+  return (v >= 100 ? Math.round(v) : v.toFixed(2).replace(/\.?0+$/, "")) + "\u00d7";
+};
+
+/* The bikes a rebirth does not take. Code bikes are read back out of `CODES`
+   rather than listed by index, so a code added later is protected without
+   anybody remembering to come back here. */
+function keptBikes(){
+  const keep = new Set([0]);                       // the starter you began on
+  for (const k in CODES) {
+    const c = CODES[k];
+    if (c && c.bike !== undefined && (SAVE.codes || []).includes(k)) keep.add(c.bike | 0);
+  }
+  for (let i = 0; i < rebirths() && i < REBIRTH_BIKES.length; i++) keep.add(REBIRTH_BIKES[i]);
+  return keep;
+}
+
+/* Everything a rebirth clears, in one place, so the sheet can list exactly
+   what the button does and the two can never drift apart. */
+function rebirthCost(){
+  const st = SAVE.season || {};
+  return { coins: SAVE.coins | 0,
+           level: riderLevel().lvl,
+           bikes: Math.max(0, (SAVE.bikes || []).length - keptBikes().size),
+           lids:  Math.max(0, (SAVE.lids || []).length - 2),
+           tricks:(SAVE.tricks || []).length,
+           tiers: st.id === seasonNow().id ? seasonTier() : 0,
+           prem:  !!st.prem };
+}
+
+function doRebirth(){
+  if (!canRebirth()) return null;
+  const n = rebirths() + 1;
+  const keep = keptBikes();                        // computed before the count moves
+  const gift = rebirthBike(n);
+  if (gift !== null) keep.add(gift);
+
+  SAVE.rebirths = n;
+  SAVE.coins  = gift === null ? REBIRTH_PAYOUT : 0;
+  SAVE.xp     = 0;
+  SAVE.season = null;                              // seasonState() rebuilds this season empty
+  SAVE.paints = [];                                // pass paint went with the pass
+  SAVE.bikes  = Array.from(keep).filter(i => BIKES[i]).sort((a, b) => a - b);
+  SAVE.lids   = [0, 1];
+  SAVE.tricks = [];                                // the free ones are free again by price
+  SAVE.tune   = {};                                // every upgrade, part, engine and paint job
+  SAVE.slots  = ["stand","knee","drag","nohand","fob","onehand"];
+  SAVE.bike   = gift !== null ? gift : SAVE.bikes[0];
+  SAVE.lid    = 0;
+
+  normaliseSave();                                 // repairs slots and quests, rebuilds CUR
+  persist();
+  return { n, gift, mult: rebirthMul() };
+}
+
 function persistLocal(){
   SAVE.ts = Date.now();
   try { localStorage.setItem("soflo.save", JSON.stringify(SAVE)); } catch(e){}
@@ -1986,6 +2242,7 @@ function normaliseSave(){
   SAVE.slots = SAVE.slots.slice(0, MAX_SLOTS).map(id => (trickById(id) ? id : null));
   while (SAVE.slots.length < MAX_SLOTS) SAVE.slots.push(null);   // earned slots start empty
   SAVE.xp = Math.max(0, SAVE.xp | 0);
+  SAVE.rebirths = Math.max(0, SAVE.rebirths | 0);
   seasonState();
   if (!SAVE.rider) SAVE.rider = {};
   if (!SAVE.keys || typeof SAVE.keys !== "object" || Array.isArray(SAVE.keys)) SAVE.keys = {};
@@ -2095,8 +2352,16 @@ const ownsTrick = id => { const t = trickById(id); return !!t && (t.price === 0 
 const ownsLid  = i => SAVE.lids.includes(i);
 const CREW_BONUS = 1.5, CREW_PRICE = 50000;
 const inCrew = () => !!(SAVE.crew && SAVE.crew.id);
-const coinMult = () => inCrew() ? CREW_BONUS : 1;
-function earn(n){ if (VS.on) return; S.coinAcc += n * coinMult(); while (S.coinAcc >= 1) { SAVE.coins++; S.coinAcc--; } }
+// crew bonus and rebirth stack, because they are earned different ways
+const coinMult = () => (inCrew() ? CREW_BONUS : 1) * rebirthMul();
+function earn(n){
+  if (VS.on) return;
+  S.coinAcc += n * coinMult();
+  // taken whole rather than one at a time: a rider eight rebirths deep is on
+  // a 26x multiplier and the old loop would have run thousands of times a tick
+  const whole = Math.floor(S.coinAcc);
+  if (whole > 0) { SAVE.coins += whole; S.coinAcc -= whole; }
+}
 
 
 /* ============================================================
@@ -2297,6 +2562,28 @@ function mergeSaves(a, b){
 
   for (const k of ["bike","lid","spot","track","slots","rider","keys","quests","crew","profile","pins","weather"])
     if (newer[k] !== undefined) out[k] = newer[k];
+
+  /* Rebirth is the one event that legitimately takes progress away, so every
+     rule above it - keep the bigger number, union anything owned - would hand
+     the whole garage straight back the next time the other device synced. A
+     save that has been through more rebirths is by definition the later one,
+     so it wins outright on everything a rebirth clears. Records, badges and
+     quest progress are not in that list: a rebirth never touched them, so
+     they merge normally and a best set on the old device still counts. */
+  const ra = a.rebirths | 0, rb = b.rebirths | 0;
+  out.rebirths = Math.max(ra, rb);
+  if (ra !== rb) {
+    const rn = ra > rb ? a : b;
+    out.coins  = rn.coins | 0;
+    out.xp     = rn.xp | 0;
+    out.season = rn.season || null;
+    out.bikes  = Array.from(new Set(rn.bikes  || [0]));
+    out.lids   = Array.from(new Set(rn.lids   || [0, 1]));
+    out.tricks = Array.from(new Set(rn.tricks || []));
+    out.paints = Array.from(new Set(rn.paints || []));
+    out.tune   = Object.assign({}, rn.tune || {});
+    for (const k of ["bike","lid","slots"]) if (rn[k] !== undefined) out[k] = rn[k];
+  }
 
   out.ts = Math.max(a.ts || 0, b.ts || 0);
   return out;
@@ -2816,7 +3103,7 @@ addEventListener("keydown", e => {
   if (k === "escape" && VS.on) { endVersus(); return; }
   if (k === "escape" && S.mode === "versus") { vsCloseSetup(); return; }
   if (k === "enter"  && S.mode === "versus") { startVersus(); return; }
-  if (k === "escape") { playing ? openMenu() : (S.mode === "shop" ? openMenu() : S.mode === "board" ? closeBoard() : S.mode === "season" ? closeSeason() : S.mode === "crew" ? closeCrew() : S.mode === "profile" ? closeProfile() : S.mode === "admin" ? closeAdmin() : 0); return; }
+  if (k === "escape") { playing ? openMenu() : (S.mode === "shop" ? openMenu() : S.mode === "board" ? closeBoard() : S.mode === "season" ? closeSeason() : S.mode === "crew" ? closeCrew() : S.mode === "profile" ? closeProfile() : S.mode === "admin" ? closeAdmin() : S.mode === "rebirth" ? closeRebirth() : 0); return; }
   if (k === "enter" && VS.on && VS.phase === "over") { elVersus.hidden = true; startVersus(); return; }
   if (k === "enter") { playing ? (S.paused && togglePause()) : startMode("rideout"); return; }
   if (!playing) return;
@@ -5657,6 +5944,14 @@ const BADGES = [
     got:() => (SAVE.qdone || []).length >= 20 },
   { id:"crew",      ic:"\u{1F91D}", tier:1, name:"Crew Rider",      need:"Join a crew",
     got:() => inCrew() },
+
+  // --- rebirth ---
+  { id:"reborn",    ic:"\u{1F525}", tier:2, name:"Reborn",           need:"Hand your garage in once",
+    got:() => rebirths() >= 1 },
+  { id:"reborn3",   ic:"\u{1F30B}", tier:3, name:"Three Lives",      need:"Rebirth three times",
+    got:() => rebirths() >= 3 },
+  { id:"reborn8",   ic:"\u267E\uFE0F", tier:3, name:"Eternal",      need:"Rebirth eight times",
+    got:() => rebirths() >= 8 },
 ];
 const badgeById = id => BADGES.find(b => b.id === id) || null;
 function badgeState(){
@@ -6243,7 +6538,9 @@ function tickRamp(){
   for (const c of T.coins) {
     if (c.got) continue;
     if (Math.abs(c.x - R.cx) < 34 && Math.abs(c.y - R.cy) < 40) {
-      c.got = true; SAVE.coins += 5; R.score += 50; sfx.coin(); qAdd("coinsGot", 1);
+      // through earn() rather than straight onto the wallet, so a pickup pays
+      // the crew and rebirth multipliers like every other coin earned riding
+      c.got = true; earn(5); R.score += 50; sfx.coin(); qAdd("coinsGot", 1);
     }
   }
 
@@ -6653,6 +6950,8 @@ function syncWallet(){
   if (cc) cc.textContent = money(SAVE.coins);
   const cs = document.getElementById("coinsSeason");
   if (cs) cs.textContent = money(SAVE.coins);
+  const cr = document.getElementById("coinsRb");
+  if (cr) cr.textContent = money(SAVE.coins);
   document.getElementById("bestStreet").textContent = "BEST " + money(SAVE.best);
   document.getElementById("bestRide").textContent = "BEST " + money(SAVE.bestRide);
   document.getElementById("bestRamp").textContent = "BEST " + SAVE.rampBest + " M";
@@ -7204,7 +7503,8 @@ function renderLevel(){
      <span class="ti">${titleFor(L.lvl)}</span>
      <span class="track"><i style="width:${pct}%"></i></span>
      <span class="xp">${L.done ? "MAX" : L.into.toLocaleString() + " / " + L.need.toLocaleString() + " XP"}
-       · season tier ${tier}/${SEASON_TIERS} · ${now.daysLeft}d left</span>`;
+       · season tier ${tier}/${SEASON_TIERS} · ${now.daysLeft}d left${
+         rebirths() ? " · rebirth \u00d7" + rebirths() + " \u00b7 " + rebirthMulText() + " coins" : ""}</span>`;
 }
 function renderProfileLink(){
   const b = document.getElementById("openMyProfile");
@@ -7236,7 +7536,8 @@ function openMenu(){
   VS.on = false; VS.phase = "off"; VS.cur = [null, null];
   S.mode = "menu"; S.paused = false;
   elShop.hidden = true; elBoard.hidden = true; elSeason.hidden = true; elCrew.hidden = true;
-  elAdmin.hidden = true; elProfile.hidden = true; elVersus.hidden = true; elMenu.hidden = false;
+  elAdmin.hidden = true; elProfile.hidden = true; elVersus.hidden = true;
+  elRebirth.hidden = true; elMenu.hidden = false;
   refreshBike();
   elExit.classList.remove("on");
   for (const k in keys) keys[k] = false;
@@ -7246,6 +7547,7 @@ function openMenu(){
   audio.setStyle("menu");
   sfx.ui();
   syncWallet(); persist(); renderWho(); renderLevel(); renderSeasonBanner(); renderCrewLink();
+  renderRebirthBanner();
   renderDailyCard(); renderTrialCard(); renderProfileLink();
   renderBroadcast(); pullBroadcasts();
 }
@@ -8154,6 +8456,167 @@ function closeSeason(){ elSeason.hidden = true; openMenu(); }
 document.getElementById("openSeason").addEventListener("click", openSeason);
 document.getElementById("seasonBack").addEventListener("click", closeSeason);
 
+/* ---------- rebirth screen ----------
+   The banner is on the menu from level one rather than appearing at the gate,
+   because a loop nobody knows about is a loop nobody rides towards. It reads
+   as a locked goal until you are level 25 and as a live offer after that. */
+const elRebirth = document.getElementById("rebirth");
+const RB = { done:null, armed:false };
+
+function renderRebirthBanner(){
+  const el = document.getElementById("openRebirth");
+  if (!el) return;
+  const n = rebirths(), L = riderLevel(), ready = canRebirth();
+  const pct = Math.min(100, Math.round(L.lvl / REBIRTH_LEVEL * 100));
+  el.classList.toggle("ready", ready);
+  // spelled out rather than nested, because "1.5x coins - next at 1 / 25" read
+  // like the next rebirth was at level 1
+  const sub = ready
+    ? (n ? rebirthMulText() + " coins · ready to go again" : "Level " + REBIRTH_LEVEL + " · ready")
+    : (n ? rebirthMulText() + " coins · level " + L.lvl + " of " + REBIRTH_LEVEL + " to go again"
+         : "Level " + L.lvl + " of " + REBIRTH_LEVEL);
+  el.innerHTML =
+    `<span class="lab">Rebirth${n ? ` <i>\u00d7${n}</i>` : ""}</span>
+     <span class="mid"><span class="track"><i style="width:${pct}%"></i></span>
+       <span class="sub">${sub}</span></span>
+     ${ready ? `<span class="badge">READY</span>` : `<span class="go">View</span>`}`;
+}
+
+function rbList(rows){
+  return "<ul>" + rows.map(r => `<li>${r[0]}<span>${r[1]}</span></li>`).join("") + "</ul>";
+}
+
+function renderRebirth(){
+  const body = document.getElementById("rbBody");
+  if (!body) return;
+  const w = document.getElementById("coinsRb");
+  if (w) w.textContent = money(SAVE.coins);
+
+  // the card shown straight after one, so the reset is something you watched
+  // happen rather than something you came back to and had to work out
+  if (RB.done) {
+    const d = RB.done;
+    const B = d.gift !== null ? buildBike(d.gift, STOCK_TUNE) : null;
+    body.innerHTML =
+      `<div class="rbhero">
+         <div class="mul">${rebirthMulText(d.mult)}</div>
+         <div class="cap">Rebirth ${d.n} · coin multiplier, permanent</div>
+         <div class="next">Level 1, one bike, no coins${d.gift === null
+            ? ` and <b>${money(REBIRTH_PAYOUT)}</b> in the bank.` : "."}
+           Everything you earn from here pays <b>${rebirthMulText(d.mult)}</b>.</div>
+       </div>` +
+      (B ? `<div class="rbgift"><canvas id="rbGift" width="420" height="192"></canvas>
+              <div><div class="gt">Your rebirth ${d.n} bike</div>
+                <div class="gn">${esc(B.name)}</div>
+                <div class="gs">Yours for good. A rebirth never takes one of these back.</div></div>
+            </div>` : "") +
+      `<div class="rbfoot"><button class="btn pri" id="rbGo">Back to the menu</button></div>`;
+    if (B) { try { thumbBike(document.getElementById("rbGift"), B); } catch(e){} }
+    document.getElementById("rbGo").addEventListener("click", () => { sfx.ui(); closeRebirth(); });
+    return;
+  }
+
+  const n = rebirths(), L = riderLevel(), ready = canRebirth();
+  const nextN = n + 1, gift = rebirthBike(nextN);
+  const c = rebirthCost();
+  const nextMul = rebirthMul() * REBIRTH_MULT;
+
+  let html =
+    `<div class="rbhero">
+       <div class="mul">${rebirthMulText()}</div>
+       <div class="cap">${n ? "Rebirth \u00d7" + n + " · coins earned" : "No rebirths yet · coins earned"}</div>
+       <div class="next">Rebirth ${nextN} takes it to <b>${rebirthMulText(nextMul)}</b> on every coin you earn,
+         for good, on top of your crew bonus.
+         ${ready ? "" : `You need <b>level ${REBIRTH_LEVEL}</b> to take it. You are level <b>${L.lvl}</b>.`}</div>
+     </div>`;
+
+  html +=
+    `<div class="rbcols">
+       <div class="rbcol keep"><h3>You keep</h3>${rbList([
+         ["Every record", "street, ride out, ramp, daily, trials"],
+         ["Badges", (badgeState().badges.length) + " earned"],
+         ["Quest progress", "and quests already finished"],
+         ["Redeemed codes", "and the bikes they unlocked"],
+         ["Your crew and profile", inCrew() ? esc(SAVE.crew.name) : "\u2014"],
+         ["Rebirth bikes", n + " won so far"],
+       ])}</div>
+       <div class="rbcol lose"><h3>You hand back</h3>${rbList([
+         ["Coins", money(c.coins)],
+         ["Rider level", "level " + c.level + " \u2192 1"],
+         ["Bikes", c.bikes ? c.bikes + " sold off" : "none left to sell"],
+         ["Helmets", c.lids ? c.lids + " returned" : "none"],
+         ["Bought tricks", c.tricks ? c.tricks + " relearned" : "none"],
+         ["Upgrades and paint", "every bike back to stock"],
+         ["Season pass", c.prem ? "premium + tier " + c.tiers : "tier " + c.tiers],
+       ])}</div>
+     </div>`;
+
+  if (gift !== null) {
+    const B = buildBike(gift, STOCK_TUNE);
+    html +=
+      `<div class="rbgift"><canvas id="rbGift" width="420" height="192"></canvas>
+         <div><div class="gt">Rebirth ${nextN} hands you</div>
+           <div class="gn">${esc(B.name)}</div>
+           <div class="gs">${B.limit} mph · not for sale at any price, and a rebirth never takes it back.</div></div>
+       </div>`;
+  } else {
+    html +=
+      `<div class="rbgift"><div><div class="gt">Rebirth ${nextN} hands you</div>
+         <div class="gn">${money(REBIRTH_PAYOUT)} coins</div>
+         <div class="gs">The eight rebirth bikes are all yours already, so past here
+           a rebirth pays a float to start on. The multiplier keeps stacking.</div></div>
+       </div>`;
+  }
+
+  html += `<div class="rbtrophy"><h3>Rebirth bikes</h3><div class="row">` +
+    REBIRTH_BIKES.map((idx, i) => {
+      const nm = esc((BIKES[idx] || {}).name || "?");
+      return i < n ? `<span class="tb">${i + 1} · ${nm}</span>`
+                   : `<span class="tb next">${i + 1} · ${i === n ? nm : "locked"}</span>`;
+    }).join("") + `</div></div>`;
+
+  html +=
+    `<div class="rbfoot">
+       ${ready ? `<button class="btn go" id="rbGo">${RB.armed
+             ? "Yes \u2014 hand it all in" : "Rebirth \u00b7 start again"}</button>` : ""}
+       ${RB.armed ? `<button class="btn" id="rbNo">Cancel</button>` : ""}
+       <span class="rbwarn">${ready
+         ? (RB.armed ? "Last chance. This cannot be undone, on this device or any other."
+                     : "There is no way back from this. Your records and badges are safe.")
+         : "Ride, finish quests and run the daily \u2014 every run pays XP whether or not it beats anything."}</span>
+     </div>`;
+
+  body.innerHTML = html;
+  if (gift !== null) { try { thumbBike(document.getElementById("rbGift"), buildBike(gift, STOCK_TUNE)); } catch(e){} }
+
+  const go = document.getElementById("rbGo");
+  if (go) go.addEventListener("click", () => {
+    sfx.ui();
+    if (!RB.armed) { RB.armed = true; renderRebirth(); return; }
+    RB.armed = false;
+    const r = doRebirth();
+    if (!r) { renderRebirth(); return; }
+    RB.done = r;
+    sfx.quest();
+    syncWallet();
+    renderRebirth();
+  });
+  const no = document.getElementById("rbNo");
+  if (no) no.addEventListener("click", () => { sfx.ui(); RB.armed = false; renderRebirth(); });
+}
+
+function openRebirth(){
+  S.mode = "rebirth"; S.paused = false;
+  elMenu.hidden = true; elShop.hidden = true; elBoard.hidden = true;
+  elSeason.hidden = true; elRebirth.hidden = false;
+  RB.armed = false;
+  sfx.ui();
+  renderRebirth();
+}
+function closeRebirth(){ RB.done = null; RB.armed = false; elRebirth.hidden = true; openMenu(); }
+document.getElementById("openRebirth").addEventListener("click", openRebirth);
+document.getElementById("rbBack").addEventListener("click", closeRebirth);
+
 /* ---------- leaderboard screen ---------- */
 const elBoard = document.getElementById("board");
 function lbNote(t){ document.getElementById("lbBody").innerHTML = `<div class="lbnote">${t}</div>`; }
@@ -8304,6 +8767,7 @@ function myProfileRow(){
     bike: SAVE.bike | 0, lid: SAVE.lid | 0, spot: SAVE.spot | 0,
     level: riderLevel().lvl, streak: dailyStreak(), paint: paintOf(SAVE.bike),
     badges: badgePins(), badge_count: badgeState().badges.length,
+    rebirths: rebirths(),
   };
 }
 // username is deliberately not sent: the table's trigger takes it off the
@@ -8319,9 +8783,15 @@ async function profilePush(){
   catch(e){
     // a database that predates badges rejects the two new columns; file the
     // rest rather than losing the whole card until the SQL is run
-    if (!/badge/i.test(String(e.message || "")) ) throw e;
-    delete row.badges; delete row.badge_count;
-    await post(row);
+    const m = String(e.message || "");
+    if (!/badge|rebirth/i.test(m)) throw e;
+    if (/rebirth/i.test(m)) delete row.rebirths;
+    else { delete row.badges; delete row.badge_count; }
+    try { await post(row); }
+    catch(e2){                                  // older still: drop both sets
+      delete row.badges; delete row.badge_count; delete row.rebirths;
+      await post(row);
+    }
   }
   return true;
 }
@@ -8374,6 +8844,7 @@ function renderProfile(d){
   const shown = profClean((p && p.display_name) || d.name || "rider", PROF_NAME_MAX);
   const lvl = p ? Math.max(1, p.level | 0) : 0;
   const streak = p ? (p.streak | 0) : 0;
+  const rb = mine ? rebirths() : (p ? (p.rebirths | 0) : 0);
   const bio = profClean(p && p.bio, PROF_BIO_MAX);
   const since = p && p.created_at ? new Date(p.created_at) : null;
 
@@ -8389,6 +8860,7 @@ function renderProfile(d){
            ${lvl ? `<span class="chip lv">LVL ${lvl} · ${esc(titleFor(lvl))}</span>` : ""}
            ${d.crew && d.crew.name
               ? `<span class="chip crew">${esc(d.crew.tag ? "[" + d.crew.tag + "] " : "")}${esc(d.crew.name)}</span>` : ""}
+           ${rb > 0 ? `<span class="chip rb">REBIRTH \u00d7${rb}</span>` : ""}
            ${streak > 0 ? `<span class="chip streak">${streak} DAY STREAK</span>` : ""}
          </div>
        </div>

@@ -1,6 +1,6 @@
 # SoFlo Wheelie Life — handoff
 
-Everything a fresh session needs to pick this up. Written 3 Sep 2026, updated 5 Sep 2026.
+Everything a fresh session needs to pick this up. Written 3 Sep 2026, updated 9 Sep 2026.
 
 ---
 
@@ -46,6 +46,10 @@ fields, so **adding** fields is free.
 
 - **Add fields freely.** Never rename or remove one — that silently wipes that
   piece of every player's progress.
+- **Anything a rebirth clears needs a line in `mergeSaves`.** The merge exists
+  to never lose progress, so its instinct — keep the bigger number, union
+  anything owned — hands a wiped garage straight back off the other device.
+  See the rebirth section below.
 - Bike indexes are positional. **Append new bikes; never reorder `BIKES`.**
 - `PRICES` is index-aligned with `BIKES`. Pad it when you append.
 
@@ -69,6 +73,7 @@ It happened on 3 Sep: a second session committed the same feature concurrently
 | Cross-device merge | `mergeSaves(a, b)` |
 | Cloud sync | `cloudSyncNow()` |
 | Two-player | `vsOpenSetup()` → `startVersus()` / `vsTick()` / `vsRender()` / `renderVersus()` |
+| Rebirth | `canRebirth()` / `doRebirth()`, cost card in `rebirthCost()`, screen in `renderRebirth()` |
 | Mini bodywork | `drawMini()`, silhouettes in `MINI_TANK` |
 | Daily seed run | `startDaily()` / `dailyFinish()` / `dailyStop()`, plan in `dailyPlan(day)` |
 | Rider profiles | `openProfile(name, from)` / `profileFetch()` / `renderProfile()` / `profilePush()` |
@@ -165,6 +170,61 @@ The username on a row is set by a database trigger off the account, never by
 the client, because profiles are looked up by name and letting a client set it
 would let one player claim another's name.
 
+**Rebirth** is the only thing in the game that takes progress away. At rider
+level 25 you may hand back your coins, your level, your season pass and every
+bike, upgrade, helmet and trick a coin ever paid for, in exchange for a
+permanent **1.5x on every coin you earn**, and a bike that is not for sale at
+any price. They stack and never stop stacking: the fourth rebirth rides at
+5.06x, the eighth at 25.6x.
+
+The gate is a **flat** level 25 every time rather than a rising one, and that
+is the whole design. Coins multiply and XP does not, so a rising gate would
+get slower every pass and the loop would die on its own; a flat gate gets
+*faster* every pass, because you climb it on better bikes bought sooner. That
+is the difference between a prestige loop worth riding and a punishment.
+
+What survives is everything a coin never bought: every record, badges, quest
+progress, redeemed codes and the bikes they unlocked, your crew, your profile,
+and the rebirth bikes themselves. What goes is everything a coin did buy.
+Records survive for a second reason as well as fairness - `scores` has a
+monotonic trigger and `trials` a `least()` one, so a wiped best would come
+straight back on the next sync and only the local number would ever have
+moved. Wiping them is not something this client *can* do.
+
+Three things here are easy to get wrong.
+
+**`mergeSaves` would have undone it.** Every rule in that function is built to
+never lose progress: bests take the higher number, anything owned is unioned.
+Point that at a rebirth and the other device hands the whole garage straight
+back the next time it syncs. A save that has been through more rebirths is by
+definition the later one, so it now wins outright on coins, XP, bikes, lids,
+tricks, tune, paints and the season - and only on those. Records, badges and
+quest progress are not in that list, because a rebirth never touched them, so
+a best set on the old device still counts. The tests cover both argument
+orders, because a merge that is not symmetric is a merge that depends on which
+device woke up first.
+
+**Kept bikes are read out of `CODES`, not listed.** `keptBikes()` walks the
+codes you have actually redeemed and protects whatever bike each one granted,
+so a code added later is safe without anybody remembering to come back here.
+The rebirth bikes protect themselves the same way, off `REBIRTH_BIKES`.
+
+**`earn()` used to bank coins one at a time** in a `while` loop. At 25x that
+loop runs thousands of times a tick, so it now takes the whole part in one go
+and carries the fraction. The ramp's coin pickups were adding 5 straight to
+the wallet, bypassing `coinMult()` entirely - which meant they had never paid
+the crew bonus either - so they go through `earn()` now.
+
+Where the multiplier applies is deliberately the same line the crew bonus
+already drew: **coins earned while riding**. Fixed payouts - the daily reward,
+the trial completion bonus, quest rewards, season tiers, admin grants - are
+grants, not earnings, and are untouched. Worth revisiting if the daily starts
+feeling stingy to somebody eight rebirths deep.
+
+Past the eighth rebirth there are no bikes left, so it pays `REBIRTH_PAYOUT`
+coins instead and the multiplier keeps stacking. Nobody is likely to get
+there; it exists so the button never has nothing to give.
+
 **Versus** swaps the module globals (`S`, `POSE`, `CUR`, `ctx`, `target`,
 `SCALE/DPR/OFFX/OFFY`, and now `W`/`BIKE_X`) around each rider, renders each to
 its own offscreen canvas, and blits them into stacked halves. `S` is `let`, not
@@ -221,7 +281,7 @@ level security is what actually protects data.
 | `broadcasts` | public | admins only |
 | `grants` | own + admins | insert admins, claim own |
 | `daily` | public | own row only, **insert only** — no update policy, so one attempt a day is enforced by the database |
-| `profiles` | public | own row only, plus `is_admin()` for taking a bio down. `badges` / `badge_count` were added later; re-run `profiles.sql` for them |
+| `profiles` | public | own row only, plus `is_admin()` for taking a bio down. `badges` / `badge_count`, then `rebirths`, were added later; re-run `profiles.sql` for them |
 | `trials` | public | own row only, and a trigger that only ever lets a time come down |
 
 SQL lives in `supabase-setup.sql`, `leaderboard.sql`, `crews.sql`, `admin.sql`,
@@ -259,6 +319,7 @@ curl -s -X POST -H "apikey: $KEY" -H "Content-Type: application/json" \
 | Weather | `WEATHERS` (grip, brake, wind, dark), `WEATHER_FROM_DAY` |
 | Time trial | `TT_DIST 900`, `TT_SPLITS`, `TT_PENALTY 3000`, course seeded per week |
 | Versus | `VS_LENGTHS` (60/90/150s), `VS_KEYS`, `VS_TINT`, `vsWidth()` clamp |
+| Rebirth | `REBIRTH_LEVEL 25`, `REBIRTH_MULT 1.5`, `REBIRTH_BIKES` (80–87), `REBIRTH_PAYOUT 250000` |
 
 Seasons roll over from the clock — no scheduling, no server job. So does the
 daily seed, off a **UTC** day number, which means it turns over at 20:00 in
@@ -269,10 +330,13 @@ number shifts.
 Appending is safe between days; a reorder shipped mid-day puts two players on
 different tracks while they both think they are riding today's.
 
-**80 bikes.** Indexes 34–39 and 51–52 are code-unlocked secrets (`price 0`),
+**88 bikes.** Indexes 34–39 and 51–52 are code-unlocked secrets (`price 0`),
 54–59 are season pass bikes, 50 is the 500k Apex Omega. 60–79 were added on
 5 Sep: eight minis, six motocross (one of them a supermoto), four road bikes,
-an e-moto and a drag bike, all bought with coins.
+an e-moto and a drag bike, all bought with coins. **80–87 are the rebirth
+bikes**, added 9 Sep: `secret` and `price 0`, so the garage never lists them
+to somebody who has not earned one, and they are the only bikes in the game
+with no purchase path at all.
 
 **`cls:"mini"` is a fifth body class**, drawn by `drawMini()`. A mini is not a
 big bike drawn small - the wheels are tiny beside the rider, the frame is one
@@ -314,6 +378,18 @@ That is why results go through an element.
 Always `node --check` the extracted script after editing. It has caught real
 typos and duplicate declarations that would have shipped.
 
+**`requestAnimationFrame` does not fire while the browser pane is hidden**, so
+a harness that starts a run and waits will measure a bike that never moved.
+Call `tickStreet()` / `tickRamp()` in a loop instead: it drives the real
+physics and does not depend on the pane being painted.
+
+**Compare runs only when the trajectories are identical.** Measuring the coin
+multiplier across three live runs gave 3.525 against an expected 3.375, purely
+because the runs crashed in different places. Stopping at the first crash made
+them identical, and reading `SAVE.coins + S.coinAcc` rather than `SAVE.coins`
+removed the integer truncation, which at 5 coins was a fifth of the answer.
+Both then matched to nine decimal places.
+
 **Write tests that fail for the right reason.** Several of mine passed or
 failed spuriously: reading `S.spd` after a crash had already respawned the
 bike, or asserting on a stub that a live fetch had replaced.
@@ -346,6 +422,11 @@ bike, or asserting on a stub that a live fetch had replaced.
 - **The time trial board needs `trials.sql` run.** Until it is, the mode plays
   and your own best still saves; only the shared board is missing, and the
   board tab says so.
+- **Rebirth added a `rebirths` column to `profiles`**, so `profiles.sql` needs
+  running again. Until it is, `profilePush()` notices the rejected column and
+  re-files the card without it, so nothing goes stale - only the REBIRTH chip
+  is missing from other people's view of your card. Your own count is in your
+  save and is never at risk.
 - **Badges added two columns to `profiles`**, so `profiles.sql` needs running
   again. It is idempotent and the `alter table ... add column if not exists`
   lines are safe on the live table. Until it is run, `profilePush()` notices

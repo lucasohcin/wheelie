@@ -31,6 +31,7 @@ create table if not exists public.profiles (
                  check (char_length(paint::text) <= 400),
   badges       text[]  not null default '{}'::text[],
   badge_count  integer not null default 0,
+  rebirths     integer not null default 0,
   created_at   timestamptz not null default now(),
   updated_at   timestamptz not null default now()
 );
@@ -40,6 +41,11 @@ create table if not exists public.profiles (
 -- had them yet by filing everything except the badges.
 alter table public.profiles add column if not exists badges      text[]  not null default '{}'::text[];
 alter table public.profiles add column if not exists badge_count integer not null default 0;
+
+-- Rebirths came later again. Same deal: the game files the card without this
+-- column if the database has not been given it yet, so nobody's card goes
+-- stale waiting on the migration - only the chip is missing from it.
+alter table public.profiles add column if not exists rebirths integer not null default 0;
 
 do $$
 begin
@@ -51,6 +57,10 @@ begin
   if not exists (select 1 from pg_constraint where conname = 'profiles_badge_count_ok') then
     alter table public.profiles add constraint profiles_badge_count_ok
       check (badge_count >= 0 and badge_count <= 9999);
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'profiles_rebirths_ok') then
+    alter table public.profiles add constraint profiles_rebirths_ok
+      check (rebirths >= 0 and rebirths <= 9999);
   end if;
 end $$;
 
