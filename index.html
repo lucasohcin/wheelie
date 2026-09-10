@@ -589,6 +589,16 @@
   .adlist .b{display:flex; gap:10px; align-items:center; padding:9px 2px; border-bottom:1px solid rgba(42,51,65,.5)}
   .adlist .b .t{flex:1; font-size:13px; text-align:left}
   .adlist .b .x{font-size:11px; color:var(--dim); font-family:var(--num)}
+  .suhead{font-family:var(--num); font-size:12px; letter-spacing:.18em; text-transform:uppercase;
+          color:var(--hot); border-top:1px solid rgba(255,61,127,.35); padding:14px 2px 0; text-align:left}
+  .suhead b{color:var(--dim); font-weight:400; letter-spacing:0; text-transform:none;
+            font-family:var(--ui); font-size:12px; display:block; margin-top:4px}
+  .adcard.su{border-color:rgba(255,61,127,.45);
+             background:linear-gradient(180deg, rgba(48,12,28,.45), rgba(10,13,18,.6))}
+  .adcard.su h3{color:var(--hot)}
+  .sutag{font-family:var(--num); font-size:10px; letter-spacing:.14em; color:var(--hot);
+         border:1px solid rgba(255,61,127,.5); border-radius:5px; padding:1px 5px; margin-left:6px}
+  .adwho.su{color:var(--amber)}
   .crewsheet{width:min(860px,96vw); max-height:93vh; display:flex; flex-direction:column; gap:14px}
   .crewbody{overflow:auto; display:flex; flex-direction:column; gap:12px}
   .crewcard{border:1px solid var(--edge); border-radius:14px; background:rgba(10,13,18,.6); padding:16px; text-align:left}
@@ -8396,7 +8406,7 @@ function loop(now){
    database against the admins table, so a player who reads it out of the page
    source gets a panel where every button is refused by the server. */
 const ADMIN_PHRASE = "adminabuse";
-const ADMIN = { is:false, open:false };
+const ADMIN = { is:false, super:false, open:false };
 const BCAST = { list:[], seen:{}, fetched:0 };
 try { BCAST.seen = JSON.parse(localStorage.getItem("soflo.bcast") || "{}") || {}; } catch(e){ BCAST.seen = {}; }
 try { localStorage.removeItem("soflo.bcast"); } catch(e){}   // retired, see popBroadcast
@@ -8407,19 +8417,42 @@ function bcastSeen(id){
   try { localStorage.setItem("soflo.bcast", JSON.stringify(BCAST.seen)); } catch(e){}
 }
 
+/* `super` arrives with super-admin.sql. A database that predates it rejects the
+   whole select, and that would take admin away from every admin rather than
+   just leaving nobody super - so ask again without it, the same shape as the
+   fallback listBroadcasts uses for its late `author` column. */
+let admNoSuper = false;
 async function adminCheck(){
-  if (!cloudOn() || !AUTH.uid) { ADMIN.is = false; return false; }
+  if (!cloudOn() || !AUTH.uid) { ADMIN.is = ADMIN.super = false; return false; }
   try {
     if (!await freshToken()) return false;
-    const rows = await api("/rest/v1/admins?select=user_id&user_id=eq." + AUTH.uid);
+    const ask = () => api("/rest/v1/admins?select=" + (admNoSuper ? "user_id" : "user_id,super") +
+      "&user_id=eq." + AUTH.uid);
+    let rows;
+    try { rows = await ask(); }
+    catch(e){
+      if (admNoSuper || !/super/i.test(String(e.message || ""))) throw e;
+      admNoSuper = true;
+      rows = await ask();
+    }
     ADMIN.is = !!(rows && rows.length);
-  } catch(e){ ADMIN.is = false; }
+    ADMIN.super = !!(rows && rows[0] && rows[0].super);
+  } catch(e){ ADMIN.is = ADMIN.super = false; }
   return ADMIN.is;
 }
 async function findRider(name){
   const rows = await api("/rest/v1/scores?select=user_id,username&username=ilike." +
     encodeURIComponent(String(name || "").trim()) + "&limit=1");
-  return (rows && rows[0]) || null;
+  if (rows && rows[0]) return rows[0];
+  /* Somebody who signed up but has never finished a run has no scores row, so
+     the only place their name exists is auth.users. An ordinary admin cannot
+     read that; a super admin can, which is what makes gifting a brand new
+     account work. */
+  if (!ADMIN.super) return null;
+  try {
+    const u = await superLookup(name);
+    return u ? { user_id:u.user_id, username:u.username || String(name).trim() } : null;
+  } catch(e){ return null; }
 }
 async function sendGrant(name, kind, amount, note){
   const who = await findRider(name);
@@ -8428,6 +8461,21 @@ async function sendGrant(name, kind, amount, note){
     body:JSON.stringify({ user_id:who.user_id, kind, amount:Math.floor(amount || 0), note:note || "" }) });
   return who;
 }
+/* ---------- super admin ----------
+   Four calls, and the database refuses every one of them unless this account's
+   admins row has super = true. Nothing here is a permission check: it is the
+   panel asking for something it may already have. See super-admin.sql. */
+const rpc = (name, args) => api("/rest/v1/rpc/" + name,
+  { method:"POST", body:JSON.stringify(args || {}) });
+async function superLookup(name){
+  const r = await rpc("super_lookup", { uname:String(name || "").trim() });
+  return (Array.isArray(r) ? r[0] : r) || null;
+}
+const adminRoster  = async () => (await rpc("admin_roster")) || [];
+const adminSet     = (name, isAdmin, isSuper) => rpc("admin_set",
+  { uname:String(name || "").trim(), make_admin:!!isAdmin, make_super:!!isSuper });
+const accountDelete = name => rpc("account_delete", { uname:String(name || "").trim() });
+
 async function sendBroadcast(message, hours){
   if (!await freshToken()) throw new Error("Session expired - sign in again");
   const ms = Math.max(1, Math.min(720, hours || 24)) * 3600000;
@@ -8457,38 +8505,72 @@ async function dropBroadcast(id){
 }
 
 /* anything an admin sent me, applied once and marked claimed */
+let grantNoSudo = false;
 async function pullGrants(){
   if (!cloudOn() || !AUTH.uid) return 0;
   if (!await freshToken()) return 0;
+  const ask = () => api("/rest/v1/grants?select=id,kind,amount,note" +
+    (grantNoSudo ? "" : ",sudo") + "&user_id=eq." + AUTH.uid + "&claimed_at=is.null&limit=50");
   let rows = [];
   try {
-    rows = await api("/rest/v1/grants?select=id,kind,amount,note&user_id=eq." +
-      AUTH.uid + "&claimed_at=is.null&limit=50") || [];
+    try { rows = await ask() || []; }
+    catch(e){
+      if (grantNoSudo || !/sudo/i.test(String(e.message || ""))) throw e;
+      grantNoSudo = true;                    // this database predates super-admin.sql
+      rows = await ask() || [];
+    }
   } catch(e){ return 0; }
-  /* Everything an admin can send is a South Florida thing, and `SAVE` means
-     whichever world you are standing in - so a coin gift arriving while you
-     were in Afterburn used to land as that many EMBERS, and a world 1 bike
-     went into the Afterburn garage where normaliseSave threw it straight back
-     out. Grants are written into world 0 explicitly, wherever you are. */
-  const away = inW2();
-  const W1 = () => {
-    if (!away) return SAVE;
-    if (!SAVE.alt || typeof SAVE.alt !== "object") SAVE.alt = worldDefaults(0);
+
+  /* `SAVE` means whichever world you are standing in, so a coin gift arriving
+     while you were in Afterburn used to land as that many EMBERS and a world 1
+     bike went into the Afterburn garage where normaliseSave threw it straight
+     back out. Every gift is written into the world it belongs to instead,
+     wherever the rider happens to be standing.
+
+     Afterburn gifts carry `sudo`, which the database only sets for a super
+     admin - an ordinary admin's Afterburn bike is still refused here as well
+     as there. They bring the key with them, because a garage you cannot walk
+     to is not a gift. */
+  const wSave = w => {
+    if ((SAVE.world | 0) === (w | 0)) return SAVE;
+    if (!SAVE.alt || typeof SAVE.alt !== "object" || Array.isArray(SAVE.alt))
+      SAVE.alt = worldDefaults(w);
     return SAVE.alt;
   };
-  let n = 0;
+  const pay = (w, amt) => {
+    const t = wSave(w);
+    t.coins = Math.max(0, (t.coins | 0) + Math.max(0, amt | 0));
+  };
+  let n = 0, key = false;
   for (const g of rows) {
-    let what = "";
-    const w1 = W1();
-    if (g.kind === "coins")      { w1.coins = (w1.coins | 0) + Math.max(0, g.amount | 0); what = money(g.amount) + " coins"; }
+    let what = "", land = null;             // which world it went into, if any
+    const sudo = !!g.sudo;
+    if (g.kind === "coins")       { pay(0, g.amount); land = 0; what = money(g.amount) + " coins"; }
+    else if (g.kind === "embers") {
+      if (!sudo) what = "nothing - only a super admin can give embers";
+      else { pay(1, g.amount); land = 1; key = true; what = money(g.amount) + " embers"; }
+    }
+    else if (g.kind === "w2key")  {
+      if (!sudo) what = "nothing - only a super admin can open Afterburn";
+      else { key = true; what = "the road to Afterburn"; }
+    }
     else if (g.kind === "xp")    { awardXP(Math.max(0, g.amount | 0)); what = money(g.amount) + " XP"; }
     else if (g.kind === "pass")  { seasonState().prem = true; what = "the premium pass"; }
     else if (g.kind === "bike")  {
-      const i = g.amount | 0;
-      if (!BIKES[i] || BIKES[i].w2) what = "nothing - Afterburn is not an admin's to give";
-      else if (!Array.isArray(w1.bikes)) what = "a bike";
-      else if (!w1.bikes.includes(i)) { w1.bikes.push(i); what = BIKES[i].name; }
-      else what = "a bike you already had";
+      const i = g.amount | 0, B = BIKES[i];
+      if (!B) what = "a bike that does not exist";
+      else if (B.w2 && !sudo) what = "nothing - Afterburn is not an admin's to give";
+      else {
+        land = B.w2 ? 1 : 0;
+        // The road comes with it whether or not the bike is new to them. The
+        // default Afterburn garage already holds W2_BIKE0, so hanging the key
+        // off "was this bike added" meant gifting that one did nothing at all.
+        if (B.w2) key = true;
+        const t = wSave(land);
+        if (!Array.isArray(t.bikes)) what = "a bike";
+        else if (!t.bikes.includes(i)) { t.bikes.push(i); what = B.name; }
+        else what = "a bike you already had";
+      }
     }
     else if (g.kind === "trick") {
       const t = trickById(g.note);
@@ -8500,10 +8582,12 @@ async function pullGrants(){
         headers:{ Prefer:"return=minimal" },
         body:JSON.stringify({ claimed_at:new Date().toISOString() }) });
       n++;
-      toast("ADMIN GIFT — " + what + (away ? " (waiting in South Florida)" : ""));
+      const away = land !== null && (land | 0) !== (SAVE.world | 0);
+      toast("ADMIN GIFT — " + what + (away ? " (waiting in " + WORLDS[land].name + ")" : ""));
     } catch(e){ /* leave unclaimed, it will retry next sync */ }
   }
-  if (n) { persist(); syncWallet(); refreshBike(); }
+  if (key) SAVE.w2key = true;
+  if (n) { persist(); syncWallet(); refreshBike(); if (key) renderWorldBanner(); }
   return n;
 }
 
@@ -8935,7 +9019,10 @@ function adSay(id, t, cls){
 }
 async function renderAdmin(){
   const body = document.getElementById("adminBody");
-  document.getElementById("adWho").textContent = ADMIN.is ? "signed in as admin" : "not an admin";
+  const adWho = document.getElementById("adWho");
+  adWho.textContent = ADMIN.super ? "signed in as SUPER ADMIN"
+                    : ADMIN.is    ? "signed in as admin" : "not an admin";
+  adWho.className = "adwho" + (ADMIN.super ? " su" : "");
   body.innerHTML = "";
 
   if (!ADMIN.is) {
@@ -9009,6 +9096,14 @@ async function renderAdmin(){
   });
   refreshList();
 
+  /* The one card both kinds of admin share. A super gets the two Afterburn
+     kinds, the Afterburn half of the garage, and their own name as a target;
+     the database is what actually decides all three. */
+  const SU = ADMIN.super;
+  const bikeOpt = (b, i) => `<option value="${i}">${esc(b.name)}</option>`;
+  const soflo = BIKES.map((b, i) => b.w2 ? "" : bikeOpt(b, i)).join("");
+  const burn  = BIKES.map((b, i) => b.w2 ? bikeOpt(b, i) : "").join("");
+
   const gr = document.createElement("div");
   gr.className = "adcard";
   gr.innerHTML = `<h3>Give a rider something</h3>
@@ -9022,19 +9117,29 @@ async function renderAdmin(){
           <option value="bike">Bike</option>
           <option value="trick">Trick</option>
           <option value="pass">Premium pass</option>
+          ${SU ? `<option value="embers">Embers</option>
+          <option value="w2key">The road to Afterburn</option>` : ``}
         </select></label>
       <label class="fld" id="adAmtRow"><span>Amount</span>
         <input id="adAmt" type="number" value="10000"></label>
       <label class="fld" id="adBikeRow" hidden><span>Which bike</span>
-        <select id="adBike">${BIKES.map((b, i) => b.w2 ? "" :
-          `<option value="${i}">${esc(b.name)}</option>`).join("")}</select></label>
+        <select id="adBike">${SU ? `<optgroup label="South Florida">${soflo}</optgroup>
+          <optgroup label="Afterburn">${burn}</optgroup>` : soflo}</select></label>
       <label class="fld" id="adTrickRow" hidden><span>Which trick</span>
         <select id="adTrick">${TRICKS.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join("")}</select></label>
+      ${SU ? `<button class="btn" id="adGiveMe">To me</button>` : ``}
       <button class="btn pri" id="adGive">Send it</button>
     </div>
     <div class="admsg" id="adGiveOut">They get it the next time their game syncs.</div>
     <div class="admsg" id="adBudget">Checking today's budget...</div>`;
   body.appendChild(gr);
+
+  if (SU) document.getElementById("adGiveMe").addEventListener("click", () => {
+    const u = document.getElementById("adUser");
+    u.value = AUTH.name || "";
+    u.focus();
+    adSay("adGiveOut", "Addressed to you. It lands on your own next sync.");
+  });
 
   /* The caps are enforced by the database, not here - anyone who reads the
      page source can POST to the endpoint directly, so a limit in JavaScript
@@ -9043,6 +9148,11 @@ async function renderAdmin(){
   async function showBudget(){
     const el = document.getElementById("adBudget");
     if (!el) return;
+    if (SU) {
+      el.innerHTML = `<b style="color:var(--amber)">Super admin - there are no caps on you.</b> ` +
+        `Any amount, as often as you like, Afterburn included, and yourself.`;
+      return;
+    }
     try {
       const r = (await api("/rest/v1/rpc/grant_budget", { method:"POST", body:"{}" })) || [];
       const b = Array.isArray(r) ? r[0] : r;
@@ -9063,9 +9173,10 @@ async function renderAdmin(){
   showBudget();
 
   const kindEl = document.getElementById("adKind");
+  const hasAmount = k => k === "coins" || k === "xp" || k === "embers";
   function syncKind(){
     const k = kindEl.value;
-    document.getElementById("adAmtRow").hidden   = !(k === "coins" || k === "xp");
+    document.getElementById("adAmtRow").hidden   = !hasAmount(k);
     document.getElementById("adBikeRow").hidden  = k !== "bike";
     document.getElementById("adTrickRow").hidden = k !== "trick";
   }
@@ -9075,11 +9186,12 @@ async function renderAdmin(){
     const name = document.getElementById("adUser").value.trim();
     const kind = kindEl.value;
     if (!name) return adSay("adGiveOut", "Type a username", "no");
-    // the database refuses this anyway; saying so here is just faster
-    if (AUTH.name && name.toLowerCase() === String(AUTH.name).toLowerCase())
+    // the database refuses this anyway; saying so here is just faster. A super
+    // admin is the exception it makes, so do not stop them at the door either
+    if (!SU && AUTH.name && name.toLowerCase() === String(AUTH.name).toLowerCase())
       return adSay("adGiveOut", "You cannot gift yourself", "no");
     let amount = 0, note = "";
-    if (kind === "coins" || kind === "xp") amount = Math.max(0, +document.getElementById("adAmt").value || 0);
+    if (hasAmount(kind)) amount = Math.max(0, +document.getElementById("adAmt").value || 0);
     if (kind === "bike")  amount = +document.getElementById("adBike").value || 0;
     if (kind === "trick") note = document.getElementById("adTrick").value;
     adSay("adGiveOut", "Sending...");
@@ -9223,6 +9335,186 @@ async function renderAdmin(){
       adSay("adProfOut", "Cleared " + name + "'s name and bio", "ok");
       sfx.ui();
     } catch(e){ adSay("adProfOut", "Refused: " + String(e.message || e), "no"); }
+  });
+
+  if (SU) renderSuper(body);
+}
+
+/* ---------- the super admin's half of the panel ----------
+   Two cards, drawn only when the database says this account is super, and
+   every button in them calls a function that checks super again for itself.
+   Hiding the cards is tidiness rather than security - what stops somebody
+   pasting the same call into a console is super-admin.sql, not this. */
+function renderSuper(body){
+  const head = document.createElement("div");
+  head.className = "suhead";
+  head.innerHTML = `Super admin<b>Nothing below this line is capped, and nothing here is undone by an apology.</b>`;
+  body.appendChild(head);
+
+  /* ---------- who is an admin ----------
+     The reason this card exists. Promoting somebody used to mean opening
+     Supabase, finding their uuid and typing an insert, so in practice it never
+     happened - and demoting somebody in a hurry could not happen at all. */
+  const ad = document.createElement("div");
+  ad.className = "adcard su";
+  ad.innerHTML = `<h3>Who is an admin</h3>
+    <div class="adrow">
+      <label class="fld" style="flex:2"><span>Username</span>
+        <input id="suUser" placeholder="exact username" spellcheck="false"></label>
+      <button class="btn" id="suAdd">Make admin</button>
+    </div>
+    <div class="admsg" id="suOut">An admin gets the cards above the line, with the caps on.
+      A super admin gets the line too, which is everything you have.</div>
+    <div class="adlist" id="suList"></div>`;
+  body.appendChild(ad);
+
+  const suSay = (t, cls) => adSay("suOut", t, cls);
+
+  /* Two clicks for anything one misclick should not do, the same way the
+     profile wipe works. Arming a button disarms every other one, so a stray
+     second click can never land on a row you had stopped aiming at. */
+  const arming = [];
+  function armed(label, confirm, run){
+    const b = document.createElement("button");
+    b.className = "btn"; b.textContent = label;
+    let on = false;
+    const off = () => { on = false; b.textContent = label; };
+    arming.push(off);
+    b.addEventListener("click", async () => {
+      if (!on) {
+        for (const d of arming) d();
+        on = true; b.textContent = confirm;
+        return suSay("Click it again to go ahead.");
+      }
+      off();
+      b.disabled = true;
+      suSay("Working...");
+      try { suSay(String(await run() || "Done"), "ok"); sfx.ui(); }
+      catch(e){ suSay("Refused: " + String(e.message || e), "no"); }
+      b.disabled = false;
+      refreshRoster();
+    });
+    return b;
+  }
+
+  async function refreshRoster(){
+    const list = document.getElementById("suList");
+    if (!list) return;
+    arming.length = 0;
+    let rows = [];
+    try { rows = await adminRoster(); }
+    catch(e){
+      list.innerHTML = `<div class="admsg no">The server does not know about super admins yet -
+        run <b>super-admin.sql</b>. (${esc(String(e.message || e))})</div>`;
+      return;
+    }
+    list.innerHTML = rows.length ? "" : `<div class="admsg">Nobody at all, which cannot be right.</div>`;
+    for (const r of rows) {
+      const me = r.user_id === AUTH.uid;
+      const d = document.createElement("div");
+      d.className = "b";
+      d.innerHTML = `<span class="t">${esc(r.username)}` +
+        (r.super ? `<span class="sutag">SUPER</span>` : ``) +
+        (me ? ` <span class="x">that is you</span>` : ``) + `</span>` +
+        `<span class="x">since ${new Date(r.since).toLocaleDateString()}</span>`;
+      /* Your own row has no buttons on it. Dropping your own super would lock
+         you out of this card and send you back to the SQL editor to undo it,
+         so the database refuses that and the panel does not offer it. */
+      if (!me) {
+        d.appendChild(r.super
+          ? armed("Drop to admin", "Drop " + r.username + "?", () => adminSet(r.username, true, false))
+          : armed("Make super", "Give " + r.username + " everything?", () => adminSet(r.username, true, true)));
+        d.appendChild(armed("Remove", "Remove " + r.username + "?", () => adminSet(r.username, false, false)));
+      }
+      list.appendChild(d);
+    }
+  }
+
+  document.getElementById("suAdd").addEventListener("click", async () => {
+    const name = document.getElementById("suUser").value.trim();
+    if (!name) return suSay("Type a username", "no");
+    suSay("Working...");
+    try {
+      suSay(String(await adminSet(name, true, false) || "Done"), "ok");
+      document.getElementById("suUser").value = "";
+      sfx.buy();
+    } catch(e){ suSay("Refused: " + String(e.message || e), "no"); }
+    refreshRoster();
+  });
+  document.getElementById("suUser").addEventListener("keydown", e => {
+    if (e.key === "Enter") { e.preventDefault(); document.getElementById("suAdd").click(); }
+  });
+  refreshRoster();
+
+  /* ---------- deleting an account ----------
+     Look them up, then type the name a second time. A destructive button with
+     no way to see who it is pointed at is a trap, and one that fires on a
+     single click is a worse one. The database still has the last word: it
+     refuses your own account and it refuses another super admin. */
+  const del = document.createElement("div");
+  del.className = "adcard su";
+  del.innerHTML = `<h3>Delete an account</h3>
+    <div class="adrow">
+      <label class="fld" style="flex:2"><span>Username</span>
+        <input id="suDelUser" placeholder="exact username" spellcheck="false"></label>
+      <button class="btn" id="suDelLook">Look them up</button>
+    </div>
+    <div class="admsg" id="suDelOut">Look them up first. Deleting takes the save, the scores,
+      the profile, the crew place and both garages, and none of it comes back.</div>
+    <div class="adrow" id="suDelArm" hidden>
+      <label class="fld" style="flex:2"><span>Type the username again to be sure</span>
+        <input id="suDelSure" spellcheck="false" autocomplete="off"></label>
+      <button class="btn" id="suDelGo">Delete for good</button>
+    </div>`;
+  body.appendChild(del);
+
+  const delSay = (t, cls) => adSay("suDelOut", t, cls);
+  let found = "";
+  const disarm = () => {
+    found = "";
+    document.getElementById("suDelArm").hidden = true;
+    document.getElementById("suDelSure").value = "";
+  };
+  document.getElementById("suDelUser").addEventListener("input", disarm);
+
+  document.getElementById("suDelLook").addEventListener("click", async () => {
+    const name = document.getElementById("suDelUser").value.trim();
+    disarm();
+    if (!name) return delSay("Type a username", "no");
+    delSay("Looking up...");
+    try {
+      const u = await superLookup(name);
+      if (!u) return delSay('No account called "' + name + '"', "no");
+      found = u.username || name;
+      const when = t => t ? new Date(t).toLocaleDateString() : "never";
+      delSay(found + " · joined " + when(u.joined) + " · last seen " + when(u.last_seen) +
+        " · best " + money(u.best | 0) +
+        (u.is_super ? " · SUPER ADMIN" : u.is_admin ? " · admin" : ""));
+      if (u.is_super) {
+        found = "";
+        return delSay(name + " is another super admin. Drop them to admin first.", "no");
+      }
+      document.getElementById("suDelArm").hidden = false;
+    } catch(e){ delSay("Refused: " + String(e.message || e), "no"); }
+  });
+
+  document.getElementById("suDelGo").addEventListener("click", async () => {
+    const sure = document.getElementById("suDelSure").value.trim();
+    if (!found) return delSay("Look them up first", "no");
+    if (sure.toLowerCase() !== found.toLowerCase())
+      return delSay("That does not match " + found, "no");
+    const btn = document.getElementById("suDelGo");
+    btn.disabled = true;
+    delSay("Deleting...");
+    try {
+      const gone = found;
+      const msg = await accountDelete(gone);
+      document.getElementById("suDelUser").value = "";
+      disarm();
+      delSay(String(msg || ("Deleted " + gone)), "ok");
+      sfx.ui();
+    } catch(e){ delSay("Refused: " + String(e.message || e), "no"); }
+    btn.disabled = false;
   });
 }
 function openAdmin(){
