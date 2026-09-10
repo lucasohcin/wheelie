@@ -2298,7 +2298,7 @@ function buildBike(idx, tOverride){
   // Turbo Hour rides on the very end of the pipeline, after upgrades, engine
   // and parts, so it lifts a stock bike and a fully built one by the same
   // proportion. refreshBike() is called when the live event set changes.
-  const TB = evtOn("turbo") ? 1.22 : 1;
+  const TB = evtTurbo();
   C.limit  = Math.round(B.limit  * (1 + 0.07 * t.up.motor) * E.limit * pm("limit") * TB);
   C.torque = B.torque * (1 + 0.09 * t.up.motor) * E.torque * pm("torque") * TB;
   C.rpmMax = B.rpmMax * (1 + 0.04 * t.up.motor) * E.rpm * pm("rpm") * TB;
@@ -2491,7 +2491,7 @@ function unclaimedCount(){
 
 /* ---------- earning ---------- */
 function awardXP(n){
-  n = Math.max(0, Math.round(n * evtMul("xp")));
+  n = Math.max(0, Math.round(n * evtXPMul()));
   if (!n) return 0;
   const before = riderLevel().lvl;
   SAVE.xp = (SAVE.xp || 0) + n;
@@ -2711,19 +2711,84 @@ function setWorld(w){
    and a 100x coin hour would flatten it in an afternoon - so `evtMul` returns
    1 in the second world and the ride effects check the same thing.
    ============================================================ */
+/* Each entry is what the event IS, in one place: how it reads on the card,
+   what colour it paints the world, whether it takes a strength number, and
+   what the spectacle layer should draw for it. Nothing about an event is
+   spread between here and the renderer - `fxFor` reads these fields and the
+   admin panel reads `mul`, so adding another one is one entry and no hunting.
+
+   `sky`  - a wash over the whole backdrop: [colour, strongest alpha]
+   `drop` - things that fall and pay. `pay` is flat coins per hit, never
+            multiplied by anything, for the reason RAIN_PAY is flat: two
+            events that each make sense should not compound into a third
+            that does not.
+   `mul`  - takes a strength number from the admin panel. */
 const EVENTS = {
-  coins: { name:"Coin Rush",   ic:"\u{1F4B0}", col:"#FFC24B",
-           blurb:m => m + "\u00d7 coins on every run" },
-  xp:    { name:"Double Time", ic:"\u2B50", col:"#7BE7FF",
-           blurb:m => m + "\u00d7 XP on every run" },
-  rain:  { name:"Raining Coins", ic:"\u{1F327}\uFE0F", col:"#FFD11A",
+  /* ---- the five that were here first ---- */
+  coins: { name:"Coin Rush",   ic:"\u{1F4B0}", col:"#FFC24B", mul:true,
+           blurb:m => m + "× coins on every run" },
+  xp:    { name:"Double Time", ic:"⭐", col:"#7BE7FF", mul:true,
+           blurb:m => m + "× XP on every run" },
+  rain:  { name:"Raining Coins", ic:"\u{1F327}️", col:"#FFD11A",
            blurb:() => "Coins fall on the street - ride under them" },
   moon:  { name:"Moon Gravity", ic:"\u{1F319}", col:"#B06BFF",
            blurb:() => "Ramp gravity cut - everything floats" },
   turbo: { name:"Turbo Hour",  ic:"\u{1F525}", col:"#FF3D7F",
            blurb:() => "Every bike pulls harder and revs further" },
+
+  /* ---- the sky ---- */
+  meteor: { name:"Meteor Shower", ic:"☄️", col:"#FF7B2C", mul:true, hero:true,
+            sky:["#2A0B04", .60],
+            drop:{ rate:.17, max:11, pay:1200, look:"meteor", vy:[9,15], r:15 },
+            blurb:m => "The Rider calls them down - " + (1200 * m).toLocaleString() + " a strike" },
+  blood:  { name:"Blood Moon", ic:"\u{1F315}", col:"#FF2D4B", mul:true,
+            sky:["#2B0308", .58], moon:"#FF2D4B",
+            blurb:m => m + "× coins, and the chain holds three times as long" },
+  thunder:{ name:"Thunderstorm", ic:"⛈️", col:"#9BD2FF",
+            sky:["#0A1424", .55], bolt:true,
+            drop:{ rate:.09, max:4, pay:1500, look:"bolt", vy:[22,30], r:11 },
+            blurb:() => "Lightning hits the street - 1,500 a strike" },
+  eclipse:{ name:"Eclipse", ic:"\u{1F31A}", col:"#C8A2FF", mul:true,
+            sky:["#05040C", .78], moon:"#0B0A14",
+            blurb:m => "The sun goes out and everything teaches you " + m + "× XP" },
+  volcano:{ name:"Eruption", ic:"\u{1F30B}", col:"#FF5A1F",
+            sky:["#1E0703", .55], rise:"#FF6A13", quake:true,
+            blurb:() => "Ash, embers and a shaking road - every bike runs hot" },
+  storm:  { name:"Hurricane", ic:"\u{1F300}", col:"#5FE0D8",
+            sky:["#071A1E", .45],
+            blurb:() => "The wind triples - hold the front down" },
+
+  /* ---- the road ---- */
+  disco:  { name:"Disco Fever", ic:"\u{1F57A}", col:"#FF5FE0", mul:true,
+            strobe:true, floor:true,
+            blurb:m => "The street lights up - style banks " + m + "×" },
+  rainbow:{ name:"Rainbow Road", ic:"\u{1F308}", col:"#7BE7FF",
+            floor:"rainbow",
+            blurb:() => "The chain never drops - ride it as long as you like" },
+  gold:   { name:"Midas Hour", ic:"\u{1F451}", col:"#FFD54A", mul:true,
+            sky:["#3A2A05", .42], wash:"#FFC24B",
+            blurb:m => "Everything turns to gold - " + m + "× coins" },
+  jackpot:{ name:"Jackpot", ic:"\u{1F3B0}", col:"#FFE66B",
+            drop:{ rate:.05, max:3, pay:6000, look:"chest", vy:[5,7], r:20 },
+            blurb:() => "Rare, and worth 6,000 when it lands on you" },
+  frost:  { name:"Deep Freeze", ic:"❄️", col:"#BFEFFF", mul:true,
+            sky:["#0C1E2C", .48], snow:true, ice:true,
+            blurb:m => "The street freezes over - style banks " + m + "×" },
+
+  /* ---- the horizon ---- */
+  ufo:    { name:"Visitors", ic:"\u{1F6F8}", col:"#8BFF6B", saucer:true,
+            sky:["#04140A", .40],
+            drop:{ rate:.13, max:8, pay:800, look:"orb", vy:[4,7], r:11, beam:true },
+            blurb:() => "Something is emptying its hold over the A1A" },
+  swarm:  { name:"The Pack", ic:"\u{1F3CD}️", col:"#FF9F1C", mul:true, pack:true,
+            blurb:m => "Every rider in the county is out - " + m + "× XP" },
+  hyper:  { name:"Hyperspeed", ic:"⚡", col:"#FFF07B", warp:true,
+            blurb:() => "The whole street comes at you faster, and so do you" },
+  zero:   { name:"Zero G", ic:"\u{1F680}", col:"#B9C6FF",
+            sky:["#0A0A1E", .40], stars:true,
+            blurb:() => "Ramp gravity almost gone - the air goes on forever" },
 };
-const EVT = { list:[], fetched:0 };
+const EVT = { list:[], fetched:0, first:true };
 
 async function listEvents(){
   const rows = await api("/rest/v1/events?select=id,kind,mult,author,expires_at" +
@@ -2744,11 +2809,17 @@ async function pullEvents(){
   if (!cloudOn()) return;
   if (Date.now() - EVT.fetched < 45000) return;
   EVT.fetched = Date.now();
+  const before = new Set(EVT.list.map(e => e.kind));
   const was = EVT.list.map(e => e.kind + e.mult).sort().join();
   try { EVT.list = await listEvents(); } catch(e){ EVT.list = []; }
   // Turbo is baked into CUR by buildBike, so an event that starts or ends
   // mid-session does nothing until the bike is rebuilt
   if (EVT.list.map(e => e.kind + e.mult).sort().join() !== was) refreshBike();
+  /* Anything that was not running a moment ago gets its entrance. The first
+     pull of a session is deliberately silent: joining a game where three
+     events are already live should not be three fanfares at once. */
+  if (EVT.first) EVT.first = false;
+  else for (const e of EVT.list) if (!before.has(e.kind)) evtArrive(e);
 }
 // live right now, this world, this kind
 function evtOn(kind){
@@ -2764,6 +2835,22 @@ function evtOn(kind){
 }
 const evtMul = kind => { const e = evtOn(kind); return e ? Math.max(1, +e.mult || 1) : 1; };
 const evtLive = () => inW2() ? [] : EVT.list.filter(e => new Date(e.expires_at).getTime() > Date.now());
+
+/* Twenty events, seven levers. Several kinds now pull on the same one, and
+   where they do they take the BEST of what is running rather than the product
+   - the same reason a rain drop pays flat. Coin Rush at 100x standing next to
+   Midas Hour at 3x is 100x, not 300x, because nobody designed 300x. */
+const evtBest     = (...ks) => ks.reduce((m, k) => Math.max(m, evtMul(k)), 1);
+const evtCoinMul  = () => evtBest("coins", "gold", "blood");
+const evtXPMul    = () => evtBest("xp", "eclipse", "swarm");
+const evtStyleMul = () => evtBest("disco", "frost");
+const evtGrav     = () => evtOn("zero") ? 0.16 : evtOn("moon") ? 0.42 : 1;
+const evtTurbo    = () => evtOn("hyper") ? 1.45 : evtOn("volcano") ? 1.30 : evtOn("turbo") ? 1.22 : 1;
+const evtWind     = () => evtOn("storm") ? 3 : 1;
+/* How long the front wheel may be down before the chain banks itself. Rainbow
+   Road is the event that does not drop it at all, so it returns a number no
+   run will ever count down through rather than a special case in tickStreet. */
+const styleGrace  = () => evtOn("rainbow") ? 1e6 : STYLE_GRACE * (evtOn("blood") ? 3 : 1);
 
 function persistLocal(){
   SAVE.ts = Date.now();
@@ -2915,7 +3002,7 @@ const inCrew = () => !!(SAVE.crew && SAVE.crew.id);
    rebirths, so letting the stack through would hand them a 5x head start on
    a currency whose whole point is that it is slow. Embers are flat. */
 const coinMult = () => inW2() ? W2_RATE
-                       : (inCrew() ? CREW_BONUS : 1) * rebirthMul() * evtMul("coins");
+                       : (inCrew() ? CREW_BONUS : 1) * rebirthMul() * evtCoinMul();
 function earn(n){
   if (VS.on) return;
   S.coinAcc += n * coinMult();
@@ -3227,6 +3314,41 @@ function cloudMark(){                       // called whenever the save changes
     try { await profilePush(); } catch(e){}
   }, 4000);
 }
+/* ---------- staying in sync without a refresh ----------
+   Announcements and events already polled themselves on a 45 second beat. A
+   gift did not: it only arrived on the full sync that runs at sign in, so the
+   answer to "where is my stuff" was reload the page. Now it has its own beat.
+
+   The interesting part is what this refuses to do while you are riding.
+   Applying a gift mid-run is safe - it adds coins, a bike to the garage, a
+   trick to the list, and the physics reads none of those between ticks.
+   Merging a save from another device is NOT safe: mergeSaves takes whichever
+   side was written more recently for the wallet and the garage, so it can swap
+   both underneath a run that is already scoring, and you would watch your
+   coins change while you rode. So gifts land wherever you are, and the full
+   merge waits until you are out of the run. Nothing is lost by waiting - it
+   goes the moment the run is over.
+
+   One at a time, always. `syncing` is what stops a slow network stacking two
+   merges on top of each other. */
+const GIFT_BEAT = 30000, FULL_BEAT = 150000;
+let giftAt = 0, fullAt = 0, syncing = false;
+const midRun = () => (S.mode === "street" || S.mode === "ramp") && !S.paused;
+function autoSync(now){
+  if (!cloudOn() || !AUTH.uid || syncing) return;
+  const full = !midRun() && now - fullAt > FULL_BEAT;
+  const gift = now - giftAt > GIFT_BEAT;
+  if (!full && !gift) return;
+  syncing = true;
+  (async () => {
+    try {
+      if (full) { fullAt = now; giftAt = now; await cloudSyncNow(); }
+      else { giftAt = now; await pullGrants(); }
+    } catch(e){}
+    syncing = false;
+  })();
+}
+
 async function cloudSyncNow(){
   if (!cloudOn() || !AUTH.uid) return;
   let remote = null;
@@ -4039,6 +4161,70 @@ const audio = (() => {
            tone(t, 0.1, 880, 880, 0.11, "square"); tone(t + 0.07, 0.28, 1318, 1318, 0.10, "triangle");
            noise(t, 0.16, 0.08, "highpass", 5200, 1); },
     hit(f, d, v){ if (ac) tone(ac.currentTime, d, f, f * 0.4, v, "square"); },
+
+    /* ---- event spectacle ----
+       Built out of the same two primitives as everything else above, tone and
+       noise, so there is still not one audio file in the project and an event
+       costs nothing to load. */
+
+    // a meteor landing, or the Rider locking his arms
+    boom(v){ if (!ac) return; const t = ac.currentTime, k = v === undefined ? 1 : v;
+             noise(t, 0.75, 0.32 * k, "lowpass", 300, 1);
+             tone(t, 0.60, 92, 26, 0.30 * k, "sine");
+             tone(t + 0.012, 0.28, 240, 64, 0.11 * k, "square"); },
+
+    // lightning: the crack first, then the roll behind it
+    zap(){ if (!ac) return; const t = ac.currentTime;
+           noise(t, 0.055, 0.32, "highpass", 5200, 1);
+           tone(t, 0.09, 2600, 320, 0.13, "square");
+           noise(t + 0.04, 0.85, 0.24, "lowpass", 420, 1); },
+
+    // gold arriving, or a chest opening
+    chime(){ if (!ac) return; const t = ac.currentTime;
+             [0, 7, 12, 16, 19, 24].forEach((n, i) =>
+               tone(t + i * 0.055, 0.62, 523.25 * Math.pow(2, n / 12), 0, 0.075, "sine")); },
+
+    // the two seconds the Rider takes to come up out of the horizon
+    riser(sec){ if (!ac) return; const t = ac.currentTime, d = sec || 2.0;
+                const o = ac.createOscillator(), g = ac.createGain(), fl = ac.createBiquadFilter();
+                o.type = "sawtooth";
+                o.frequency.setValueAtTime(64, t);
+                o.frequency.exponentialRampToValueAtTime(880, t + d);
+                fl.type = "lowpass"; fl.Q.value = 7;
+                fl.frequency.setValueAtTime(260, t);
+                fl.frequency.exponentialRampToValueAtTime(4400, t + d);
+                g.gain.setValueAtTime(0.0001, t);
+                g.gain.exponentialRampToValueAtTime(0.15, t + d * 0.82);
+                g.gain.exponentialRampToValueAtTime(0.0001, t + d + 0.3);
+                o.connect(fl); fl.connect(g); g.connect(gSfx);
+                o.start(t); o.stop(t + d + 0.35);
+                const nf = noise(t, d, 0.09, "highpass", 700, 1);
+                nf.frequency.exponentialRampToValueAtTime(9500, t + d); },
+
+    // the saucer: a sine wobbled by a second oscillator on its frequency
+    alien(){ if (!ac) return; const t = ac.currentTime;
+             const o = ac.createOscillator(), g = ac.createGain();
+             const lfo = ac.createOscillator(), lg = ac.createGain();
+             o.type = "sine"; o.frequency.value = 640;
+             lfo.type = "sine"; lfo.frequency.value = 6.5; lg.gain.value = 200;
+             lfo.connect(lg); lg.connect(o.frequency);
+             g.gain.setValueAtTime(0.0001, t);
+             g.gain.exponentialRampToValueAtTime(0.085, t + 0.14);
+             g.gain.exponentialRampToValueAtTime(0.0001, t + 1.25);
+             o.connect(g); g.connect(gSfx);
+             o.start(t); lfo.start(t); o.stop(t + 1.35); lfo.stop(t + 1.35); },
+
+    // the street icing over: a bright band sliding down to nothing
+    freeze(){ if (!ac) return; const t = ac.currentTime;
+              const fl = noise(t, 1.0, 0.15, "bandpass", 5400, 5);
+              fl.frequency.exponentialRampToValueAtTime(800, t + 0.95);
+              tone(t, 0.95, 1500, 300, 0.055, "sine"); },
+
+    // the ground going: all bottom end, no top
+    rumble(){ if (!ac) return; const t = ac.currentTime;
+              noise(t, 1.7, 0.19, "lowpass", 140, 1);
+              tone(t, 1.5, 44, 30, 0.16, "sine");
+              tone(t + 0.2, 1.1, 66, 38, 0.08, "sine"); },
   };
 })();
 const sfx = audio;
@@ -4049,6 +4235,7 @@ const sfx = audio;
 function tickStreet(){
   const B = bike();
   rainTick();
+  fxTick();
 
   if (S.over) {                       // crash animation: everything else is frozen
     S.crashT--; S.crashSpin += 7; S.spd *= 0.90;
@@ -4084,7 +4271,7 @@ function tickStreet(){
      Crash and it is gone. */
   if (S.style > 0) {
     const alive = easy > 4 || S.stopT > 0.15;
-    if (alive) S.styleT = STYLE_GRACE;
+    if (alive) S.styleT = styleGrace();
     else if (--S.styleT <= 0) bankStyle("banked");
   }
   if (S.styleFlash > 0) S.styleFlash--;
@@ -4200,11 +4387,12 @@ function tickStreet(){
 const STYLE_STEP = 2200;
 const STYLE_CRASH_KEEP = 0.34;              // a crash keeps a third
 const STYLE_GRACE = 12;                     // ~0.4s of wheel-down banks the chain                    // banked points per multiplier step
-function styleMul(){ return 1 + Math.min(9, Math.floor(S.style / STYLE_STEP)) * 0.5; }
+// Disco Fever and Deep Freeze multiply what the chain banks for
+function styleMul(){ return (1 + Math.min(9, Math.floor(S.style / STYLE_STEP)) * 0.5) * evtStyleMul(); }
 function styleAdd(n, why){
   if (!(n > 0)) return;
   S.style += n;
-  S.styleT = STYLE_GRACE;
+  S.styleT = styleGrace();
   const m = styleMul();
   if (m > S.styleMul) { S.styleMul = m; S.styleFlash = 26; sfx.coin(); }
   if (why) toast(why + "  +" + Math.round(n));
@@ -6225,6 +6413,7 @@ function renderStreet(){
   else if (S.shake > 0.2) ctx.translate((Math.random()-.5)*S.shake, (Math.random()-.5)*S.shake);
 
   drawScene();
+  drawFxBack(); drawFxFloor();
   if (S.rideOut) { drawCars(); drawPack(0); drawPack(1); drawHazards(); }
   drawRain();
 
@@ -6253,6 +6442,7 @@ function renderStreet(){
   }
   ctx.restore();
 
+  drawFxFront();
   drawWeather();
   if (S.mode === "street" && !S.photo && !VS.on) drawHUD();
   if (!S.photo && !VS.on) { drawBroadcast(); drawEventHUD(); }
@@ -6762,7 +6952,7 @@ let wxT = 0;
 function windNow(){
   const w = weather();
   if (!w.wind) return 0;
-  return Math.sin(wxT * 0.011) * w.wind * (0.72 + 0.28 * Math.sin(wxT * 0.043));
+  return Math.sin(wxT * 0.011) * w.wind * (0.72 + 0.28 * Math.sin(wxT * 0.043)) * evtWind();
 }
 const gripMulWx  = () => weather().grip;
 const brakeMulWx = () => weather().brake;
@@ -7164,7 +7354,7 @@ function tickRamp(){
   const I = L * L * 0.12;
   let grounded = false;
   for (let sub = 0; sub < SUB; sub++) {
-    R.vy += 0.92 * h * (evtOn("moon") ? 0.42 : 1);      // Moon Gravity event
+    R.vy += 0.92 * h * evtGrav();            // Moon Gravity, or Zero G on top of it
     for (let w = 0; w < 2; w++) {
       const ox = (w ? 1 : -1) * L/2;
       const wr = (w ? B.rf : B.rr) * RSC;
@@ -8364,6 +8554,7 @@ function loop(now){
   const dt = Math.min(200, now - last); last = now;
   tuneQuality(dt);
   if (cloudOn() && AUTH.uid && now - lastBcastPoll > 45000) { lastBcastPoll = now; pullBroadcasts(); }
+  autoSync(now);
   const playing = (S.mode === "street" || S.mode === "ramp") && !S.paused && !S.photo
                   && !(VS.on && VS.phase === "over");
   if (playing) {
@@ -8554,6 +8745,26 @@ async function pullGrants(){
       if (!sudo) what = "nothing - only a super admin can open Afterburn";
       else { key = true; what = "the road to Afterburn"; }
     }
+    else if (g.kind === "rebirth") {
+      if (!sudo) what = "nothing - only a super admin can give rebirths";
+      else {
+        /* A gift, not a reset. Earning a rebirth empties the garage, the
+           wallet, the level and the pass; being handed one takes nothing at
+           all. It does hand over the bikes those rebirths would have come
+           with, because that is what the count is worth, and five of them
+           open the road to Afterburn on their own through w2Open. */
+        const was = rebirths();
+        const n = Math.max(1, Math.min(50, g.amount | 0));
+        SAVE.rebirths = was + n;
+        const w0 = wSave(0);
+        if (Array.isArray(w0.bikes))
+          for (let r = was + 1; r <= SAVE.rebirths; r++) {
+            const b = rebirthBike(r);
+            if (b !== null && !w0.bikes.includes(b)) w0.bikes.push(b);
+          }
+        what = n + (n === 1 ? " rebirth" : " rebirths") + " - now on " + rebirthMulText(rebirthMul());
+      }
+    }
     else if (g.kind === "xp")    { awardXP(Math.max(0, g.amount | 0)); what = money(g.amount) + " XP"; }
     else if (g.kind === "pass")  { seasonState().prem = true; what = "the premium pass"; }
     else if (g.kind === "bike")  {
@@ -8587,7 +8798,10 @@ async function pullGrants(){
     } catch(e){ /* leave unclaimed, it will retry next sync */ }
   }
   if (key) SAVE.w2key = true;
-  if (n) { persist(); syncWallet(); refreshBike(); if (key) renderWorldBanner(); }
+  if (n) {
+    persist(); syncWallet(); refreshBike();
+    renderRebirthBanner(); renderWorldBanner();
+  }
   return n;
 }
 
@@ -8640,6 +8854,607 @@ function drawRain(){
   }
   ctx.restore();
   ctx.globalAlpha = 1;
+}
+
+/* ============================================================
+   EVENT SPECTACLE
+   ------------------------------------------------------------
+   The five original events changed a number and left the screen alone, and a
+   number in the corner of the screen is not an event - it is a setting. These
+   fifteen paint the sky, the road and the horizon, and four of them drop
+   things that pay.
+
+   One system, not fifteen. Every event declares what it wants up in EVENTS -
+   a sky wash, a moon, a floor, a drop spec, a flag like `hero` or `saucer` -
+   and everything below reads those fields. A sixteenth event is one entry up
+   there and nothing at all down here.
+
+   Three layers, so things land in the right order around the rider:
+     drawFxBack    sky wash, moon, stars, the Rider, the saucer, the pack
+     drawFxFloor   the road surface, over the tarmac and under the wheels
+     drawFxFront   everything falling, the weather, the wash over the lot
+
+   Two rules it never breaks. None of it reaches Afterburn, because evtOn
+   returns null in the second world. And none of it touches the physics: a
+   drop is collected in screen space and paid flat, exactly like the rain it
+   is modelled on, and the only way an event changes how a bike handles is
+   through the seven levers next to evtMul.
+   ============================================================ */
+const FX = {
+  drops:[], bits:[], ghosts:[],
+  t:0, flash:0, flashCol:"#FFFFFF",
+  hero:0, arm:0, boom:0,           // the Rider: how far up, how far the arms, and the lock
+  sx:-420, sy:116,                 // the saucer
+  quake:0, bolt:0, boltX:0,
+};
+/* Scrolling anything across the screen means wrapping a coordinate, and the
+   remainder operator keeps the sign of its left side - so once S.scroll is
+   past the first few seconds every `(i * step - scroll) % span` in here is
+   negative and the whole pattern sits off the left edge, drawing nothing. The
+   disco floor did exactly that: fine on the first lap, gone for the rest of
+   the run. This is the modulo that cannot go negative. */
+const wrapX = (v, m) => ((v % m) + m) % m;
+
+/* The Rider is the whole reason this file exists. He rises out of the horizon
+   over about two seconds, lifts his arms over one more, and the moment they
+   lock the sky goes white and the first meteor is already falling. He stays
+   with his arms up for as long as the event runs, breathing slightly, so that
+   anybody who joins halfway through still knows who is doing this. */
+const HERO_RISE = 60, HERO_ARM = 34;
+
+function fxTick(){
+  if (S.mode !== "street") { if (FX.drops.length || FX.bits.length) fxClear(); return; }
+  FX.t++;
+  if (FX.flash > 0) FX.flash--;
+  if (FX.quake > 0) FX.quake *= 0.90;
+  // the only thing in here that touches the rest of the game, and it is the
+  // camera rather than the physics: a shaking screen changes nothing you ride
+  if (!REDUCED && !S.over) {
+    if (FX.quake > 0.4) S.shake = Math.max(S.shake || 0, FX.quake);
+    if (evtOn("volcano")) S.shake = Math.max(S.shake || 0, 1.7);
+  }
+  if (FX.bolt  > 0) FX.bolt--;
+  /* Deliberately no early return when nothing is running. The actors have to
+     be allowed to LEAVE, and an early out here is exactly what left the Rider
+     standing in the sky with his arms up after his own meteor shower had
+     ended. Every block below has an else branch that walks its actor off, and
+     evtOn returns null for everything in the second world, so Afterburn
+     empties itself through the same path rather than a special case. */
+
+  const heavy = !REDUCED;
+
+  /* ---- the Rider ---- */
+  if (evtOn("meteor")) {
+    if (FX.hero < HERO_RISE) FX.hero++;
+    else if (FX.arm < HERO_ARM) {
+      FX.arm++;
+      if (FX.arm >= HERO_ARM) {           // arms locked: the sky answers
+        FX.boom = 34; FX.flash = 22; FX.flashCol = "#FFE9A8";
+        FX.quake = 7; sfx.boom(1);
+      }
+    }
+    if (FX.boom > 0) FX.boom--;
+  } else { FX.hero = Math.max(0, FX.hero - 2); FX.arm = Math.max(0, FX.arm - 3); }
+
+  /* ---- the saucer ---- */
+  if (evtOn("ufo")) {
+    FX.sx += 1.5;
+    if (FX.sx > W + 320) FX.sx = -320;
+    FX.sy = 116 + Math.sin(FX.t * 0.021) * 22;
+  } else FX.sx = -420;
+
+  /* ---- the pack: ghost riders along the far road ---- */
+  if (evtOn("swarm")) {
+    if (FX.ghosts.length < (heavy ? 7 : 3) && Math.random() < 0.05)
+      FX.ghosts.push({ x: W + 60 + Math.random() * 200, y: 352 + Math.random() * 30,
+                       sp: 1.4 + Math.random() * 2.2, s: 0.5 + Math.random() * 0.45,
+                       hue: Math.floor(Math.random() * 360) });
+    for (let i = FX.ghosts.length - 1; i >= 0; i--) {
+      const g = FX.ghosts[i];
+      g.x -= g.sp + S.spd * 0.05;
+      if (g.x < -120) FX.ghosts.splice(i, 1);
+    }
+  } else if (FX.ghosts.length) FX.ghosts.length = 0;
+
+  /* ---- lightning ---- */
+  const th = evtOn("thunder");
+  if (th && Math.random() < 0.014) {
+    FX.bolt = 9; FX.boltX = 80 + Math.random() * (W - 160);
+    FX.flash = 14; FX.flashCol = "#DFF1FF";
+    sfx.zap();
+  }
+
+  /* ---- ambient bits: snow, ash, drifting stars ---- */
+  const amb = evtOn("frost") ? "snow" : evtOn("volcano") ? "ash" : evtOn("zero") ? "star" : null;
+  if (amb) {
+    const cap = heavy ? 70 : 26;
+    if (FX.bits.length < cap)
+      FX.bits.push(amb === "ash"
+        ? { k:"ash",  x: Math.random() * W, y: H + 10, vy: -(0.7 + Math.random() * 1.6),
+            r: 1 + Math.random() * 2.4, t: 0, life: 150 + Math.random() * 120 }
+        : { k:amb, x: Math.random() * (W + 200) - 100, y: -10,
+            vy: amb === "star" ? 0.25 + Math.random() * 0.5 : 0.8 + Math.random() * 1.5,
+            r: (amb === "star" ? 0.8 : 1.4) + Math.random() * 2, t: 0, life: 900,
+            sw: Math.random() * 6.28 });
+    for (let i = FX.bits.length - 1; i >= 0; i--) {
+      const b = FX.bits[i];
+      b.t++; b.y += b.vy;
+      b.x -= (b.k === "ash" ? 0.4 : 1.1) * (0.4 + S.spd * 0.012);
+      if (b.k === "snow") b.x += Math.sin((b.t + b.sw) * 0.05) * 0.8;
+      if (b.t > b.life || b.y > H + 20 || b.y < -30 || b.x < -120) FX.bits.splice(i, 1);
+    }
+  } else if (FX.bits.length) FX.bits.length = 0;
+
+  /* ---- things that fall and pay ----
+     One loop for meteors, bolts, chests and orbs. They differ in how they
+     look, how fast they come and what they are worth; nothing else about
+     them is different, so nothing else about them is written twice. */
+  let spec = null, kind = "", ev = null;
+  for (const k in EVENTS) {
+    if (!EVENTS[k].drop || k === "rain") continue;
+    const e = evtOn(k);
+    if (e) { spec = EVENTS[k].drop; kind = k; ev = e; break; }
+  }
+  const canPay = !VS.on && !S.over;
+  if (spec && canPay) {
+    const cap = heavy ? spec.max : Math.ceil(spec.max / 2);
+    if (FX.drops.length < cap && Math.random() < spec.rate) {
+      const meteor = spec.look === "meteor";
+      FX.drops.push({
+        look: spec.look, r: spec.r,
+        pay: Math.round(spec.pay * (EVENTS[kind].mul ? Math.max(1, +ev.mult || 1) : 1)),
+        x: meteor ? W * 0.25 + Math.random() * W * 0.95 : 60 + Math.random() * (W - 120),
+        y: -40 - Math.random() * 200,
+        vy: spec.vy[0] + Math.random() * (spec.vy[1] - spec.vy[0]),
+        vx: meteor ? -(3 + Math.random() * 3) : 0,
+        t: 0, sp: 0.6 + Math.random() * 0.5,
+      });
+      if (spec.look === "chest") sfx.chime();
+    }
+  }
+  const drift = Math.max(1.2, S.spd * 0.22);
+  for (let i = FX.drops.length - 1; i >= 0; i--) {
+    const d = FX.drops[i];
+    d.y += d.vy; d.x += (d.vx || 0) - drift * d.sp * 0.5; d.t++;
+    // the rider's box, the same one the rain uses: front wheel back, shoulder down
+    const hit = canPay && d.x > BIKE_X - 46 && d.x < BIKE_X + 155
+                       && d.y > GROUND - 155 && d.y < GROUND + 8;
+    const landed = d.y > GROUND + 4;
+    if (hit || landed) {
+      FX.drops.splice(i, 1);
+      if (d.look === "meteor" || d.look === "bolt") {
+        FX.quake = Math.max(FX.quake, d.look === "bolt" ? 5 : 8);
+        if (S.shake !== undefined && !REDUCED) S.shake = Math.min(11, (S.shake || 0) + 6);
+        for (let k = 0; k < (REDUCED ? 3 : 9); k++)
+          spark({ x:d.x, y:Math.min(GROUND, d.y) }, d.look === "bolt" ? "#DFF1FF" : "#FF9A3C");
+        sfx.boom(d.look === "bolt" ? 0.5 : 0.8);
+      } else {
+        for (let k = 0; k < (REDUCED ? 2 : 6); k++)
+          spark({ x:d.x, y:d.y }, d.look === "orb" ? "#8BFF6B" : "#FFE66B");
+      }
+      if (hit) {
+        /* Flat, straight to the wallet, never through earn(). A strike is a
+           fixed event payout like the daily reward - putting it through the
+           multiplier is how 100x plus rain once minted 419,000 coins in
+           thirty seconds. */
+        SAVE.coins += d.pay; S.score += Math.round(d.pay / 3);
+        qAdd("coinsGot", 1); sfx.coin();
+        toast("+" + d.pay.toLocaleString());
+      }
+      continue;
+    }
+    if (d.x < -80 || d.t > 400) FX.drops.splice(i, 1);
+  }
+}
+function fxClear(){ FX.drops.length = 0; FX.bits.length = 0; FX.ghosts.length = 0; }
+
+/* ---------- back layer: sky, moon, the Rider, the horizon ---------- */
+function drawFxBack(){
+  if (inW2() || !EVT.list.length) return;
+  const live = evtLive();
+  if (!live.length) return;
+  ctx.save();
+
+  // one wash for the strongest sky event running
+  let sky = null, a = 0;
+  for (const e of live) {
+    const K = EVENTS[e.kind];
+    if (K && K.sky && K.sky[1] > a) { sky = K.sky[0]; a = K.sky[1]; }
+  }
+  if (sky) { ctx.globalAlpha = a; ctx.fillStyle = sky; ctx.fillRect(0, 0, W, 406); ctx.globalAlpha = 1; }
+
+  // Zero G puts stars behind everything else
+  if (evtOn("zero")) {
+    ctx.fillStyle = "#FFFFFF";
+    for (let i = 0; i < 60; i++) {
+      const x = wrapX(i * 173 - S.scroll * 0.02, W + 60) - 30, y = 14 + rand(i) * 270;
+      ctx.globalAlpha = 0.25 + rand(i + 9) * 0.6 * (0.6 + 0.4 * Math.sin((FX.t + i * 30) * 0.05));
+      ctx.fillRect(x, y, 2, 2);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // a hanging moon for the events that have one
+  for (const e of live) {
+    const K = EVENTS[e.kind];
+    if (!K || !K.moon) continue;
+    const mx = W * 0.76, my = 96, r = 62;
+    const gl = ctx.createRadialGradient(mx, my, r * 0.5, mx, my, r * 3.4);
+    gl.addColorStop(0, K.moon + "88"); gl.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(mx, my, r * 3.4, 0, 7); ctx.fill();
+    ctx.fillStyle = K.moon;
+    ctx.beginPath(); ctx.arc(mx, my, r, 0, 7); ctx.fill();
+    if (e.kind === "eclipse") {                 // a bitten-out sun with a corona
+      ctx.strokeStyle = "#FFD8A0"; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(mx, my, r + 4, 0, 7); ctx.stroke();
+    } else {
+      ctx.fillStyle = "rgba(0,0,0,.18)";
+      for (let i = 0; i < 5; i++) {
+        const cx = mx - r * 0.5 + rand(i) * r, cy = my - r * 0.5 + rand(i + 4) * r;
+        ctx.beginPath(); ctx.arc(cx, cy, 5 + rand(i + 8) * 11, 0, 7); ctx.fill();
+      }
+    }
+    break;
+  }
+
+  if (FX.hero > 0) drawRider_Hero();
+  if (evtOn("ufo")) drawSaucer();
+
+  // the pack, riding the far road
+  for (const g of FX.ghosts) {
+    ctx.save();
+    ctx.globalAlpha = 0.34;
+    ctx.translate(g.x, g.y); ctx.scale(g.s, g.s);
+    ctx.fillStyle = "hsl(" + g.hue + ",90%,62%)";
+    rr(-26, -8, 52, 12, 5); ctx.fill();                 // body
+    ctx.fillStyle = "rgba(8,10,14,.9)";
+    ctx.beginPath(); ctx.arc(-20, 8, 9, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.arc(22, 8, 9, 0, 7); ctx.fill();
+    rr(-8, -26, 14, 20, 5); ctx.fill();                 // rider
+    ctx.beginPath(); ctx.arc(-1, -30, 7, 0, 7); ctx.fill();
+    ctx.restore();
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+
+/* The massive one. A silhouette against a golden sky, rising out of the
+   horizon and then lifting both arms - and the meteors come with them. Drawn
+   entirely in paths at whatever the current scale is, so it is the same
+   figure on a phone and on a monitor. */
+function drawRider_Hero(){
+  const p = Math.min(1, FX.hero / HERO_RISE);
+  const e = p < 1 ? 1 - Math.pow(1 - p, 3) : 1;         // ease out, so he settles
+  const arm = Math.min(1, FX.arm / HERO_ARM);
+  const ae = arm * arm * (3 - 2 * arm);                 // smoothstep on the lift
+  const cx = W * 0.70;
+  const base = 344;                                     // where the horizon swallows him
+  const tall = 276 * e;                                 // leaves the top of frame for his arms
+  const top = base - tall;
+  const bob = Math.sin(FX.t * 0.026) * 3 * e;
+  const sc = tall / 276;
+  const shy = top + 96 * sc, shx = 78 * sc;             // the shoulder line, deliberately wide
+
+  ctx.save();
+  ctx.globalAlpha = Math.min(1, e * 1.2);
+
+  // the golden light he comes up in
+  const gl = ctx.createRadialGradient(cx, base - tall * 0.55, 20, cx, base - tall * 0.55, 470);
+  gl.addColorStop(0,   "rgba(255,214,120," + (0.58 * e) + ")");
+  gl.addColorStop(0.35,"rgba(255,150,40,"  + (0.32 * e) + ")");
+  gl.addColorStop(1,   "rgba(0,0,0,0)");
+  ctx.fillStyle = gl;
+  ctx.fillRect(0, 0, W, 406);
+
+  // shafts of light behind him, turning slowly
+  ctx.save();
+  ctx.translate(cx, base - tall * 0.5);
+  ctx.globalAlpha = 0.16 * e;
+  ctx.fillStyle = "#FFD86B";
+  for (let i = 0; i < 12; i++) {
+    ctx.rotate(Math.PI / 6 + Math.sin(FX.t * 0.004) * 0.02);
+    ctx.beginPath(); ctx.moveTo(0, 0);
+    ctx.lineTo(-26, -540); ctx.lineTo(26, -540); ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+
+  ctx.translate(cx, bob);
+  ctx.globalAlpha = Math.min(1, e * 1.2);
+
+  const body = "#0A0C11";
+  const rim  = "rgba(255,214,120,.9)";
+
+  /* Arms first, so they pass BEHIND the torso and the shoulder joint never
+     shows. Canvas rotates clockwise for a positive angle and the limb is
+     drawn pointing straight down, so the right arm needs a negative one -
+     getting that sign wrong is what crossed them over each other. */
+  for (const side of [-1, 1]) {
+    const a0 = -side * 0.20, a1 = -side * 2.32;         // hanging, then thrown up and out
+    const ang = a0 + (a1 - a0) * ae;
+    ctx.save();
+    ctx.translate(side * (shx - 10 * sc), shy - 2 * sc);
+    ctx.rotate(ang);
+    ctx.fillStyle = body;
+    ctx.beginPath();
+    ctx.moveTo(-17 * sc, -6 * sc);
+    ctx.lineTo(17 * sc, -6 * sc);
+    ctx.lineTo(11 * sc, 124 * sc);
+    ctx.lineTo(-11 * sc, 124 * sc);
+    ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.arc(0, 130 * sc, 14 * sc, 0, 7); ctx.fill();   // fist
+    // the light gathering in his hands as they come up
+    if (ae > 0.5) {
+      const k = (ae - 0.5) / 0.5;
+      const g2 = ctx.createRadialGradient(0, 130 * sc, 2, 0, 130 * sc, 64 * sc);
+      g2.addColorStop(0, "rgba(255,240,180," + (0.95 * k) + ")");
+      g2.addColorStop(0.5, "rgba(255,160,50," + (0.45 * k) + ")");
+      g2.addColorStop(1, "rgba(255,140,40,0)");
+      ctx.fillStyle = g2;
+      ctx.beginPath(); ctx.arc(0, 130 * sc, 64 * sc, 0, 7); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  /* Torso. The whole job of this path is that the outline STEPS OUT at the
+     shoulders and back in at the waist - a head and a body of roughly the same
+     width read as a monolith rather than a person, which is what the first
+     version of him did. */
+  const waist = 34 * sc, neck = 30 * sc;
+  ctx.fillStyle = body;
+  ctx.beginPath();
+  ctx.moveTo(-waist, base);
+  ctx.quadraticCurveTo(-46 * sc, shy + 46 * sc, -shx, shy + 12 * sc);
+  ctx.quadraticCurveTo(-shx - 4 * sc, shy - 12 * sc, -neck, shy - 20 * sc);
+  ctx.lineTo(neck, shy - 20 * sc);
+  ctx.quadraticCurveTo(shx + 4 * sc, shy - 12 * sc, shx, shy + 12 * sc);
+  ctx.quadraticCurveTo(46 * sc, shy + 46 * sc, waist, base);
+  ctx.closePath(); ctx.fill();
+
+  // helmet: narrower than the shoulders, and joined to them by a short neck
+  ctx.fillRect(-20 * sc, top + 60 * sc, 40 * sc, shy - (top + 60 * sc));
+  ctx.beginPath(); ctx.arc(0, top + 40 * sc, 36 * sc, 0, 7); ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(-36 * sc, top + 40 * sc);
+  ctx.quadraticCurveTo(-30 * sc, top + 76 * sc, -12 * sc, top + 80 * sc);
+  ctx.lineTo(12 * sc, top + 80 * sc);
+  ctx.quadraticCurveTo(30 * sc, top + 76 * sc, 36 * sc, top + 40 * sc);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = rim;
+  ctx.beginPath();
+  ctx.ellipse(9 * sc, top + 42 * sc, 25 * sc, 13 * sc, -0.16, 0, 7);
+  ctx.fill();
+
+  // rim light down both edges, so he reads as a shape against his own glare
+  ctx.strokeStyle = rim; ctx.lineWidth = Math.max(1.5, 3.5 * sc);
+  for (const side of [-1, 1]) {
+    ctx.beginPath();
+    ctx.moveTo(side * waist, base);
+    ctx.quadraticCurveTo(side * 46 * sc, shy + 46 * sc, side * shx, shy + 12 * sc);
+    ctx.quadraticCurveTo(side * (shx + 4 * sc), shy - 12 * sc, side * neck, shy - 20 * sc);
+    ctx.stroke();
+  }
+
+  // the shockwave when the arms lock
+  if (FX.boom > 0) {
+    const k = 1 - FX.boom / 34;
+    ctx.globalAlpha = (1 - k) * 0.8;
+    ctx.strokeStyle = "#FFE9A8"; ctx.lineWidth = 10 * (1 - k) + 2;
+    ctx.beginPath(); ctx.arc(0, shy - 60 * sc, 60 + k * 620, 0, 7); ctx.stroke();
+  }
+  ctx.restore();
+  ctx.globalAlpha = 1;
+}
+
+function drawSaucer(){
+  const x = FX.sx, y = FX.sy;
+  ctx.save();
+  // the beam first, so the hull sits on top of it
+  const bg = ctx.createLinearGradient(x, y, x, GROUND);
+  bg.addColorStop(0, "rgba(139,255,107,.42)");
+  bg.addColorStop(1, "rgba(139,255,107,0)");
+  ctx.fillStyle = bg;
+  ctx.beginPath();
+  ctx.moveTo(x - 26, y + 10); ctx.lineTo(x + 26, y + 10);
+  ctx.lineTo(x + 120, GROUND); ctx.lineTo(x - 120, GROUND);
+  ctx.closePath(); ctx.fill();
+
+  ctx.fillStyle = "#1A2430";
+  ctx.beginPath(); ctx.ellipse(x, y, 82, 22, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = "#2E3F4E";
+  ctx.beginPath(); ctx.ellipse(x, y - 12, 42, 20, 0, Math.PI, 0); ctx.fill();
+  ctx.fillStyle = "#8BFF6B";
+  for (let i = 0; i < 7; i++) {
+    const a = (FX.t * 0.04 + i * 0.9) % 6.28;
+    ctx.globalAlpha = 0.4 + 0.6 * Math.abs(Math.sin(a));
+    ctx.beginPath(); ctx.arc(x - 62 + i * 21, y + 6, 4, 0, 7); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+
+/* ---------- floor layer: the road itself ---------- */
+function drawFxFloor(){
+  if (inW2()) return;
+  const disco = evtOn("disco"), rain = evtOn("rainbow"), ice = evtOn("frost"), gold = evtOn("gold");
+  if (!disco && !rain && !ice && !gold) return;
+  ctx.save();
+  const sc = S.scroll;
+
+  if (disco || rain) {
+    const cell = 92;
+    for (let i = -1; i < Math.ceil(W / cell) + 2; i++) {
+      for (let j = 0; j < 3; j++) {
+        const x = wrapX(i * cell - sc * 0.9, W + cell * 2) - cell;
+        const y = 406 + j * 46;
+        const hue = rain
+          ? ((i * 40 + j * 18 + sc * 0.6) % 360)
+          : ((i * 57 + j * 90 + FX.t * 5) % 360);
+        ctx.globalAlpha = disco ? 0.22 + 0.16 * Math.sin((FX.t * 0.12) + i + j) : 0.20;
+        ctx.fillStyle = "hsl(" + hue + ",95%,58%)";
+        ctx.fillRect(x, y, cell - 6, 42);
+      }
+    }
+  }
+  if (ice) {
+    ctx.globalAlpha = 0.30;
+    ctx.fillStyle = "#BFEFFF"; ctx.fillRect(0, 406, W, H - 406);
+    ctx.globalAlpha = 0.5; ctx.strokeStyle = "#FFFFFF"; ctx.lineWidth = 1;
+    for (let i = 0; i < 26; i++) {
+      const x = wrapX(i * 151 - sc * 0.8, W + 160) - 80, y = 418 + rand(i) * (H - 430);
+      ctx.beginPath();
+      ctx.moveTo(x - 16, y); ctx.lineTo(x + 16, y);
+      ctx.moveTo(x, y - 12); ctx.lineTo(x, y + 12);
+      ctx.moveTo(x - 11, y - 9); ctx.lineTo(x + 11, y + 9);
+      ctx.moveTo(x - 11, y + 9); ctx.lineTo(x + 11, y - 9);
+      ctx.stroke();
+    }
+  }
+  if (gold) {
+    ctx.globalAlpha = 0.26;
+    ctx.fillStyle = "#FFC24B"; ctx.fillRect(0, 406, W, H - 406);
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+
+/* ---------- front layer: everything falling, and the wash over the lot ---------- */
+function drawFxFront(){
+  if (inW2()) return;
+  const live = evtLive();
+  if (!live.length && FX.flash <= 0) return;
+  ctx.save();
+
+  // ash rises, snow and stars fall
+  for (const b of FX.bits) {
+    if (b.k === "ash") {
+      ctx.globalAlpha = Math.max(0, 0.55 * (1 - b.t / b.life));
+      ctx.fillStyle = b.r > 2 ? "#FF6A13" : "#8A8A92";
+    } else if (b.k === "snow") {
+      ctx.globalAlpha = 0.85; ctx.fillStyle = "#EAF7FF";
+    } else {
+      ctx.globalAlpha = 0.6 + 0.4 * Math.sin(b.t * 0.08); ctx.fillStyle = "#DCE4FF";
+    }
+    ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 7); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // lightning, drawn as one jagged line from the cloud to the road
+  if (FX.bolt > 0) {
+    ctx.strokeStyle = "#EAF6FF"; ctx.lineWidth = 3 + FX.bolt * 0.4;
+    ctx.shadowColor = "#9BD2FF"; ctx.shadowBlur = 24;
+    ctx.beginPath();
+    let x = FX.boltX, y = 20;
+    ctx.moveTo(x, y);
+    while (y < GROUND) { y += 26 + Math.random() * 26; x += (Math.random() - 0.5) * 58; ctx.lineTo(x, y); }
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+
+  // the falling things
+  for (const d of FX.drops) {
+    ctx.save();
+    if (d.look === "meteor") {
+      const a = Math.atan2(d.vy, d.vx || -1);
+      ctx.translate(d.x, d.y); ctx.rotate(a);
+      const g = ctx.createLinearGradient(0, 0, -150, 0);
+      g.addColorStop(0, "rgba(255,214,120,.95)");
+      g.addColorStop(0.4, "rgba(255,106,19,.55)");
+      g.addColorStop(1, "rgba(255,60,0,0)");
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.moveTo(0, -d.r * 0.8); ctx.lineTo(-160, -2); ctx.lineTo(-160, 2);
+      ctx.lineTo(0, d.r * 0.8); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = "#2A1206";
+      ctx.beginPath(); ctx.arc(0, 0, d.r, 0, 7); ctx.fill();
+      ctx.fillStyle = "#FFD86B";
+      ctx.beginPath(); ctx.arc(-d.r * 0.25, -d.r * 0.25, d.r * 0.5, 0, 7); ctx.fill();
+    } else if (d.look === "bolt") {
+      ctx.strokeStyle = "#EAF6FF"; ctx.lineWidth = 4;
+      ctx.shadowColor = "#9BD2FF"; ctx.shadowBlur = 18;
+      ctx.beginPath();
+      ctx.moveTo(d.x, d.y - 40);
+      ctx.lineTo(d.x + 8, d.y - 12); ctx.lineTo(d.x - 6, d.y - 6); ctx.lineTo(d.x + 3, d.y + 22);
+      ctx.stroke(); ctx.shadowBlur = 0;
+    } else if (d.look === "chest") {
+      ctx.translate(d.x, d.y); ctx.rotate(Math.sin(d.t * 0.08) * 0.22);
+      ctx.fillStyle = "#7A4A12"; rr(-d.r, -d.r * 0.72, d.r * 2, d.r * 1.5, 4); ctx.fill();
+      ctx.fillStyle = "#FFD54A"; rr(-d.r, -d.r * 0.72, d.r * 2, d.r * 0.42, 4); ctx.fill();
+      ctx.fillStyle = "#3A2408"; ctx.fillRect(-3, -d.r * 0.3, 6, d.r * 0.7);
+      ctx.strokeStyle = "rgba(255,230,107,.9)"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(0, 0, d.r * 1.5 + Math.sin(d.t * 0.15) * 4, 0, 7); ctx.stroke();
+    } else {
+      const g = ctx.createRadialGradient(d.x, d.y, 1, d.x, d.y, d.r * 2.6);
+      g.addColorStop(0, "rgba(200,255,180,.95)");
+      g.addColorStop(1, "rgba(139,255,107,0)");
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(d.x, d.y, d.r * 2.6, 0, 7); ctx.fill();
+      ctx.fillStyle = "#8BFF6B";
+      ctx.beginPath(); ctx.arc(d.x, d.y, d.r * 0.6, 0, 7); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  // Midas washes everything, Disco strobes it, Eclipse darkens the corners
+  if (evtOn("gold")) {
+    ctx.globalCompositeOperation = "overlay";
+    ctx.fillStyle = "rgba(255,194,75,.34)"; ctx.fillRect(0, 0, W, H);
+    ctx.globalCompositeOperation = "source-over";
+  }
+  if (evtOn("disco") && !REDUCED) {
+    ctx.globalAlpha = 0.10 + 0.07 * Math.sin(FX.t * 0.22);
+    ctx.fillStyle = "hsl(" + ((FX.t * 7) % 360) + ",95%,60%)";
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = 1;
+  }
+  if (evtOn("eclipse") || evtOn("frost")) {
+    const v = ctx.createRadialGradient(W / 2, H / 2, H * 0.28, W / 2, H / 2, H * 0.95);
+    v.addColorStop(0, "rgba(0,0,0,0)");
+    v.addColorStop(1, evtOn("frost") ? "rgba(140,215,255,.55)" : "rgba(0,0,0,.80)");
+    ctx.fillStyle = v; ctx.fillRect(0, 0, W, H);
+  }
+  if (evtOn("hyper") && !REDUCED) {
+    ctx.strokeStyle = "rgba(255,240,123,.35)"; ctx.lineWidth = 2;
+    for (let i = 0; i < 26; i++) {
+      const y = rand(i * 3) * H;
+      const x = W - ((S.scroll * 9 + i * 170) % (W + 520));
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 190 + rand(i) * 160, y); ctx.stroke();
+    }
+  }
+
+  // the whole-screen flash an event arrives with
+  if (FX.flash > 0) {
+    ctx.globalAlpha = Math.min(0.85, FX.flash / 26);
+    ctx.fillStyle = FX.flashCol;
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = 1;
+  }
+  ctx.restore();
+}
+
+/* An event arriving while you are riding should feel like something arriving.
+   The first pull of a session is silent - joining a game where three events
+   are already running should not be three fanfares. */
+function evtSound(kind){
+  switch (kind) {
+    case "meteor":  sfx.riser(2.0); break;
+    case "thunder": sfx.zap(); break;
+    case "volcano": sfx.rumble(); break;
+    case "frost":   sfx.freeze(); break;
+    case "ufo":     sfx.alien(); break;
+    case "blood":
+    case "eclipse": sfx.rumble(); break;
+    case "gold":
+    case "jackpot":
+    case "rainbow": sfx.chime(); break;
+    default:        sfx.quest(); break;
+  }
+}
+function evtArrive(e){
+  const K = EVENTS[e.kind];
+  if (!K || inW2()) return;
+  FX.flash = 24; FX.flashCol = K.col;
+  if (K.hero) { FX.hero = 0; FX.arm = 0; FX.boom = 0; }   // play the entrance from the top
+  toast(K.ic + "  " + K.name.toUpperCase());
+  evtSound(e.kind);
 }
 
 /* broadcasts everyone sees */
@@ -9118,6 +9933,7 @@ async function renderAdmin(){
           <option value="trick">Trick</option>
           <option value="pass">Premium pass</option>
           ${SU ? `<option value="embers">Embers</option>
+          <option value="rebirth">Rebirths</option>
           <option value="w2key">The road to Afterburn</option>` : ``}
         </select></label>
       <label class="fld" id="adAmtRow"><span>Amount</span>
@@ -9173,7 +9989,7 @@ async function renderAdmin(){
   showBudget();
 
   const kindEl = document.getElementById("adKind");
-  const hasAmount = k => k === "coins" || k === "xp" || k === "embers";
+  const hasAmount = k => k === "coins" || k === "xp" || k === "embers" || k === "rebirth";
   function syncKind(){
     const k = kindEl.value;
     document.getElementById("adAmtRow").hidden   = !hasAmount(k);
@@ -9222,17 +10038,25 @@ async function renderAdmin(){
         <input id="adEvtHrs" type="number" min="0.25" max="6" step="0.25" value="1"></label>
       <button class="btn pri" id="adEvtGo">Start it</button>
     </div>
+    <div class="admsg" id="adEvtWhat"></div>
     <div class="admsg" id="adEvtOut">Everyone sees it within a minute, wherever they are.
       Events never reach Afterburn - that economy is meant to be earned.</div>
     <div class="adevts" id="adEvtList"></div>`;
   body.appendChild(ev);
 
   const evKind = document.getElementById("adEvtKind");
+  /* Twenty of them now, so the name on its own is not enough to pick by. The
+     blurb is the same one the menu card shows players, read out of EVENTS, so
+     the panel and the game can never describe an event differently. */
   const syncEvt = () => {
-    const k = evKind.value;
-    document.getElementById("adEvtMultRow").hidden = !(k === "coins" || k === "xp");
+    const k = evKind.value, K = EVENTS[k] || {};
+    document.getElementById("adEvtMultRow").hidden = !K.mul;
+    const d = document.getElementById("adEvtWhat");
+    if (d) d.textContent = K.blurb ? K.blurb(+document.getElementById("adEvtMult").value || 2) : "";
   };
-  evKind.addEventListener("change", syncEvt); syncEvt();
+  evKind.addEventListener("change", syncEvt);
+  document.getElementById("adEvtMult").addEventListener("input", syncEvt);
+  syncEvt();
 
   async function refreshEvents(){
     const list = document.getElementById("adEvtList");
@@ -9250,7 +10074,7 @@ async function renderAdmin(){
       const d = document.createElement("div");
       d.className = "e";
       d.innerHTML = `<b>${K.ic} ${esc(K.name)}` +
-        ((e.kind === "coins" || e.kind === "xp") ? " " + (+e.mult || 1) + "\u00d7" : "") +
+        (K.mul ? " " + (+e.mult || 1) + "\u00d7" : "") +
         `</b><span style="color:var(--dim)">${mins}m left${e.author ? " · " + esc(e.author) : ""}</span>`;
       const x = document.createElement("button");
       x.className = "btn"; x.textContent = "End";
@@ -9908,7 +10732,7 @@ function drawEventHUD(){
   for (const e of live.slice(0, 3)) {
     const K = EVENTS[e.kind] || { name:e.kind, ic:"\u2728", col:"#3CF08C" };
     const label = K.ic + "  " + K.name.toUpperCase() +
-                  ((e.kind === "coins" || e.kind === "xp") ? "  " + (+e.mult || 1) + "\u00d7" : "");
+                  (K.mul ? "  " + (+e.mult || 1) + "\u00d7" : "");
     const w = ctx.measureText(label).width + 22;
     ctx.fillStyle = "rgba(8,12,17,.80)";
     rr(W - w - 14, y, w, 22, 7); ctx.fill();
