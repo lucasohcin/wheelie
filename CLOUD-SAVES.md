@@ -85,10 +85,28 @@ appear, and the screen that would have shown it says so. Run them in any order.
 | `world2.sql` | The Afterburn board |
 | `admin.sql` | Admins, announcements and gifts |
 | `admin-limits.sql` | Caps on what an ordinary admin may hand out |
-| `events.sql` + `events-wild.sql` | Live events, all twenty kinds |
+| `events.sql` + `events-wild.sql` | Live events, the first twenty kinds |
+| `events-world.sql` | Ten more that reshape the terrain and repaint the map |
 | `super-admin.sql` | Super admins: uncapped gifts, account deletion |
 | `dynamic-admin.sql` | Global chat, polls and reactions. Moderation is super-admin only |
 | `password-reset.sql` | Self-service password reset |
+
+### Events that change the world
+
+`events-world.sql` adds ten kinds that do more than move a multiplier. Six
+reshape the ground: while one runs, the ramp generator hands over to it, so the
+track becomes something else a few hundred metres ahead of the rider and turns
+back when it ends — nothing already generated is disturbed. Four repaint the
+map: the dirt, grass, hills, sky and water all swap together, with a matching
+wash carrying the same mood onto the street.
+
+None of it reaches the daily or the trial. Those are one seeded track every
+rider in the world is meant to be riding at once, and an event that reshaped
+them would quietly put two people on different courses while they compared
+scores on the same board. A repaint is no safer than a reshape there, because
+the palette carries `water` and `tree` and the generator reads both — so the
+look would change the shape with it. Afterburn is out too, as it is for every
+event.
 
 ### What an ordinary admin can and cannot do
 

@@ -717,6 +717,72 @@
   /* the menu copy sits in the same column as the announcement card */
   #menu .pollbox{width:min(560px,92vw); margin:0 auto 12px}
 
+  /* ---------- the chat, while you are riding ----------
+     Left side, in the band between the CHASING box above it and the speedo
+     below. Narrow and short on purpose: it is something you glance at between
+     wheelies, not something you read.
+
+     pointer-events for the same reason the poll overlay has them - the canvas
+     listens for pointerdown to work the throttle, so the box itself must be
+     transparent to clicks and only the input, the send button and the collapse
+     tab may take them.
+
+     On a phone the brake lives under your left thumb, so the whole thing sits
+     higher and loses the input: a keyboard over the bottom half of the screen
+     mid-run is not a feature. You can still read it there. */
+  .ridechat{
+    position:fixed; left:12px; top:186px; z-index:38; width:250px;
+    pointer-events:none; opacity:0; transform:translateX(-12px);
+    transition:opacity .3s ease, transform .3s ease;
+    display:flex; flex-direction:column; gap:5px;
+  }
+  .ridechat.on{opacity:1; transform:translateX(0)}
+  .ridechat .rlog{
+    display:flex; flex-direction:column; gap:1px; overflow:hidden;
+    justify-content:flex-end;
+  }
+  /* Opaque enough to read against a bright sky. The first version was 62%
+     over a beach at midday, which on paper is a nice glassy overlay and in
+     practice was grey text on turquoise. */
+  .ridechat .rline{
+    background:rgba(6,9,14,.84); border-left:2px solid rgba(60,240,140,.35);
+    border-radius:4px 8px 8px 4px; padding:3px 9px;
+    font-size:12.5px; line-height:1.4; color:#E7EDF3;
+    text-shadow:0 1px 2px rgba(0,0,0,.9);
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .ridechat .rline.mine{border-left-color:var(--neon)}
+  .ridechat .rline b{font-family:var(--num); font-weight:700; color:#8FD9FF; margin-right:5px}
+  .ridechat .rline.mine b{color:var(--neon)}
+  .ridechat form{display:flex; gap:5px}
+  .ridechat input{
+    pointer-events:auto; flex:1; min-width:0; padding:5px 9px; border-radius:9px;
+    background:rgba(8,11,16,.85); border:1px solid var(--edge); color:var(--text);
+    font-family:var(--ui); font-size:13px;
+  }
+  .ridechat input:focus{outline:none; border-color:var(--neon)}
+  .ridechat .rgo{
+    pointer-events:auto; padding:5px 9px; border-radius:9px; cursor:pointer;
+    background:rgba(20,25,34,.85); border:1px solid var(--edge); color:var(--dim);
+    font-family:var(--num); font-size:11px; letter-spacing:.1em; text-transform:uppercase;
+  }
+  .ridechat .rgo:hover{color:var(--text); border-color:var(--dim)}
+  .ridetab{
+    position:fixed; left:12px; top:186px; z-index:38; pointer-events:auto; cursor:pointer;
+    padding:4px 10px; border-radius:9px; background:rgba(8,12,18,.7);
+    border:1px solid var(--edge); color:var(--dim);
+    font-family:var(--num); font-size:11px; letter-spacing:.12em; text-transform:uppercase;
+  }
+  .ridetab:hover{color:var(--text); border-color:var(--dim)}
+  .ridetab b{color:var(--neon)}
+  @media (hover:none) and (pointer:coarse){
+    /* No input on a phone - a keyboard over the bottom half of the screen
+       mid-run is not a feature - but the hide button has to survive, or the
+       chat could be opened and never put away. */
+    .ridechat input, .ridechat #rideGo{display:none}
+    .ridechat form{justify-content:flex-start}
+  }
+
   /* ---------- a poll you can answer mid-run ----------
      The menu and chat copies both live inside a .sheet, and every sheet is
      hidden while you are riding - so a poll that went up during a session
@@ -732,7 +798,7 @@
      canvas listens for pointerdown to work the throttle - an overlay that ate
      those would brake the bike every time somebody went to vote. */
   .pollive{
-    position:fixed; top:96px; right:16px; z-index:39; width:min(264px,44vw);
+    position:fixed; top:88px; right:16px; z-index:39; width:250px;
     pointer-events:none; opacity:0; transform:translateX(14px);
     transition:opacity .3s ease, transform .3s ease;
   }
@@ -750,7 +816,7 @@
     background:rgba(8,12,18,.95); border:1px solid var(--edge); color:var(--dim);
   }
   .pollive .pdrop:hover{color:var(--text); border-color:var(--dim)}
-  @media (max-width:560px){ .pollive{width:min(220px,52vw); top:88px} }
+
 
   /* ---------- the cheer layer ---------- */
   /* Fixed and pointer-events:none so it floats over the canvas AND over any
@@ -1151,6 +1217,15 @@
 
 <div class="bcastlive" id="bcastLive" hidden></div>
 <div class="toastlive" id="toastLive" hidden></div>
+<div class="ridechat" id="rideChat" hidden>
+  <div class="rlog" id="rideLog"></div>
+  <form id="rideForm" autocomplete="off">
+    <input id="rideIn" maxlength="200" placeholder="Say something">
+    <button class="rgo" id="rideGo" type="submit">Send</button>
+    <button class="rgo" id="rideHide" type="button" title="Hide the chat">&times;</button>
+  </form>
+</div>
+<button class="ridetab" id="rideTab" type="button" hidden></button>
 <div class="pollive" id="pollLive" hidden></div>
 <div class="cheerlayer" id="cheerLayer" aria-hidden="true"></div>
 
@@ -1220,6 +1295,8 @@ function resize(){
   OFFX  = (w - W * SCALE) / 2;
   OFFY  = (h - H * SCALE) / 2;
   BIKE_X = Math.min(410, W * 0.355);
+  // the DOM overlays are pinned to HUD coordinates, so they move with this
+  if (typeof placeOverlays === "function") placeOverlays();
   // no need to clear the backdrop cache here: its key already includes W and H
 }
 
@@ -2987,6 +3064,78 @@ const EVENTS = {
   zero:   { name:"Zero G", ic:"\u{1F680}", col:"#B9C6FF",
             sky:["#0A0A1E", .40], stars:true,
             blurb:() => "Ramp gravity almost gone - the air goes on forever" },
+
+  /* ---- the ground itself ----
+     Everything above changes what the world does to you. These change what
+     the world IS. `terrain` names a generator in TERRAIN below, which takes
+     over from genFeature for as long as the event runs - so the track visibly
+     becomes something else a few hundred metres ahead of you and changes back
+     when it ends. Ramp mode only: the street is a flat road and has no terrain
+     to shape.
+
+     Never in the daily or the trial. Those are one seeded track that every
+     rider in the world is supposed to be riding at the same time, and an event
+     that reshaped them would quietly put two people on different courses while
+     they compared scores. evtTerrain() refuses on both. */
+  canyon:  { name:"Canyon Run", ic:"\u{1F3DC}\uFE0F", col:"#D98A4B", terrain:true,
+             sky:["#2A1608", .42],
+             blurb:() => "The ground opens up - every jump is over a chasm now" },
+  stairway:{ name:"Stairway", ic:"\u{1FA9C}", col:"#9FB4CC", terrain:true,
+             blurb:() => "The whole track falls away beneath you, one step at a time" },
+  megaramp:{ name:"Mega Ramp", ic:"\u{1F6F9}", col:"#FF9F1C", terrain:true, hero:true,
+             sky:["#1A0E28", .40],
+             blurb:() => "One enormous kicker after another. Hold on" },
+  washboard:{ name:"Washboard", ic:"\u3030\uFE0F", col:"#C8A87A", terrain:true,
+             blurb:() => "Whoops as far as you can see - find the rhythm or get bucked" },
+  spires:  { name:"The Spires", ic:"\u{1F5FC}", col:"#B06BFF", terrain:true,
+             sky:["#120A24", .46],
+             blurb:() => "Towers with nothing between them. Miss one and it is a long way down" },
+  glass:   { name:"Glass Sea", ic:"\u{1FA9E}", col:"#7BE7FF", terrain:true, mul:true,
+             sky:["#06202A", .34],
+             blurb:m => "Dead flat, dead fast, and style banks " + m + "\u00d7" },
+
+  /* ---- the map ----
+     A whole repaint rather than a wash over the top: `paint` names an entry in
+     RPAINT, which is merged over the track's own palette, so the dirt, the
+     grass, the hills, the sky and the water all change together and the ramp
+     world becomes a different place. The `sky` field beside it is the ordinary
+     two-value wash every other event uses, and it is what carries the same
+     mood onto the street, which has no track palette to repaint. */
+  night:   { name:"Nightfall", ic:"\u{1F303}", col:"#6E7BFF", paint:true,
+             sky:["#04060F", .62], stars:true,
+             blurb:() => "The sun goes down on both worlds at once" },
+  neon:    { name:"Neon Mile", ic:"\u{1F306}", col:"#FF2D9B", paint:true, mul:true,
+             sky:["#12042A", .52], strobe:true,
+             blurb:m => "The whole strip goes electric - style banks " + m + "\u00d7" },
+  wildfire:{ name:"Wildfire", ic:"\u{1F525}", col:"#E06A16", paint:true,
+             sky:["#1A0604", .52], rise:"#FF6A13", quake:true,
+             blurb:() => "The hills are burning and the ground runs hot" },
+  tide:    { name:"High Tide", ic:"\u{1F30A}", col:"#35A0A0", paint:true,
+             sky:["#04202C", .44],
+             blurb:() => "The water comes up. Every gap is a crossing now" },
+};
+
+/* The ramp palette a `paint` event swaps in, in the same shape RTRACKS uses,
+   so renderRamp, drawDeco, fGap and scatterDeco all read it without knowing an
+   event is running at all. Anything left out falls through to the track's own
+   colours - `tree` on a bare track stays bare unless the entry says otherwise. */
+const RPAINT = {
+  night:   { name:"Nightfall", dirt:"#14161E", shade:"rgba(0,0,0,.44)",
+             top:"#252A3A", top2:"#39415C",
+             hill1:"rgba(42,48,74,.62)", hill2:"rgba(18,22,38,.76)",
+             sky:[[0,"#05060E"],[.44,"#0C1024"],[.78,"#1A1E3C"],[1,"#2C2448"]] },
+  neon:    { name:"Neon Mile", dirt:"#160B24", shade:"rgba(0,0,0,.38)",
+             top:"#FF2D9B", top2:"#7B4BFF",
+             hill1:"rgba(123,75,255,.55)", hill2:"rgba(40,14,74,.74)",
+             sky:[[0,"#12042A"],[.42,"#3A0A52"],[.74,"#8A1A6A"],[1,"#FF4D7A"]] },
+  wildfire:{ name:"Wildfire", dirt:"#2A1408", shade:"rgba(0,0,0,.38)",
+             top:"#7A2E0E", top2:"#C25A18",
+             hill1:"rgba(142,54,24,.58)", hill2:"rgba(70,24,12,.74)",
+             sky:[[0,"#1A0604"],[.40,"#4A1206"],[.72,"#9A2E08"],[1,"#E06A16"]] },
+  tide:    { name:"High Tide", dirt:"#123038", shade:"rgba(0,0,0,.34)",
+             top:"#1E6A6E", top2:"#35A0A0", water:"#1A6E88", tree:true,
+             hill1:"rgba(40,110,124,.56)", hill2:"rgba(18,54,66,.72)",
+             sky:[[0,"#04202C"],[.44,"#0E4456"],[.78,"#2A7E90"],[1,"#6ECBD0"]] },
 };
 const EVT = { list:[], fetched:0, first:true };
 
@@ -3043,7 +3192,7 @@ const evtLive = () => inW2() ? [] : EVT.list.filter(e => new Date(e.expires_at).
 const evtBest     = (...ks) => ks.reduce((m, k) => Math.max(m, evtMul(k)), 1);
 const evtCoinMul  = () => evtBest("coins", "gold", "blood");
 const evtXPMul    = () => evtBest("xp", "eclipse", "swarm");
-const evtStyleMul = () => evtBest("disco", "frost");
+const evtStyleMul = () => evtBest("disco", "frost", "neon", "glass");
 const evtGrav     = () => evtOn("zero") ? 0.16 : evtOn("moon") ? 0.42 : 1;
 const evtTurbo    = () => evtOn("hyper") ? 1.45 : evtOn("volcano") ? 1.30 : evtOn("turbo") ? 1.22 : 1;
 const evtWind     = () => evtOn("storm") ? 3 : 1;
@@ -3051,6 +3200,30 @@ const evtWind     = () => evtOn("storm") ? 3 : 1;
    Road is the event that does not drop it at all, so it returns a number no
    run will ever count down through rather than a special case in tickStreet. */
 const styleGrace  = () => evtOn("rainbow") ? 1e6 : STYLE_GRACE * (evtOn("blood") ? 3 : 1);
+
+/* ---------- events that change the ground and the map ----------
+   Both refuse in the same three places, for the same reason each time.
+
+   The daily and the trial are one seeded track that every rider in the world
+   is meant to be riding at once. An event that reshaped the terrain would put
+   two people on different courses while they compared scores on the same
+   board, and a repaint would change `water` and `tree`, which the generator
+   reads - so the look would change the shape too. Neither is allowed near a
+   seeded run.
+
+   Afterburn is out for the reason every event is out of it: that world is
+   meant to be slow and earned. */
+const evtWorldOk = () => !DAILY.on && !TT.on && !inW2();
+function evtTerrain(){
+  if (!evtWorldOk()) return null;
+  for (const k in EVENTS) if (EVENTS[k].terrain && evtOn(k)) return k;
+  return null;
+}
+function evtPaint(){
+  if (!evtWorldOk()) return null;
+  for (const k in RPAINT) if (evtOn(k)) return k;
+  return null;
+}
 
 function persistLocal(){
   SAVE.ts = Date.now();
@@ -7464,8 +7637,85 @@ const RTRACKS = [
     hill1:"rgba(90,64,40,.58)", hill2:"rgba(48,34,22,.70)", tree:false,
     sky:[[0,"#0E0A06"],[.42,"#241A0C"],[.74,"#4E3212"],[1,"#7E4E18"]] },
 ];
-const rtrack = () => (TT.on ? RTRACKS[TT.track] : DAILY.on ? RTRACKS[DAILY.track]
-                                                : RTRACKS[SAVE.track]) || RTRACKS[0];
+/* The track you are standing on, repainted if a `paint` event is running.
+   A function rather than the arrow it used to be so the merge can be cached:
+   renderRamp calls this every frame and drawDeco once per object, and building
+   a fresh object each time would hand the collector a few hundred a second.
+   Everything downstream - the renderer, the deco, fGap's water and
+   scatterDeco's trees - reads the result without knowing an event exists. */
+let rtCache = null, rtCacheKey = "";
+function rtrack(){
+  const base = (TT.on ? RTRACKS[TT.track] : DAILY.on ? RTRACKS[DAILY.track]
+                                          : RTRACKS[SAVE.track]) || RTRACKS[0];
+  const k = evtPaint();
+  if (!k) return base;
+  const key = (base.id || "?") + "|" + k;
+  if (rtCacheKey !== key) { rtCacheKey = key; rtCache = Object.assign({}, base, RPAINT[k]); }
+  return rtCache;
+}
+
+/* ---------- terrain an event has taken over ----------
+   Each one replaces genFeature for as long as its event runs, so the world
+   becomes something else a few hundred metres ahead of the rider and turns
+   back when it ends. Nothing already generated is touched.
+
+   Every one of these has to leave ridable ground behind it. The rules the
+   ordinary generator follows apply here too: a gap is always followed by
+   `fLanding(0, 1)` to put a solid edge on the far side, and every feature
+   finishes on enough flat to get the front wheel down and set up for the
+   next one. A generator that can strand somebody is a generator that ends
+   their run through no fault of their own. */
+const TERRAIN = {
+  // a run-up, a chasm, and a long forgiving downhill to land on
+  canyon(){
+    fFlat(10);
+    fKicker(120 + tRnd()*70, 26);
+    fGap(10 + Math.floor(tRnd()*6), true);
+    T.lastY += 60 + tRnd()*110;
+    fLanding(0, 1); fLanding(55, 22); fFlat(16);
+  },
+  // the floor drops out from under you, one step at a time
+  stairway(){
+    const n = 5 + Math.floor(tRnd()*4);
+    for (let i = 0; i < n; i++) {
+      fFlat(6 + Math.floor(tRnd()*4));
+      T.lastY += 40 + tRnd()*36;
+      fLanding(0, 1);
+    }
+    fFlat(20);
+  },
+  // one enormous kicker, a long float, and a drop at the end of it
+  megaramp(){
+    fFlat(8);
+    fKicker(230 + tRnd()*110, 40);
+    fGap(12 + Math.floor(tRnd()*8), true);
+    T.lastY += 110 + tRnd()*140;
+    fLanding(0, 1); fLanding(95, 32); fFlat(24);
+  },
+  // nothing but rhythm
+  washboard(){
+    fWhoops(); fWhoops();
+    fFlat(10);
+    if (tRnd() < 0.5) fCoinRun();
+  },
+  // towers with air between them. The far edge after every gap is what keeps
+  // this from being a row of traps
+  spires(){
+    const n = 3 + Math.floor(tRnd()*3);
+    for (let i = 0; i < n; i++) {
+      const h = 70 + tRnd()*70;
+      fKicker(h, 10); fFlat(3); fLanding(h, 10);
+      fGap(4 + Math.floor(tRnd()*3), true);
+      fLanding(0, 1);
+    }
+    fFlat(24);
+  },
+  // dead flat and dead fast, which in a game about balance is its own test
+  glass(){
+    fFlat(70 + Math.floor(tRnd()*50));
+    if (tRnd() < 0.7) fCoinRun();
+  },
+};
 
 const RSC = 0.80;
 const R = {
@@ -7537,6 +7787,10 @@ function scatterDeco(){
   }
 }
 function genFeature(){
+  /* Checked per feature rather than per run, so an event that starts or ends
+     mid-run changes the ground ahead without disturbing what is behind. */
+  const tk = evtTerrain();
+  if (tk && TERRAIN[tk]) { TERRAIN[tk](); scatterDeco(); return; }
   const forest = rtrack().tree;
   const r = tRnd();
   if (forest && r > 0.60 && r < 0.68) { fLog(); fFlat(10); scatterDeco(); return; }
@@ -8001,7 +8255,9 @@ function drawRampHUD(){
   ctx.font = '700 22px "Saira Condensed", sans-serif'; ctx.fillStyle = "#F2F6FA";
   ctx.textAlign = "right"; ctx.fillText(B.name, W-28, H-44);
   ctx.font = '600 13px "Barlow Condensed", sans-serif'; ctx.fillStyle = "rgba(231,237,243,.45)";
-  ctx.fillText(rtrack().name, W-28, H-27); ctx.textAlign = "left";
+  const tn = evtTerrain();
+  ctx.fillText(rtrack().name + (tn ? "  \u00b7  " + EVENTS[tn].name.toUpperCase() : ""),
+               W-28, H-27); ctx.textAlign = "left";
   drawWeatherTag(W-28, H-84);
 
   if (!R.dead && R.air === 0 && R.dist < 30) {
@@ -8840,6 +9096,7 @@ function loop(now){
   if (cloudOn() && AUTH.uid && now - lastBcastPoll > 45000) { lastBcastPoll = now; pullBroadcasts(); }
   pullLive();                                    // throttles itself; a hidden tab polls nothing
   renderRunPoll();                               // returns immediately unless something changed
+  renderRideChat();                              // same cheap guard
   autoSync(now);
   const playing = (S.mode === "street" || S.mode === "ramp") && !S.paused && !S.photo
                   && !(VS.on && VS.phase === "over");
@@ -9290,12 +9547,17 @@ async function sendCheer(emoji){
    Two speeds. Reading the chat is a conversation and wants six seconds;
    anywhere else it is an unread count and a poll card, and forty is plenty.
    A hidden tab gets nothing. */
-const CHAT_FAST = 6000, CHAT_SLOW = 40000;
+/* Three speeds. Reading the chat screen is a conversation and wants six
+   seconds; riding with the strip open wants to feel live without asking the
+   database for a round trip every few seconds of every run; anywhere else it
+   is an unread count and forty is plenty. */
+const CHAT_FAST = 6000, CHAT_RIDE = 12000, CHAT_SLOW = 40000;
 let liveBusy = false;
 async function pullLive(force){
   if (!(force ? liveReady() : liveLooking())) return;
   if (liveBusy) return;
-  const beat = CHAT.open ? CHAT_FAST : CHAT_SLOW;
+  const beat = CHAT.open ? CHAT_FAST
+             : (rideOpen && rideChatOk()) ? CHAT_RIDE : CHAT_SLOW;
   if (!force && Date.now() - CHAT.fetched < beat) return;
   CHAT.fetched = Date.now();
   liveBusy = true;
@@ -9344,7 +9606,8 @@ async function pullLive(force){
   /* renderChatWho too: the first pull is what discovers that the tables are
      missing, and without redrawing the box afterwards the chat screen sat
      there inviting somebody to type into an input that had nowhere to send. */
-  renderChat(); renderPolls(); renderChatLink(); if (CHAT.open) renderChatWho();
+  renderChat(); renderPolls(); renderChatLink(); renderRideChat();
+  if (CHAT.open) renderChatWho();
 }
 /* PostgREST answers a missing table with a 404 and a message naming it, and a
    missing column with a 400. Either way the file has not been run and there is
@@ -9682,6 +9945,143 @@ function pollCard(p, closed){
   card.appendChild(foot);
   return card;
 }
+/* ---------- putting the overlays where the HUD is not ----------
+   The HUD is drawn in a virtual W x 540 space which is then scaled by SCALE
+   and centred with OFFX/OFFY, so a DOM overlay pinned at a fixed number of CSS
+   pixels slides across it as the window changes shape. That is exactly how the
+   riding chat ended up sitting on top of the CHASING box: 152px was clear at
+   one window size and straight through it at another.
+
+   So both overlays are placed from the same coordinates the panels use:
+
+     score    panel(18, 18, 236, 92)     ->  18 .. 110
+     chasing  panel(18, 118, 236, 60)    -> 118 .. 178
+     speedo   panel(18, H-96, 214, 78)   -> 444 .. 522     (H is always 540)
+     style    W-250 .. W-18, y 40 .. 80
+
+   which leaves 186..436 free on the left for the chat, and 88 downward on the
+   right for the poll. */
+function placeOverlays(){
+  const hx = n => Math.round(OFFX + n * SCALE);
+  const hy = n => Math.round(OFFY + n * SCALE);
+  const wd = n => Math.max(150, Math.round(n * SCALE));   // never so narrow it cannot be read
+  const set = (el, css) => { if (el) Object.assign(el.style, css); };
+  const left = hx(18) + "px", wide = wd(236) + "px";
+  set(document.getElementById("rideChat"),
+      { left, top: hy(186) + "px", width: wide, right:"auto" });
+  set(document.getElementById("rideTab"), { left, top: hy(186) + "px" });
+  const log = document.getElementById("rideLog");
+  if (log) log.style.maxHeight = Math.round((436 - 214) * SCALE) + "px";
+  // top is set per draw in renderRunPoll: it depends on how many event pills
+  // are stacked above it, which changes without the window changing
+  set(document.getElementById("pollLive"),
+      { left: hx(W - 268) + "px", width: wd(250) + "px", right:"auto" });
+}
+/* Under whatever is already on the right. The style callout owns HUD y 40..80
+   and drawEventHUD stacks up to three event pills from 96 down in 27s, so a
+   poll pinned at a fixed height sat straight on top of the banner announcing
+   the very event it was asking about. */
+function pollTopHud(){
+  return 96 + Math.min(3, evtLive().length) * 27 + 8;
+}
+
+/* ---------- the chat, while you are riding ----------
+   The chat screen is a .sheet, and every sheet is hidden during a run, so
+   until now the room went silent the moment you set off - which is most of the
+   time anybody is actually in the game. This is the last few lines of the same
+   room, on the same data, with an input that works.
+
+   It only ever shows the tail. Reading a conversation mid-wheelie is not the
+   point; knowing one is happening, and being able to answer it, is.
+
+   Typing into it cannot drive the bike: the game's keydown handler already
+   bails out when the event target is an INPUT, and keyup now always clears,
+   so a key held when you clicked into the box is released properly rather
+   than sticking the throttle on. */
+const RIDECHAT_LINES = 6;
+let rideOpen = true, rideSig = "", rideSending = false;
+const rideChatOk = () => !CHAT.off && !VS.on && liveReady() &&
+  (S.mode === "street" || S.mode === "ramp") && !S.paused && !S.photo;
+
+function renderRideChat(){
+  const box = document.getElementById("rideChat");
+  const tab = document.getElementById("rideTab");
+  if (!box || !tab) return;
+  const ok = rideChatOk();
+  const tail = ok ? CHAT.list.slice(-RIDECHAT_LINES) : [];
+  const unseen = ok ? CHAT.list.filter(m => (m.id | 0) > CHAT.lastSeen).length : 0;
+  // Cheap guard: this runs every frame, and rebuilding six lines sixty times a
+  // second would blow away the input caret between one frame and the next.
+  const sig = ok ? (rideOpen ? "o" : "c") + "|" + unseen + "|" +
+                   tail.map(m => m.id).join(",") : "";
+  if (sig === rideSig) return;
+  rideSig = sig;
+
+  if (!ok) {
+    box.classList.remove("on");
+    tab.hidden = true;
+    setTimeout(() => { if (!box.classList.contains("on")) box.hidden = true; }, 320);
+    return;
+  }
+  if (!rideOpen) {
+    box.classList.remove("on"); box.hidden = true;
+    tab.hidden = false;
+    tab.innerHTML = unseen ? "Chat <b>" + Math.min(99, unseen) + "</b>" : "Chat";
+    return;
+  }
+  tab.hidden = true;
+  const log = document.getElementById("rideLog");
+  log.innerHTML = "";
+  for (const m of tail) {
+    const d = document.createElement("div");
+    d.className = "rline" + (m.user_id === AUTH.uid ? " mine" : "");
+    const b = document.createElement("b");
+    b.textContent = m.username || "rider";
+    d.appendChild(b);
+    // textContent, never innerHTML: every word of this was typed by a player
+    d.appendChild(document.createTextNode(m.body));
+    log.appendChild(d);
+  }
+  // Seen means seen. Reading it here should clear the badge on the menu too.
+  if (CHAT.list.length) CHAT.lastSeen = CHAT.list[CHAT.list.length - 1].id | 0;
+  CHAT.unread = 0;
+  box.hidden = false;
+  void box.offsetWidth;
+  box.classList.add("on");
+}
+
+async function rideSubmit(ev){
+  if (ev) ev.preventDefault();
+  const inp = document.getElementById("rideIn");
+  if (!inp || rideSending) return;
+  const body = inp.value.trim();
+  if (!body) { inp.blur(); return; }          // blur so the keys go back to the bike
+  rideSending = true;
+  try {
+    await chatSay(body);
+    inp.value = "";
+    rideSig = "";                              // force the redraw that shows it
+    await pullLive(true);
+  } catch(e){
+    const m = String(e.message || e);
+    toast(/muted/i.test(m) ? "You are muted" : m.slice(0, 60));
+  }
+  rideSending = false;
+}
+document.getElementById("rideForm").addEventListener("submit", rideSubmit);
+document.getElementById("rideTab").addEventListener("click", () => {
+  rideOpen = true; rideSig = ""; renderRideChat();
+});
+document.getElementById("rideHide").addEventListener("click", () => {
+  rideOpen = false; rideSig = ""; renderRideChat();
+});
+/* Escape out of the box gives the bike back without leaving the run - the
+   global handler ignores Escape while an input has focus, which is what makes
+   this safe to bind here rather than there. */
+document.getElementById("rideIn").addEventListener("keydown", e => {
+  if (e.key === "Escape") { e.stopPropagation(); e.target.blur(); }
+});
+
 /* ---------- the mid-run copy ----------
    Called every frame, so it does nothing at all unless something it draws has
    actually changed. Rebuilding a card sixty times a second would throw away
@@ -9708,7 +10108,8 @@ function renderRunPoll(){
   const p = runPollFor();
   const mine = p ? POLL.mine[p.id] : undefined;
   const t = p ? (POLL.tally[p.id] || {}) : {};
-  const sig = p ? [p.id, mine, Object.values(t).reduce((a, b) => a + b, 0)].join("|") : "";
+  const top = pollTopHud();
+  const sig = p ? [p.id, mine, top, Object.values(t).reduce((a, b) => a + b, 0)].join("|") : "";
   if (sig === runPollSig) return;
   runPollSig = sig;
 
@@ -9717,6 +10118,7 @@ function renderRunPoll(){
     setTimeout(() => { if (!box.classList.contains("on")) box.hidden = true; }, 320);
     return;
   }
+  box.style.top = Math.round(OFFY + top * SCALE) + "px";
   box.innerHTML = "";
   box.appendChild(pollCard(p, false));
   const x = document.createElement("button");
