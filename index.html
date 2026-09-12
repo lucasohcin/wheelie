@@ -717,6 +717,41 @@
   /* the menu copy sits in the same column as the announcement card */
   #menu .pollbox{width:min(560px,92vw); margin:0 auto 12px}
 
+  /* ---------- a poll you can answer mid-run ----------
+     The menu and chat copies both live inside a .sheet, and every sheet is
+     hidden while you are riding - so a poll that went up during a session
+     could not be seen until you came off the bike, which is most of the time
+     nobody is looking at the menu. This is the same card, fixed to the screen.
+
+     Top right and below 96px on purpose: the score box owns the top left, the
+     wheelie gauge the top centre, the speedo the bottom left, the bike name
+     the bottom right, and the chain callout the top right down to about y=80.
+     This is the gap.
+
+     pointer-events:none on the box and auto on the buttons only, because the
+     canvas listens for pointerdown to work the throttle - an overlay that ate
+     those would brake the bike every time somebody went to vote. */
+  .pollive{
+    position:fixed; top:96px; right:16px; z-index:39; width:min(264px,44vw);
+    pointer-events:none; opacity:0; transform:translateX(14px);
+    transition:opacity .3s ease, transform .3s ease;
+  }
+  .pollive.on{opacity:1; transform:translateX(0)}
+  .pollive .pollcard{padding:10px 12px; backdrop-filter:blur(3px)}
+  .pollive .pq{font-size:15px; margin:2px 0 8px}
+  .pollive .popt{
+    pointer-events:auto; margin-bottom:4px; padding:6px 10px; font-size:13px;
+  }
+  .pollive .pfoot{font-size:11px; margin-top:5px}
+  .pollive .pfoot .rbtn{display:none}          /* reactions belong on the menu card */
+  .pollive .pdrop{
+    pointer-events:auto; position:absolute; top:-7px; right:-7px; width:22px; height:22px;
+    border-radius:50%; cursor:pointer; line-height:1; font-size:13px;
+    background:rgba(8,12,18,.95); border:1px solid var(--edge); color:var(--dim);
+  }
+  .pollive .pdrop:hover{color:var(--text); border-color:var(--dim)}
+  @media (max-width:560px){ .pollive{width:min(220px,52vw); top:88px} }
+
   /* ---------- the cheer layer ---------- */
   /* Fixed and pointer-events:none so it floats over the canvas AND over any
      sheet - a heart sent while you are reading the leaderboard should still
@@ -1116,6 +1151,7 @@
 
 <div class="bcastlive" id="bcastLive" hidden></div>
 <div class="toastlive" id="toastLive" hidden></div>
+<div class="pollive" id="pollLive" hidden></div>
 <div class="cheerlayer" id="cheerLayer" aria-hidden="true"></div>
 
 <button id="exit" type="button">&#9664; Menu <small>Esc</small></button>
@@ -8768,6 +8804,7 @@ function openShop(){
 function startMode(m){
   bcastRun.clear();                         // every run gets the current announcement
   setTimeout(popBroadcast, 400);
+  runPollDropped = 0; runPollSig = "";       // and the same for a question waved away
   S.rideOut = (m === "rideout");
   S.mode = S.rideOut ? "street" : m;
   S.paused = false;
@@ -8802,6 +8839,7 @@ function loop(now){
   tuneQuality(dt);
   if (cloudOn() && AUTH.uid && now - lastBcastPoll > 45000) { lastBcastPoll = now; pullBroadcasts(); }
   pullLive();                                    // throttles itself; a hidden tab polls nothing
+  renderRunPoll();                               // returns immediately unless something changed
   autoSync(now);
   const playing = (S.mode === "street" || S.mode === "ramp") && !S.paused && !S.photo
                   && !(VS.on && VS.phase === "over");
@@ -9485,7 +9523,12 @@ function renderChat(){
     const tools = document.createElement("div");
     tools.className = "tools";
     tools.appendChild(reactRow("chat", m.id));
-    if (ADMIN.is && m.user_id !== AUTH.uid) {
+    /* Super admin, not admin. Taking somebody's words down is a different kind
+       of power from running an event, and it sits with the accounts that also
+       hold passwords and deletions. The database says the same thing - these
+       two buttons call policies and functions that check super for themselves,
+       so hiding them here is tidiness, not the rule. */
+    if (ADMIN.super && m.user_id !== AUTH.uid) {
       const del = document.createElement("button");
       del.className = "mod"; del.type = "button"; del.textContent = "Delete";
       del.addEventListener("click", async () => {
@@ -9616,6 +9659,7 @@ function pollCard(p, closed){
       t[i] = (t[i] | 0) + 1;
       renderPolls();
       sfx.ui();
+      runPollVoted = p.id; runPollVotedAt = Date.now();
       try { await pollVote(p.id, i); POLL.tally[p.id] = await pollTally(p.id); }
       catch(e){
         if (was === undefined) delete POLL.mine[p.id]; else POLL.mine[p.id] = was;
@@ -9638,6 +9682,53 @@ function pollCard(p, closed){
   card.appendChild(foot);
   return card;
 }
+/* ---------- the mid-run copy ----------
+   Called every frame, so it does nothing at all unless something it draws has
+   actually changed. Rebuilding a card sixty times a second would throw away
+   the button you were reaching for between one frame and the next. */
+let runPollSig = "", runPollVoted = 0, runPollVotedAt = 0, runPollDropped = 0;
+function runPollFor(){
+  if (POLL.off || VS.on || inW2()) return null;
+  if (!(S.mode === "street" || S.mode === "ramp") || S.paused || S.photo) return null;
+  const live = POLL.list.filter(p => !pollShut(p));
+  if (!live.length) return null;
+  // the one you have not answered, newest first; otherwise the one you just did
+  const fresh = live.find(p => POLL.mine[p.id] === undefined);
+  const p = fresh || live.find(p => p.id === runPollVoted);
+  if (!p) return null;
+  if (runPollDropped === p.id) return null;              // waved away for this run
+  // Answered ones linger just long enough to read the split, then get out of
+  // the way. An unanswered one stays: it is the only place you will see it.
+  if (POLL.mine[p.id] !== undefined && Date.now() - runPollVotedAt > 6000) return null;
+  return p;
+}
+function renderRunPoll(){
+  const box = document.getElementById("pollLive");
+  if (!box) return;
+  const p = runPollFor();
+  const mine = p ? POLL.mine[p.id] : undefined;
+  const t = p ? (POLL.tally[p.id] || {}) : {};
+  const sig = p ? [p.id, mine, Object.values(t).reduce((a, b) => a + b, 0)].join("|") : "";
+  if (sig === runPollSig) return;
+  runPollSig = sig;
+
+  if (!p) {
+    box.classList.remove("on");
+    setTimeout(() => { if (!box.classList.contains("on")) box.hidden = true; }, 320);
+    return;
+  }
+  box.innerHTML = "";
+  box.appendChild(pollCard(p, false));
+  const x = document.createElement("button");
+  x.type = "button"; x.className = "pdrop"; x.textContent = "\u00d7";
+  x.title = "Not now";
+  x.addEventListener("click", () => { runPollDropped = p.id; runPollSig = "~"; renderRunPoll(); });
+  box.appendChild(x);
+  box.hidden = false;
+  void box.offsetWidth;
+  box.classList.add("on");
+}
+
 function renderPolls(){
   for (const id of ["menuPolls", "chatPolls"]) {
     const box = document.getElementById(id);
@@ -9654,6 +9745,7 @@ function renderPolls(){
       box.appendChild(pollCard(p, shut));
     }
   }
+  renderRunPoll();
 }
 
 document.getElementById("chatForm").addEventListener("submit", chatSubmit);
@@ -11154,13 +11246,32 @@ async function renderAdmin(){
   });
   refreshPolls();
 
-  /* ---------- dynamic admin: the room ----------
+
+  if (SU) renderSuper(body);
+}
+
+/* ---------- the super admin's half of the panel ----------
+   Two cards, drawn only when the database says this account is super, and
+   every button in them calls a function that checks super again for itself.
+   Hiding the cards is tidiness rather than security - what stops somebody
+   pasting the same call into a console is super-admin.sql, not this. */
+function renderSuper(body){
+  const head = document.createElement("div");
+  head.className = "suhead";
+  head.innerHTML = `Super admin<b>Nothing below this line is capped, and nothing here is undone by an apology.</b>`;
+  body.appendChild(head);
+
+  /* ---------- the room ----------
      Deleting a message deals with one thing that was said. A mute deals with
-     the person saying them, and is the only thing between "leave it" and
+     the person saying it, and is the only thing between "leave it" and
      "delete the account". It expires on its own, so nothing has to remember
-     to lift it. */
+     to lift it.
+     Super admin only, and below the line, because it is a power over another
+     player's words rather than over the world everybody rides in. An ordinary
+     admin runs events and hands out coins; deciding who is allowed to speak is
+     a different kind of job. chat_mute checks super again for itself. */
   const cm = document.createElement("div");
-  cm.className = "adcard";
+  cm.className = "adcard su";
   cm.innerHTML = `<h3>Chat moderation</h3>
     <div class="adrow">
       <label class="fld" style="flex:2"><span>Username</span>
@@ -11173,7 +11284,8 @@ async function renderAdmin(){
       <button class="btn" id="adUnmuteGo">Unmute</button>
     </div>
     <div class="admsg" id="adMuteOut">A mute stops messages and reactions and lifts itself when it
-      runs out. Individual messages are deleted from the chat screen itself, where you can see them.</div>
+      runs out. Individual messages are deleted from the chat screen itself, where you can see them.
+      Both are super admin only.</div>
     <div class="adlist" id="adMuteList"></div>`;
   body.appendChild(cm);
 
@@ -11227,11 +11339,12 @@ async function renderAdmin(){
   });
   refreshMutes();
 
-  /* Bios are the one thing in the game a player can type for other players to
-     read, so there has to be a way to take one down. The policy on `profiles`
-     lets an admin write any row; this is the button for it. */
+  /* A bio is something a player wrote about themselves, so taking one down is
+     the same kind of power as deleting what they said in the chat - and it
+     sits on the same side of the line for the same reason. The policy on
+     `profiles` is what actually decides; this is only the button. */
   const mod = document.createElement("div");
-  mod.className = "adcard";
+  mod.className = "adcard su";
   mod.innerHTML = `<h3>Moderate a profile</h3>
     <div class="adrow">
       <label class="fld" style="flex:2"><span>Username</span>
@@ -11244,16 +11357,16 @@ async function renderAdmin(){
   body.appendChild(mod);
 
   const profUser = () => document.getElementById("adProfUser").value.trim();
-  let armed = false;
-  const disarm = () => {
-    armed = false;
+  let wipeArmed = false;
+  const wipeDisarm = () => {
+    wipeArmed = false;
     const b = document.getElementById("adProfWipe");
     if (b) b.textContent = "Clear name and bio";
   };
-  document.getElementById("adProfUser").addEventListener("input", disarm);
+  document.getElementById("adProfUser").addEventListener("input", wipeDisarm);
   document.getElementById("adProfLoad").addEventListener("click", async () => {
     const name = profUser();
-    disarm();
+    wipeDisarm();
     if (!name) return adSay("adProfOut", "Type a username", "no");
     adSay("adProfOut", "Looking up...");
     try {
@@ -11269,12 +11382,12 @@ async function renderAdmin(){
     const name = profUser();
     if (!name) return adSay("adProfOut", "Type a username", "no");
     const btn = document.getElementById("adProfWipe");
-    if (!armed) {
-      armed = true;
+    if (!wipeArmed) {
+      wipeArmed = true;
       btn.textContent = "Click again to clear " + name;
       return adSay("adProfOut", "This cannot be undone. Click the button again to go ahead.");
     }
-    disarm();
+    wipeDisarm();
     adSay("adProfOut", "Clearing...");
     try {
       await api("/rest/v1/profiles?username=eq." + encodeURIComponent(name),
@@ -11284,20 +11397,6 @@ async function renderAdmin(){
       sfx.ui();
     } catch(e){ adSay("adProfOut", "Refused: " + String(e.message || e), "no"); }
   });
-
-  if (SU) renderSuper(body);
-}
-
-/* ---------- the super admin's half of the panel ----------
-   Two cards, drawn only when the database says this account is super, and
-   every button in them calls a function that checks super again for itself.
-   Hiding the cards is tidiness rather than security - what stops somebody
-   pasting the same call into a console is super-admin.sql, not this. */
-function renderSuper(body){
-  const head = document.createElement("div");
-  head.className = "suhead";
-  head.innerHTML = `Super admin<b>Nothing below this line is capped, and nothing here is undone by an apology.</b>`;
-  body.appendChild(head);
 
   /* ---------- who is an admin ----------
      The reason this card exists. Promoting somebody used to mean opening
@@ -11311,8 +11410,9 @@ function renderSuper(body){
         <input id="suUser" placeholder="exact username" spellcheck="false"></label>
       <button class="btn" id="suAdd">Make admin</button>
     </div>
-    <div class="admsg" id="suOut">An admin gets the cards above the line, with the caps on.
-      A super admin gets the line too, which is everything you have.</div>
+    <div class="admsg" id="suOut">An admin gets the cards above the line, with the caps on:
+      announcements, gifts, events and polls. Everything below it - moderating what somebody
+      said or wrote, passwords, accounts - is yours alone.</div>
     <div class="adlist" id="suList"></div>`;
   body.appendChild(ad);
 

@@ -50,10 +50,13 @@ drop policy if exists "admins unmute"   on public.mutes;
 -- You may read your own, so the game can tell you why you cannot type and for
 -- how long. An admin reads all of them to run the list.
 create policy "see own mute"  on public.mutes for select
-  using (auth.uid() = user_id or public.is_admin());
-create policy "admins mute"   on public.mutes for insert with check (public.is_admin());
-create policy "admins remute" on public.mutes for update using (public.is_admin());
-create policy "admins unmute" on public.mutes for delete using (public.is_admin());
+  using (auth.uid() = user_id or public.is_super());
+-- Super admin, not admin. Deciding who is allowed to speak is a different kind
+-- of power from running an event or handing out coins: an ordinary admin's
+-- powers are all capped and all reversible, and silencing somebody is neither.
+create policy "admins mute"   on public.mutes for insert with check (public.is_super());
+create policy "admins remute" on public.mutes for update using (public.is_super());
+create policy "admins unmute" on public.mutes for delete using (public.is_super());
 
 -- security definer for the same reason is_admin() is: the chat trigger has to
 -- see a mute belonging to somebody else.
@@ -93,7 +96,7 @@ create policy "post as yourself" on public.chat for insert
   with check (auth.uid() = user_id);
 -- No update policy at all. An edited message in a log other people have
 -- already read and reacted to is a way to lie about what was said.
-create policy "admins delete chat" on public.chat for delete using (public.is_admin());
+create policy "admins delete chat" on public.chat for delete using (public.is_super());
 
 -- Who said it, stamped from the account, plus the two limits that keep one
 -- person from owning the room: a message every two seconds, fifteen a minute.
@@ -335,7 +338,7 @@ create policy "react as yourself" on public.reactions for insert
 -- Taking one back is a delete of your own row. Admins can clear anybody's,
 -- which is what makes a brigaded message cleanable without deleting it.
 create policy "take back own" on public.reactions for delete
-  using (auth.uid() = user_id or public.is_admin());
+  using (auth.uid() = user_id or public.is_super());
 
 create or replace function public.reactions_guard() returns trigger
   language plpgsql security definer as $$
@@ -408,8 +411,8 @@ declare
   who text := btrim(coalesce(uname, ''));
   mins int := greatest(1, least(20160, coalesce(minutes, 60)));   -- a minute to a fortnight
 begin
-  if not public.is_admin() then
-    raise exception 'Only an admin can mute somebody';
+  if not public.is_super() then
+    raise exception 'Only a super admin can mute somebody';
   end if;
   select u.id into tgt from auth.users u
    where lower(u.raw_user_meta_data ->> 'username') = lower(who) limit 1;
@@ -422,11 +425,9 @@ begin
   if tgt = auth.uid() then
     raise exception 'Muting yourself is not a moderation strategy';
   end if;
-  -- An ordinary admin cannot mute an admin. Two of them muting each other back
-  -- and forth is not something the game should have to arbitrate.
-  if exists (select 1 from public.admins a where a.user_id = tgt) and not public.is_super() then
-    raise exception '% is an admin. Only a super admin can mute one.', who;
-  end if;
+  -- One super muting another is a fight the game should not have to arbitrate.
+  -- Ordinary admins are mutable: they hold no moderation powers any more, so
+  -- there is no retaliation to worry about.
   if exists (select 1 from public.admins a where a.user_id = tgt and a.super) then
     raise exception '% is a super admin.', who;
   end if;
@@ -446,8 +447,8 @@ create or replace function public.chat_unmute(uname text)
   returns text language plpgsql security definer as $$
 declare tgt uuid; who text := btrim(coalesce(uname, ''));
 begin
-  if not public.is_admin() then
-    raise exception 'Only an admin can unmute somebody';
+  if not public.is_super() then
+    raise exception 'Only a super admin can unmute somebody';
   end if;
   select u.id into tgt from auth.users u
    where lower(u.raw_user_meta_data ->> 'username') = lower(who) limit 1;
@@ -468,7 +469,7 @@ create or replace function public.mute_roster()
            m.until, m.reason, m.author
       from public.mutes m
       left join auth.users u on u.id = m.user_id
-     where public.is_admin() and m.until > now()
+     where public.is_super() and m.until > now()
      order by m.until desc;
   $$;
 grant execute on function public.mute_roster() to authenticated;

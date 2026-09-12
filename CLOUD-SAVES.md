@@ -87,8 +87,28 @@ appear, and the screen that would have shown it says so. Run them in any order.
 | `admin-limits.sql` | Caps on what an ordinary admin may hand out |
 | `events.sql` + `events-wild.sql` | Live events, all twenty kinds |
 | `super-admin.sql` | Super admins: uncapped gifts, account deletion |
-| `dynamic-admin.sql` | Global chat, polls and reactions |
+| `dynamic-admin.sql` | Global chat, polls and reactions. Moderation is super-admin only |
 | `password-reset.sql` | Self-service password reset |
+
+### What an ordinary admin can and cannot do
+
+An admin runs the world; a **super admin** polices the people in it. The line
+is drawn in the database, not in the panel — hiding a card is tidiness, and
+every button below the line calls a policy or function that checks `is_super()`
+for itself.
+
+| An admin can | Only a super admin can |
+| --- | --- |
+| Send announcements | Delete a chat message |
+| Gift coins, XP, bikes, tricks (capped) | Mute and unmute |
+| Start and end live events | Clear a display name or bio |
+| Ask polls, close them, read the tally | Clear somebody else's reactions |
+| | Set a password, make admins, delete accounts |
+
+Two things deliberately stay with ordinary admins: deleting an *announcement*
+and deleting a *poll*. Both are admin-on-admin — tidying up after each other,
+not moderating a player — and a poll that has to survive until a super is
+around is a poll nobody can correct a typo in.
 
 ### trusted-names.sql is not optional either
 

@@ -1,6 +1,6 @@
 -- SoFlo Wheelie Life — rider profiles
 -- Run this in Supabase → SQL Editor. Safe to run more than once.
--- Depends on public.is_admin() from admin.sql.
+-- Depends on public.is_super() from super-admin.sql.
 --
 -- The game works without this table: profiles simply say they are not set up
 -- yet. Nothing else in the game reads it.
@@ -77,15 +77,19 @@ drop policy if exists "delete own profile"  on public.profiles;
 -- anyone signed in may read a profile
 create policy "profiles are public" on public.profiles
   for select using (true);
--- you may only ever write your own row - except that an admin may edit any
--- row, which is how a bio that should not be there gets cleared
+-- You may only ever write your own row - except that a SUPER admin may edit
+-- any row, which is how a bio that should not be there gets cleared.
+-- Super rather than admin on purpose: a bio is something a player wrote about
+-- themselves, so taking one down is the same kind of power as deleting what
+-- they said in the chat, and it belongs with the accounts that also hold
+-- passwords and deletions rather than with everybody who can start an event.
 create policy "insert own profile" on public.profiles
   for insert with check (auth.uid() = user_id);
 create policy "update own profile" on public.profiles
-  for update using      (auth.uid() = user_id or public.is_admin())
-          with check    (auth.uid() = user_id or public.is_admin());
+  for update using      (auth.uid() = user_id or public.is_super())
+          with check    (auth.uid() = user_id or public.is_super());
 create policy "delete own profile" on public.profiles
-  for delete using      (auth.uid() = user_id or public.is_admin());
+  for delete using      (auth.uid() = user_id or public.is_super());
 
 -- The username on a profile comes off the account, never off the request.
 -- security definer so it can read auth.users regardless of the caller.
