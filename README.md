@@ -23,6 +23,16 @@ on Supabase and are set up by the SQL files in this directory. See
 them in. The game plays fine with none of them: leave `CLOUD.url` and
 `CLOUD.key` blank and it is a local game with a local save.
 
+## Getting around
+
+Five tabs, fixed to the bottom of the screen on every menu: **Play**, **Garage**,
+**Chat**, **Ranks**, **Account**. The bar hides itself while you are riding,
+where the HUD and the touch controls own the bottom of the screen.
+
+Account is where everything about *you* lives — who you are signed in as, the
+season pass, rebirth, the second world, your profile and your crew — so Play
+is just the modes, the daily, the crate and whatever is live.
+
 ## Player saves
 
 Progress lives in `localStorage` under the key `soflo.save`, so it survives
@@ -34,3 +44,8 @@ updates to the game. Two rules keep it that way:
    merges an old save onto the current defaults, so new fields fill in
    automatically for returning players. Renaming a field silently wipes
    that piece of everyone's progress.
+
+The one thing that deliberately lives outside `SAVE` is the ghost lap, under
+`soflo.ghost`. It is a few thousand coordinates, it is per device, and it
+rebuilds itself on your next good run — none of which is worth pushing to the
+server on every sync or writing merge rules for.

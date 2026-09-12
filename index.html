@@ -10,6 +10,7 @@
     --ink:#07090D; --ink2:#141922; --ink3:#1E2531; --edge:#2A3341;
     --neon:#3CF08C; --hot:#FF3D7F; --amber:#FFC24B;
     --text:#E7EDF3; --dim:#8C99A8;
+    --barh:62px;                 /* the bottom bar, so sheets can leave room for it */
     --display:"Archivo Black","Arial Black",system-ui,sans-serif;
     --ui:"Barlow Condensed","Helvetica Neue",sans-serif;
     --num:"Saira Condensed","Helvetica Neue",sans-serif;
@@ -28,6 +29,67 @@
     text-align:center; overflow:auto;
   }
   .sheet[hidden]{display:none}
+  /* Room at the bottom of every scrolling sheet for the bar that is pinned
+     over it, plus whatever the phone's home indicator wants. */
+  .sheet{padding-bottom:calc(20px + var(--barh) + env(safe-area-inset-bottom,0px))}
+
+  /* ---------- the bottom bar ----------
+     Fixed to the viewport, above every sheet, in the same place on every
+     screen - the point of the rework. Hidden while riding, where the HUD and
+     the touch pad own the bottom of the screen, and on the sign-in screen,
+     where there is nothing yet to navigate. */
+  .tabbar{
+    position:fixed; left:0; right:0; bottom:0; z-index:6;
+    display:flex; align-items:stretch; justify-content:center; gap:2px;
+    padding:6px 8px calc(6px + env(safe-area-inset-bottom,0px));
+    background:linear-gradient(180deg, rgba(10,13,19,.86), rgba(6,9,13,.97));
+    border-top:1px solid var(--edge);
+    backdrop-filter:blur(10px);
+  }
+  .tabbar[hidden]{display:none}
+  .tabb{
+    position:relative; flex:1 1 0; max-width:132px; min-width:0;
+    display:flex; flex-direction:column; align-items:center; gap:3px;
+    padding:7px 4px 5px; border:0; border-radius:12px; cursor:pointer;
+    background:none; color:var(--dim); font-family:var(--num); font-weight:700;
+    font-size:10.5px; letter-spacing:.14em; text-transform:uppercase;
+    transition:color .15s ease, background .15s ease;
+  }
+  .tabb svg{
+    width:23px; height:23px; fill:none; stroke:currentColor; stroke-width:1.7;
+    stroke-linecap:round; stroke-linejoin:round;
+    transition:transform .18s cubic-bezier(.3,1.5,.5,1);
+  }
+  .tabb span{white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%}
+  .tabb:hover{color:var(--text); background:rgba(255,255,255,.04)}
+  .tabb:active svg{transform:scale(.86)}
+  .tabb[aria-current="true"]{color:var(--neon); background:rgba(60,240,140,.10)}
+  .tabb[aria-current="true"] svg{transform:translateY(-1px) scale(1.06)}
+  .tabb:focus-visible{outline:2px solid var(--amber); outline-offset:-2px}
+  /* the unread pip, on the icon rather than in the label, so the word does not
+     jump about as the count changes */
+  .tabdot{
+    position:absolute; top:5px; right:calc(50% - 17px); width:8px; height:8px;
+    border-radius:50%; background:var(--neon); border:1.5px solid #0A0D13;
+  }
+  .tabdot[hidden]{display:none}
+  @media (max-width:420px){
+    .tabb{font-size:9.5px; letter-spacing:.08em; padding:6px 2px 4px}
+    .tabb svg{width:21px; height:21px}
+  }
+
+  /* ---------- the account screen ---------- */
+  .acctsheet{width:min(560px,94vw); display:flex; flex-direction:column; gap:12px}
+  .logo.small{font-size:clamp(26px,5vw,40px); margin-bottom:10px}
+  .acctlinks{display:flex; gap:8px; flex-wrap:wrap; justify-content:center}
+  .acctlink{
+    flex:1 1 150px; padding:13px 16px; border-radius:13px; cursor:pointer;
+    background:rgba(20,25,34,.62); border:1px solid var(--edge); color:var(--text);
+    font-family:var(--num); font-weight:700; font-size:15px; letter-spacing:.04em;
+  }
+  .acctlink:hover{border-color:var(--neon); color:var(--neon)}
+  .acctlink[hidden]{display:none}
+  .acctnote{font-size:12.5px; color:var(--dim); line-height:1.5; text-align:center}
 
   h1.logo{
     margin:0 0 4px; font-family:var(--display); text-transform:uppercase; line-height:.95;
@@ -783,6 +845,48 @@
     .ridechat form{justify-content:flex-start}
   }
 
+  /* ---------- the emote strip ----------
+     Above the exit button, centred, clear of the touch pad's two big thumb
+     targets at the far left and right. */
+  .emotebar{
+    position:fixed; left:50%; bottom:96px; transform:translate(-50%,10px); z-index:39;
+    display:flex; gap:6px; padding:7px 9px; border-radius:16px;
+    background:rgba(8,12,18,.88); border:1px solid var(--edge);
+    box-shadow:0 10px 30px rgba(0,0,0,.5);
+    opacity:0; transition:opacity .22s ease, transform .22s ease;
+  }
+  .emotebar.on{opacity:1; transform:translate(-50%,0)}
+  .emotebar[hidden]{display:none}
+  .emotebar button{
+    pointer-events:auto; font-size:22px; line-height:1; padding:7px 10px; border-radius:12px;
+    cursor:pointer; background:rgba(20,25,34,.8); border:1px solid var(--edge);
+    transition:transform .12s ease, border-color .12s ease;
+  }
+  .emotebar button:hover{border-color:var(--hot); transform:translateY(-3px)}
+  .emotebar button:active{transform:scale(.85)}
+  @media (hover:none) and (pointer:coarse){ .emotebar{bottom:150px} }
+
+  /* ---------- the daily crate ---------- */
+  .cratecard{
+    width:min(560px,92vw); margin:0 auto 12px; padding:14px 16px; border-radius:14px;
+    text-align:left; cursor:pointer; border:1px solid rgba(255,194,75,.5);
+    background:linear-gradient(150deg, rgba(58,42,10,.66), rgba(14,18,26,.78));
+    display:flex; align-items:center; gap:14px;
+    transition:transform .15s ease, border-color .15s ease;
+  }
+  .cratecard[hidden]{display:none}
+  .cratecard.ready:hover{transform:translateY(-2px); border-color:var(--amber)}
+  .cratecard.done{cursor:default; opacity:.72; border-color:var(--edge)}
+  .cratecard .cic{font-size:34px; line-height:1; flex:none}
+  .cratecard.ready .cic{animation:crateBob 1.8s ease-in-out infinite}
+  @keyframes crateBob{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-5px) rotate(3deg)}}
+  .cratecard .cmid{flex:1; min-width:0}
+  .cratecard .ctag{display:block; font-family:var(--num); font-weight:700; font-size:10.5px;
+                   letter-spacing:.18em; text-transform:uppercase; color:var(--amber)}
+  .cratecard .cbig{display:block; font-family:var(--num); font-weight:700; font-size:19px; margin-top:2px}
+  .cratecard .csub{display:block; font-size:12.5px; color:var(--dim); margin-top:3px; line-height:1.4}
+  @media (prefers-reduced-motion:reduce){ .cratecard.ready .cic{animation:none} }
+
   /* ---------- a poll you can answer mid-run ----------
      The menu and chat copies both live inside a .sheet, and every sheet is
      hidden while you are riding - so a poll that went up during a session
@@ -992,18 +1096,11 @@
     <p class="tag">Feather the throttle. Find the balance point. Don't loop out.</p>
     <div class="wallet"><span class="dot"></span><span id="coinsMenu">0</span> <span class="curlab" style="opacity:.65">coins</span></div>
     <div class="lvlbar" id="lvlbar"></div>
-    <div class="whoami" id="whoami" hidden></div>
     <div class="bcast" id="bcast" hidden></div>
-    <button class="passbanner" id="openSeason"></button>
-    <button class="rbbanner" id="openRebirth"></button>
-    <button class="w2banner" id="openWorld"></button>
     <div class="evtcard" id="evtCard" hidden></div>
     <div class="pollbox" id="menuPolls"></div>
     <div class="dailycard" id="dailyCard"></div>
-    <div class="whoami"><button id="openBoard">View the leaderboard</button>
-      <span style="opacity:.4">·</span><button id="openCrew">Crews</button>
-      <span style="opacity:.4">·</span><button id="openChat">Chat</button>
-      <span style="opacity:.4">·</span><button id="openMyProfile">Your profile</button></div>
+    <div class="cratecard" id="crateCard" hidden></div>
     <div class="modes">
       <button class="mode" id="mStreet">
         <div class="ic">🌴</div>
@@ -1035,12 +1132,6 @@
         <span>Two riders, one keyboard. P1 on A / D / Space, P2 on the arrow keys.</span>
         <div class="rec">LOCAL 2 PLAYER</div>
       </button>
-      <button class="mode shop" id="mShop">
-        <div class="ic">🔧</div>
-        <b>Garage</b>
-        <span>Spend what you earn on bikes and lids.</span>
-        <div class="rec" id="ownedCount">1 / 14 BIKES</div>
-      </button>
     </div>
     <div class="spots" id="spotPick"></div>
     <div class="spots" id="trackPick"></div>
@@ -1070,6 +1161,8 @@
       <div><kbd>F</kbd><kbd>T</kbd> change bike</div>
       <div><kbd>G</kbd> helmet</div>
       <div><kbd>B</kbd> spot</div>
+      <div><kbd>V</kbd> emote</div>
+      <div><kbd>K</kbd> photo &middot; <kbd>J</kbd> save a shot</div>
       <div><kbd>Esc</kbd> menu &middot; <kbd>M</kbd> sfx &middot; <kbd>N</kbd> music</div>
     </div>
     <p class="mini">Right side of the screen = throttle &middot; left = brake &middot; buttons for tricks</p>
@@ -1115,6 +1208,24 @@
       <button class="btn" id="adminBack">Back</button>
     </div>
     <div class="adminbody" id="adminBody"></div>
+  </div>
+</div>
+
+<div class="sheet" id="account" hidden>
+  <div class="acctsheet">
+    <h1 class="logo small">Account</h1>
+    <div class="wallet"><span class="dot"></span><span id="coinsAcct">0</span> <span class="curlab" style="opacity:.65">coins</span></div>
+    <div class="lvlbar" id="lvlbarAcct"></div>
+    <div class="whoami" id="whoami" hidden></div>
+    <button class="passbanner" id="openSeason"></button>
+    <button class="rbbanner" id="openRebirth"></button>
+    <button class="w2banner" id="openWorld"></button>
+    <div class="acctlinks">
+      <button class="acctlink" id="openMyProfile">Your profile</button>
+      <button class="acctlink" id="openCrew">Crews</button>
+      <button class="acctlink" id="openAdminBtn" hidden>Admin</button>
+    </div>
+    <div class="acctnote" id="acctNote"></div>
   </div>
 </div>
 
@@ -1226,10 +1337,40 @@
   </form>
 </div>
 <button class="ridetab" id="rideTab" type="button" hidden></button>
+<div class="emotebar" id="emoteBar" hidden></div>
 <div class="pollive" id="pollLive" hidden></div>
 <div class="cheerlayer" id="cheerLayer" aria-hidden="true"></div>
 
 <button id="exit" type="button">&#9664; Menu <small>Esc</small></button>
+
+<!-- The bar is fixed to the bottom of the viewport and sits above every sheet,
+     so it is in the same place on every screen instead of being something you
+     scroll a menu to reach. Hidden while riding, where the HUD and the touch
+     pad own the bottom of the screen. -->
+<nav class="tabbar" id="tabBar" hidden aria-label="Main">
+  <button class="tabb" data-tab="play" aria-current="true">
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="5.5" cy="17" r="3.4"/><circle cx="18.5" cy="17" r="3.4"/>
+      <path d="M5.5 17 10 9h5l3.5 8M10 9l-1.5-3H6M15 9h3.5"/>
+    </svg><span>Play</span></button>
+  <button class="tabb" data-tab="garage">
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M15.2 4.8a4.5 4.5 0 0 0-5.9 5.6L4 15.7 8.3 20l5.3-5.3a4.5 4.5 0 0 0 5.6-5.9l-2.8 2.8-2.6-.4-.4-2.6z"/>
+    </svg><span>Garage</span></button>
+  <button class="tabb" data-tab="chat">
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M20 13.5a3 3 0 0 1-3 3H9l-4.5 3.5v-3.5a3 3 0 0 1-1-2.3V7a3 3 0 0 1 3-3h10.5a3 3 0 0 1 3 3z"/>
+    </svg><span>Chat</span><i class="tabdot" id="tabChatDot" hidden></i></button>
+  <button class="tabb" data-tab="board">
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M3.5 20.5h17M6.5 20.5v-6h4v6M14 20.5V9h4v11.5M10.5 20.5V4h-4v16.5"/>
+    </svg><span>Ranks</span></button>
+  <button class="tabb" data-tab="account">
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4 13.5a8 8 0 0 1 16 0v2.8a1.7 1.7 0 0 1-1.7 1.7H12l-3.5 2.6v-2.6H5.7A1.7 1.7 0 0 1 4 16.3z"/>
+      <path d="M4.4 13.5h9.2a3 3 0 0 0 3-3v-1.2"/>
+    </svg><span>Account</span></button>
+</nav>
 
 <div class="pad" id="pad">
   <div class="col">
@@ -3595,6 +3736,16 @@ function mergeSaves(a, b){
   // pulled apart into world 0 and world 1
   out.dailyBest = max("dailyBest");
   out.daily     = mergeDaily(a.daily, b.daily);
+  /* One crate a day, not one a day per device. Same shape as mergeDaily: for
+     the same day the "already taken" flag is OR'd, so syncing a device that
+     had not opened today's cannot hand back a second one. */
+  {
+    const ca = a.crate || {}, cb = b.crate || {};
+    const day = Math.max(ca.day | 0, cb.day | 0);
+    const cur = [ca, cb].filter(x => (x.day | 0) === day);
+    out.crate = { day, took: cur.some(x => x.took),
+                  last: (cur.find(x => x.took && x.last) || {}).last || "" };
+  }
   out.lids   = uni("lids");
   out.codes  = uni("codes");
   out.tricks = uni("tricks");
@@ -4189,6 +4340,8 @@ const ACTIONS = [
   { key:"prevBike", name:"Previous bike",def:["t"] },
   { key:"lid",      name:"Cycle helmet", def:["g"] },
   { key:"spot",     name:"Cycle spot",   def:["b"] },
+  { key:"emote",    name:"Emote",        def:["v"] },
+  { key:"shot",     name:"Save a postcard", def:["j"] },
 ];
 const actionByKey = k => ACTIONS.find(a => a.key === k);
 function binds(action){
@@ -4235,7 +4388,7 @@ addEventListener("keydown", e => {
   if (k === "escape" && VS.on) { endVersus(); return; }
   if (k === "escape" && S.mode === "versus") { vsCloseSetup(); return; }
   if (k === "enter"  && S.mode === "versus") { startVersus(); return; }
-  if (k === "escape") { playing ? openMenu() : (S.mode === "shop" ? openMenu() : S.mode === "board" ? closeBoard() : S.mode === "season" ? closeSeason() : S.mode === "crew" ? closeCrew() : S.mode === "profile" ? closeProfile() : S.mode === "admin" ? closeAdmin() : S.mode === "chat" ? closeChat() : S.mode === "rebirth" ? closeRebirth() : 0); return; }
+  if (k === "escape") { playing ? openMenu() : (S.mode === "shop" ? openMenu() : S.mode === "board" ? closeBoard() : S.mode === "season" ? closeSeason() : S.mode === "crew" ? closeCrew() : S.mode === "profile" ? closeProfile() : S.mode === "admin" ? closeAdmin() : S.mode === "chat" ? closeChat() : S.mode === "account" ? closeAccount() : S.mode === "rebirth" ? closeRebirth() : 0); return; }
   if (k === "enter" && VS.on && VS.phase === "over") { elVersus.hidden = true; startVersus(); return; }
   if (k === "enter") { playing ? (S.paused && togglePause()) : startMode("rideout"); return; }
   if (!playing) return;
@@ -4247,6 +4400,8 @@ addEventListener("keydown", e => {
   if (act === "nextBike") cycleBike(1);
   if (act === "prevBike") cycleBike(-1);
   if (act === "lid") cycleLid();
+  if (act === "emote") { emoteOpen = !emoteOpen; emoteSig = ""; renderEmotes(); sfx.ui(); }
+  if (act === "shot"  && !VS.on) savePostcard();
   if (act === "spot") {
     const w = SAVE.world | 0, lo = spotBase(w), n = Math.min(spotCount(w), SPOTS.length - lo);
     SAVE.spot = lo + ((SAVE.spot - lo + 1) % Math.max(1, n));
@@ -6860,6 +7015,7 @@ function renderStreet(){
   drawWeather();
   if (S.mode === "street" && !S.photo && !VS.on) drawHUD();
   if (!S.photo && !VS.on) { drawBroadcast(); drawEventHUD(); }
+  drawEmotePops();
   if (S.photo) drawPhotoHint();
   if (S.paused) drawPause();
 }
@@ -7172,6 +7328,92 @@ function renderDailyCard(){
       else done(false);
     } catch(e){ done(false); }
   });
+}
+
+/* ============================================================
+   THE DAILY CRATE
+   ------------------------------------------------------------
+   One free thing a day, on the same UTC clock the daily seed runs on, so it
+   turns over at the same instant for everybody and needs no server job.
+
+   Deliberately small. It is a reason to open the game on a day you were not
+   going to ride, not a way to get rich: the coin drops are worth a couple of
+   good runs at most, and the rare tail is a trick or a paint you would
+   otherwise have paid for. It scales with rebirths the same way earned coins
+   do, so it does not become pocket change for a rider eight rebirths deep.
+
+   South Florida only, like the rest of the reward furniture - Afterburn's
+   economy is meant to be earned, and a free crate is the opposite of that.
+   ============================================================ */
+const CRATE_TABLE = [
+  { w:34, kind:"coins", lo:1200,  hi:3000,  ic:"\u{1FA99}", say:n => money(n) + " coins" },
+  { w:22, kind:"coins", lo:3000,  hi:7000,  ic:"\u{1F4B0}", say:n => money(n) + " coins" },
+  { w:10, kind:"coins", lo:9000,  hi:18000, ic:"\u{1F48E}", say:n => money(n) + " coins" },
+  { w:20, kind:"xp",    lo:260,   hi:700,   ic:"⭐",    say:n => money(n) + " XP" },
+  { w:8,  kind:"paint",                      ic:"\u{1F3A8}", say:() => "a new paint" },
+  { w:6,  kind:"trick",                      ic:"\u{1F938}", say:t => t },
+];
+function crateState(){
+  if (!SAVE.crate || typeof SAVE.crate !== "object" || Array.isArray(SAVE.crate)) SAVE.crate = {};
+  const d = dayNumber();
+  if ((SAVE.crate.day | 0) !== d) { SAVE.crate.day = d; SAVE.crate.took = false; SAVE.crate.last = ""; }
+  return SAVE.crate;
+}
+function crateOpen(){
+  const st = crateState();
+  if (st.took || inW2()) return null;
+  let roll = Math.random() * CRATE_TABLE.reduce((n, c) => n + c.w, 0);
+  let pick = CRATE_TABLE[0];
+  for (const c of CRATE_TABLE) { roll -= c.w; if (roll <= 0) { pick = c; break; } }
+
+  let what = "";
+  if (pick.kind === "coins") {
+    // the same rebirth multiplier riding pays, so a crate keeps its shape
+    const n = Math.round((pick.lo + Math.random() * (pick.hi - pick.lo)) * rebirthMul());
+    SAVE.coins = whole(SAVE.coins + n);
+    what = pick.say(n);
+  } else if (pick.kind === "xp") {
+    what = pick.say(awardXP(Math.round(pick.lo + Math.random() * (pick.hi - pick.lo))));
+  } else if (pick.kind === "paint") {
+    if (!Array.isArray(SAVE.paints)) SAVE.paints = [];
+    const left = PAINT.filter(c => !SAVE.paints.includes(c));
+    if (left.length) { SAVE.paints.push(left[Math.floor(Math.random() * left.length)]); what = "a new paint"; }
+    else { SAVE.coins = whole(SAVE.coins + 4000); what = money(4000) + " coins (every paint already yours)"; }
+  } else {
+    const left = TRICKS.filter(t => !SAVE.tricks.includes(t.id));
+    if (left.length) {
+      const t = left[Math.floor(Math.random() * left.length)];
+      SAVE.tricks.push(t.id); what = t.name;
+    } else { SAVE.coins = whole(SAVE.coins + 6000); what = money(6000) + " coins (every trick already yours)"; }
+  }
+  st.took = true; st.last = pick.ic + "  " + what;
+  persist(); syncWallet();
+  return st.last;
+}
+function renderCrate(){
+  const el = document.getElementById("crateCard");
+  if (!el) return;
+  if (inW2()) { el.hidden = true; return; }
+  const st = crateState();
+  el.hidden = false;
+  el.className = "cratecard " + (st.took ? "done" : "ready");
+  el.innerHTML = st.took
+    ? `<span class="cic">\u{1F4E6}</span><span class="cmid">
+         <span class="ctag">Daily crate · opened</span>
+         <span class="cbig">${esc(st.last || "Opened")}</span>
+         <span class="csub">A new one lands in ${dailyClock()}.</span></span>`
+    : `<span class="cic">\u{1F381}</span><span class="cmid">
+         <span class="ctag">Daily crate</span>
+         <span class="cbig">Something free is waiting</span>
+         <span class="csub">One a day. Coins, XP, and now and then a paint or a trick you
+           have not got yet.</span></span>`;
+  el.onclick = st.took ? null : () => {
+    const got = crateOpen();
+    if (!got) return;
+    sfx.buy();
+    toast("CRATE — " + got.replace(/^\S+\s+/, ""));
+    renderCrate();
+  };
 }
 
 /* ============================================================
@@ -7828,6 +8070,7 @@ function rampReset(full){
     for (let i = 0; i < 70; i++) tPush(300, true);
     terrainEnsure(0);
     R.startX = 200; R.safeX = 200; R.score = 0; R.dist = 0;
+    tapeReset();                                   // a new track is a new tape
   }
   let x = full ? 200 : Math.max(200, R.safeX);
   let gy = groundY(x);
@@ -7850,11 +8093,13 @@ function tickRamp(){
 
   if (R.dead) {
     R.deadT--; stepPartsRamp();
-    if (R.deadT <= 0 && !DAILY.on && !(TT.on && TT.done)) rampReset(false);   // the daily has one life
+    REPLAY.frame = replayStep();
+    if (R.deadT <= 0 && !DAILY.on && !(TT.on && TT.done)) { REPLAY.on = false; rampReset(false); }
     if (S.shake > 0) S.shake *= 0.86;
     return;
   }
 
+  tapeStep();
   const leanBack = held("leanBack");
   const leanFwd  = held("leanFwd");
 
@@ -8016,11 +8261,105 @@ function tickRamp(){
   stepPartsRamp();
 }
 
+/* ============================================================
+   THE TAPE — one recorder, two features
+   ------------------------------------------------------------
+   Every ramp run is sampled at 10 Hz into a flat array of three numbers per
+   frame. That one buffer does two jobs:
+
+     THE GHOST    the best run you have ever done on this track, replayed
+                  beside you in real time, so you can see the exact corner
+                  where you are losing it rather than just a number that says
+                  you are.
+     THE REPLAY   the last couple of seconds before a crash, played back at
+                  half speed while the death timer runs down, because the one
+                  thing everybody wants after a big one is to see it again.
+
+   The ghost lives in its own localStorage key rather than in SAVE, on purpose.
+   SAVE is pushed to the server on every sync and merged field by field across
+   devices; a few thousand coordinates would bloat every push and need merge
+   rules of their own for something that is really a per-device convenience.
+   Losing it when you clear your browser is fine - it rebuilds on your next
+   good run.
+
+   Never in the daily or the trial. Both hand you a loaner on a seeded track
+   and mean to be measured against other people rather than against yourself,
+   and a ghost from a different bike would be nonsense.
+   ============================================================ */
+const TAPE_HZ = 3;                 // one sample every 3 ticks, so 10 a second
+const TAPE_MAX = 900;              // 90 seconds; a longer run just stops recording
+const GHOST_KEY = "soflo.ghost";
+const TAPE = { cur:[], t:0, ghost:null, gdist:0, gtrack:-1 };
+const REPLAY = { on:false, buf:[], i:0, sub:0 };
+const tapeOk = () => !DAILY.on && !TT.on && !VS.on;
+
+function tapeLoad(){
+  try {
+    const j = JSON.parse(localStorage.getItem(GHOST_KEY) || "null");
+    if (j && Array.isArray(j.s)) { TAPE.ghost = j.s; TAPE.gdist = j.d | 0; TAPE.gtrack = j.t | 0; }
+  } catch(e){}
+}
+function tapeSaveIfBest(){
+  if (!tapeOk() || TAPE.cur.length < 30) return;      // under three seconds is not a run
+  const d = Math.floor(R.dist);
+  const same = TAPE.gtrack === (SAVE.track | 0);
+  if (same && d <= TAPE.gdist) return;
+  TAPE.ghost = TAPE.cur.slice(); TAPE.gdist = d; TAPE.gtrack = SAVE.track | 0;
+  try {
+    localStorage.setItem(GHOST_KEY, JSON.stringify({ t:TAPE.gtrack, d, s:TAPE.ghost }));
+  } catch(e){ /* quota: the ghost is a nicety, never a reason to break a run */ }
+}
+function tapeReset(){
+  TAPE.cur.length = 0; TAPE.t = 0;
+  REPLAY.on = false; REPLAY.buf.length = 0;
+}
+function tapeStep(){
+  if (!tapeOk()) return;
+  if (TAPE.t % TAPE_HZ === 0 && TAPE.cur.length < TAPE_MAX * 3)
+    TAPE.cur.push(Math.round(R.cx), Math.round(R.cy), Math.round(R.rot * 100));
+  TAPE.t++;
+}
+/* Where the ghost was at this point in ITS run, at the same moment in yours.
+   Returns null once it has run out - which is the moment you are past it. */
+function ghostAt(){
+  if (!TAPE.ghost || TAPE.gtrack !== (SAVE.track | 0) || !tapeOk()) return null;
+  const i = Math.floor(TAPE.t / TAPE_HZ) * 3;
+  if (i + 2 >= TAPE.ghost.length) return null;
+  const g = TAPE.ghost;
+  // the sample either side, blended, so it glides rather than steps at 10 Hz
+  const f = (TAPE.t % TAPE_HZ) / TAPE_HZ;
+  const j = i + 3 < g.length - 2 ? i + 3 : i;
+  return { x:g[i] + (g[j] - g[i]) * f,
+           y:g[i+1] + (g[j+1] - g[i+1]) * f,
+           r:(g[i+2] + (g[j+2] - g[i+2]) * f) / 100 };
+}
+function replayStart(){
+  if (!tapeOk() || REPLAY.on) return;
+  const back = 25 * 3;                              // the last two and a half seconds
+  const from = Math.max(0, TAPE.cur.length - back);
+  REPLAY.buf = TAPE.cur.slice(from);
+  if (REPLAY.buf.length < 12) return;               // too short to be worth watching
+  REPLAY.on = true; REPLAY.i = 0; REPLAY.sub = 0;
+}
+/* Half speed, and it holds on the last frame rather than snapping back - the
+   end of the tape IS the crash, and that is the bit worth looking at. */
+function replayStep(){
+  if (!REPLAY.on) return null;
+  REPLAY.sub += 0.5;
+  while (REPLAY.sub >= 1) { REPLAY.sub -= 1; REPLAY.i += 3; }
+  const b = REPLAY.buf;
+  const i = Math.min(REPLAY.i, b.length - 3);
+  return { x:b[i], y:b[i+1], r:b[i+2] / 100 };
+}
+tapeLoad();
+
 function rampDie(why){
   if (R.dead) return;
-  R.dead = true; R.deadT = 50; R.crashMsg = true;
+  R.dead = true; R.deadT = REDUCED ? 50 : 74; R.crashMsg = true;
   S.shake = REDUCED ? 0 : 12;
   sfx.crash();
+  tapeSaveIfBest();                       // the run that just ended may be the new ghost
+  if (!REDUCED) replayStart();            // and the last two seconds of it are worth watching
   if (TT.on) { if (!TT.done) { TT.pen += TT_PENALTY; rampMsg("+3s"); } }
   else if (DAILY.on) dailyFinish();     // a seeded run banks on the crash; records stay untouched
   else {
@@ -8030,6 +8369,26 @@ function rampDie(why){
   }
   rampMsg(why);
   R.crashMsg = true;
+}
+/* Says what it is, and says it is slow, so a bike moving at half speed after a
+   crash reads as a replay rather than as the game having hung. */
+function drawReplayBadge(){
+  if (!REPLAY.on || !R.dead) return;
+  ctx.save();
+  ctx.globalAlpha = Math.min(1, R.deadT / 12);
+  ctx.fillStyle = "rgba(8,12,17,.82)";
+  const w = 132, x = W / 2 - w / 2, y = 26;
+  rr(x, y, w, 26, 9); ctx.fill();
+  ctx.strokeStyle = "rgba(255,61,127,.8)"; ctx.lineWidth = 1.4;
+  rr(x, y, w, 26, 9); ctx.stroke();
+  ctx.fillStyle = "#FF3D7F";
+  ctx.beginPath(); ctx.arc(x + 17, y + 13, 5, 0, 7); ctx.fill();
+  ctx.font = '700 13px "Saira Condensed", sans-serif';
+  ctx.fillStyle = "#F2F6FA";
+  ctx.textAlign = "left";
+  ctx.fillText("REPLAY  \u00b7  0.5\u00d7", x + 30, y + 18);
+  ctx.restore();
+  ctx.textAlign = "left";
 }
 function rampDust(n, force, dirt){
   if (REDUCED) return;
@@ -8087,9 +8446,14 @@ function drawDeco(o){
 function renderRamp(){
   const B = bike(), sp = spot(), K = rtrack();
   const L = B.wb * RSC, rW = B.rr * RSC;
+  /* While a crash replay is running the camera follows the tape rather than
+     the wreck, or it would sit still watching a bike that is already over
+     while the replay plays somewhere off screen. */
+  const F = (R.dead && REPLAY.on && REPLAY.frame) ? REPLAY.frame : null;
+  const px = F ? F.x : R.cx, py = F ? F.y : R.cy, prot = F ? F.r : R.rot;
   const look = W * (0.32 - Math.min(0.14, Math.max(0, R.vx) * 0.008));
-  R.camX += ((R.cx - look) - R.camX) * 0.14;
-  R.camY += ((R.cy - H*0.52) - R.camY) * 0.07;
+  R.camX += ((px - look) - R.camX) * (F ? 0.22 : 0.14);
+  R.camY += ((py - H*0.52) - R.camY) * (F ? 0.12 : 0.07);
 
   ctx.setTransform(1,0,0,1,0,0);
   ctx.fillStyle = "#07090D"; ctx.fillRect(0,0,cv.width,cv.height);
@@ -8198,11 +8562,33 @@ function renderRamp(){
     ctx.beginPath(); ctx.ellipse(c.x, c.y, 4.5*b, 6, 0, 0, 7); ctx.fill();
   }
 
+  /* The ghost: your own best run on this track, at the same point in the run,
+     so you can see where it is going wrong rather than being told afterwards
+     that it did.
+
+     Position and rotation only - the tape does not record the rider's pose, so
+     the ghost strikes whatever pose you are in rather than the one it was in.
+     Three numbers a sample is what keeps this small enough to sit in
+     localStorage, and where the bike WAS is the thing worth knowing. */
+  const G = F ? null : ghostAt();
+  if (G) {
+    ctx.save();
+    ctx.globalAlpha = 0.3;
+    ctx.translate(G.x - Math.cos(G.r)*L/2, G.y - Math.sin(G.r)*L/2);
+    ctx.rotate(G.r);
+    ctx.scale(RSC, RSC);
+    const kw = S.wheelA, kp = POSE;
+    drawBike(B); drawRider();
+    S.wheelA = kw; POSE = kp;
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  }
+
   // machine
-  if (B.fx && B.fx.glow) underglow(R.cx, R.cy + B.rr*RSC, B.body2 || B.body);
+  if (B.fx && B.fx.glow) underglow(px, py + B.rr*RSC, B.body2 || B.body);
   ctx.save();
-  ctx.translate(R.cx - Math.cos(R.rot)*L/2, R.cy - Math.sin(R.rot)*L/2);
-  ctx.rotate(R.rot);
+  ctx.translate(px - Math.cos(prot)*L/2, py - Math.sin(prot)*L/2);
+  ctx.rotate(prot);
   ctx.scale(RSC, RSC);
   const keep = S.wheelA; S.wheelA = R.wheelA;
   POSE = easePose(POSE, B, S.anim); drawBike(B); drawRider();
@@ -8399,7 +8785,9 @@ function syncWallet(){
   document.getElementById("bestRide").textContent = "BEST " + money(SAVE.bestRide);
   document.getElementById("bestRamp").textContent = "BEST " + SAVE.rampBest + " M";
   const fleet = BIKES.filter(b => !!b.w2 === inW2()).length;
-  document.getElementById("ownedCount").textContent = SAVE.bikes.length + " / " + fleet + " BIKES";
+  // the garage is a tab now rather than a tile, so this label may not exist
+  const oc = document.getElementById("ownedCount");
+  if (oc) oc.textContent = SAVE.bikes.length + " / " + fleet + " BIKES";
 }
 
 function thumbBike(canvas, B){
@@ -8930,7 +9318,6 @@ document.getElementById("codeIn").addEventListener("keydown", e => {
   e.stopPropagation();
   if (e.key === "Enter") redeem(e.target.value);
 });
-document.getElementById("mShop").addEventListener("click", openShop);
 document.getElementById("mStreet").addEventListener("click", () => startMode("street"));
 document.getElementById("mRide").addEventListener("click", () => startMode("rideout"));
 document.getElementById("mRamp").addEventListener("click", () => startMode("ramp"));
@@ -9005,6 +9392,7 @@ function renderWho(){
   el.appendChild(b);
 }
 function openMenu(){
+  if (S.mode === "ramp" && !R.dead) tapeSaveIfBest();   // a run you walked out of still counts
   if (DAILY.on) { dailyFinish(); dailyStop(); }   // walking out still banks the run
   ttStop();                                      // an unfinished trial is simply not a time
   RIV.on = false;
@@ -9012,8 +9400,8 @@ function openMenu(){
   S.mode = "menu"; S.paused = false;
   elShop.hidden = true; elBoard.hidden = true; elSeason.hidden = true; elCrew.hidden = true;
   elAdmin.hidden = true; elProfile.hidden = true; elVersus.hidden = true;
-  elRebirth.hidden = true; elChat.hidden = true; elMenu.hidden = false;
-  CHAT.open = false;
+  elRebirth.hidden = true; elChat.hidden = true; elAccount.hidden = true;
+  elMenu.hidden = false; CHAT.open = false;
   refreshBike();
   elExit.classList.remove("on");
   for (const k in keys) keys[k] = false;
@@ -9024,10 +9412,11 @@ function openMenu(){
   sfx.ui();
   syncWallet(); persist(); renderWho(); renderLevel(); renderSeasonBanner(); renderCrewLink();
   renderRebirthBanner(); renderWorldBanner(); renderEventCard();
-  renderDailyCard(); renderTrialCard(); renderProfileLink();
+  renderDailyCard(); renderTrialCard(); renderProfileLink(); renderCrate();
   renderBroadcast(); pullBroadcasts();
   renderChatLink(); renderPolls(); pullLive();
   applyWorldChrome();
+  renderTabs();
 }
 /* The season pass, crews, the daily, the trial, quests, legend bikes and codes
    are all South Florida systems: they pay coins, run on world 1 tracks or hand
@@ -9049,13 +9438,14 @@ function applyWorldChrome(){
 }
 
 function openShop(){
-  S.mode = "shop"; elMenu.hidden = true; elChat.hidden = true; elShop.hidden = false;
-  CHAT.open = false;
+  S.mode = "shop"; elMenu.hidden = true; elChat.hidden = true; elAccount.hidden = true;
+  elShop.hidden = false; CHAT.open = false;
   elExit.classList.remove("on");
   audio.set(0, 1, 0, false, "e");
   audio.setStyle("menu");
   sfx.ui();
   setTab(shopTab === "cust" ? "cust" : shopTab);
+  renderTabs();
 }
 function startMode(m){
   bcastRun.clear();                         // every run gets the current announcement
@@ -9064,8 +9454,9 @@ function startMode(m){
   S.rideOut = (m === "rideout");
   S.mode = S.rideOut ? "street" : m;
   S.paused = false;
-  elMenu.hidden = true; elShop.hidden = true; elChat.hidden = true;
+  elMenu.hidden = true; elShop.hidden = true; elChat.hidden = true; elAccount.hidden = true;
   CHAT.open = false;
+  renderTabs();                             // riding owns the bottom of the screen
   elExit.classList.add("on");
   audio.start(); audio.mute(!S.sound);
   audio.setStyle(m === "ramp" ? "ramp" : "street");
@@ -9097,6 +9488,7 @@ function loop(now){
   pullLive();                                    // throttles itself; a hidden tab polls nothing
   renderRunPoll();                               // returns immediately unless something changed
   renderRideChat();                              // same cheap guard
+  renderEmotes();
   autoSync(now);
   const playing = (S.mode === "street" || S.mode === "ramp") && !S.paused && !S.photo
                   && !(VS.on && VS.phase === "over");
@@ -9127,6 +9519,8 @@ function loop(now){
   else if (S.mode === "ramp") renderRamp();
   else renderStreet();
   if (S.mode === "ramp" && !S.photo) { drawBroadcast(); drawEventHUD(); }
+  drawReplayBadge();
+  drawEmotePops();
   if (cloudOn() && AUTH.uid) pullBroadcasts();      // throttled to once a minute inside
   if (S.mode === "shop" && shopTab === "cust") drawCustomPreview();
 }
@@ -9717,11 +10111,12 @@ function chatSayMsg(t, cls){
   const m = document.getElementById("chatMsg");
   if (m) { m.textContent = t || ""; m.className = "chatmsg " + (cls === undefined ? "" : cls); }
 }
+/* The unread mark moved onto the bar with the Chat tab. A pip rather than a
+   count: the bar has five labels across the bottom of a phone, and a number
+   growing inside one of them pushes the other four about. */
 function renderChatLink(){
-  const b = document.getElementById("openChat");
-  if (!b) return;
-  b.textContent = CHAT.unread ? "Chat · " + Math.min(99, CHAT.unread) + " new" : "Chat";
-  b.style.color = CHAT.unread ? "var(--neon)" : "";
+  const dot = document.getElementById("tabChatDot");
+  if (dot) dot.hidden = !CHAT.unread;
 }
 function renderCheerBar(){
   const bar = document.getElementById("cheerBar");
@@ -9841,9 +10236,10 @@ async function openChat(){
   S.mode = "chat"; S.paused = false;
   elMenu.hidden = true; elShop.hidden = true; elBoard.hidden = true;
   elSeason.hidden = true; elCrew.hidden = true; elProfile.hidden = true;
-  elChat.hidden = false;
+  elAccount.hidden = true; elChat.hidden = false;
   CHAT.open = true; CHAT.unread = 0; CHAT.jump = true;
   sfx.ui();
+  renderTabs();
   renderCheerBar(); renderChatWho(); renderChat(); renderPolls(); chatSayMsg("");
   try { CHAT.mute = await myMute(); } catch(e){}
   renderChatWho();
@@ -9945,6 +10341,136 @@ function pollCard(p, closed){
   card.appendChild(foot);
   return card;
 }
+/* ============================================================
+   THE POSTCARD
+   ------------------------------------------------------------
+   Photo mode already framed the shot; this is the part that lets you keep it.
+   The canvas is copied into an offscreen one, a caption bar is painted across
+   the bottom with the bike, the spot and what the run was worth, and the whole
+   thing comes down as a PNG.
+
+   It captures the canvas as it stands, HUD and all. Photo mode is what takes
+   the HUD away and gives you the pan and zoom, so K then J is the clean shot
+   and J on its own is the one with the numbers still on it - which is the one
+   you want if you are showing somebody a score. The toast says so the first
+   time rather than the game quietly deciding for you.
+   ============================================================ */
+function savePostcard(){
+  try {
+    const w = cv.width, h = cv.height, bar = Math.round(h * 0.11);
+    const off = document.createElement("canvas");
+    off.width = w; off.height = h + bar;
+    const c = off.getContext("2d");
+    if (!c) return;
+    c.drawImage(cv, 0, 0);
+    const k = h / 540;                       // the HUD's scale, so text matches the game
+
+    const g = c.createLinearGradient(0, h, 0, h + bar);
+    g.addColorStop(0, "#0B0F16"); g.addColorStop(1, "#05070B");
+    c.fillStyle = g; c.fillRect(0, h, w, bar);
+    c.fillStyle = "#3CF08C"; c.fillRect(0, h, w, Math.max(2, 2 * k));
+
+    const B = bike();
+    const pad = Math.round(26 * k);
+    c.textBaseline = "middle";
+    c.fillStyle = "#F2F6FA";
+    c.font = '700 ' + Math.round(26 * k) + 'px "Saira Condensed", sans-serif';
+    c.fillText(B.name, pad, h + bar * 0.38);
+    c.fillStyle = "rgba(140,153,168,.9)";
+    c.font = '600 ' + Math.round(15 * k) + 'px "Barlow Condensed", sans-serif';
+    const where = S.mode === "ramp" ? rtrack().name : spot().name;
+    c.fillText(where + "  ·  " + (AUTH.name || "rider") + "  ·  SoFlo Wheelie Life",
+               pad, h + bar * 0.70);
+
+    c.textAlign = "right";
+    c.fillStyle = "#FFC24B";
+    c.font = '700 ' + Math.round(30 * k) + 'px "Saira Condensed", sans-serif';
+    const big = S.mode === "ramp" ? Math.floor(R.dist).toLocaleString() + " m"
+                                  : Math.floor(S.score).toLocaleString();
+    c.fillText(big, w - pad, h + bar * 0.38);
+    c.fillStyle = "rgba(140,153,168,.9)";
+    c.font = '600 ' + Math.round(15 * k) + 'px "Barlow Condensed", sans-serif';
+    c.fillText(S.mode === "ramp" ? "DISTANCE" : (S.rideOut ? "RIDE OUT" : "STREET"),
+               w - pad, h + bar * 0.70);
+    c.textAlign = "left";
+
+    off.toBlob(b => {
+      if (!b) return toast("Could not save the shot");
+      const url = URL.createObjectURL(b);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "soflo-" + new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-") + ".png";
+      document.body.appendChild(a); a.click(); a.remove();
+      // let the browser start the download before the blob goes away
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+      toast(S.photo ? "POSTCARD SAVED" : "POSTCARD SAVED — K first for a clean one");
+      sfx.buy();
+    }, "image/png");
+  } catch(e){ toast("Could not save the shot"); }
+}
+
+/* ============================================================
+   EMOTES — say something without typing it
+   ------------------------------------------------------------
+   Typing mid-wheelie is a good way to loop out, so the riding chat has a
+   silent half: six buttons, one tap, and the emoji comes off your rider AND
+   goes out as a world cheer that floats up every other player's screen. It is
+   the same `reactions` row the cheer bar in the chat writes, so nothing new
+   had to exist on the server for it.
+
+   Bound to an ACTION rather than to a number key, because 1-8 are the trick
+   slots and a game where expressing yourself fires a backflip is a worse game.
+   ============================================================ */
+let emoteOpen = false, emoteSig = "";
+const EMOTE_POPS = [];
+function renderEmotes(){
+  const box = document.getElementById("emoteBar");
+  if (!box) return;
+  const ok = emoteOpen && !VS.on && liveReady() &&
+             (S.mode === "street" || S.mode === "ramp") && !S.paused && !S.photo;
+  const sig = ok ? "on" : "off";
+  if (sig === emoteSig) return;
+  emoteSig = sig;
+  if (!ok) {
+    box.classList.remove("on");
+    setTimeout(() => { if (!box.classList.contains("on")) box.hidden = true; }, 260);
+    return;
+  }
+  box.innerHTML = "";
+  for (const R of REACTS) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = R.ch;
+    b.addEventListener("click", () => emote(R.key));
+    box.appendChild(b);
+  }
+  box.hidden = false;
+  void box.offsetWidth;
+  box.classList.add("on");
+}
+function emote(key){
+  // above your own rider, in screen space, wherever the camera happens to be
+  const x = S.mode === "ramp" ? (R.cx - R.camX) : BIKE_X + 40;
+  const y = S.mode === "ramp" ? (R.cy - R.camY - 70) : GROUND - 150;
+  EMOTE_POPS.push({ ch: reactCh(key), x, y, t: 0 });
+  sendCheer(key);                 // and out to everybody else
+  sfx.coin();
+}
+function drawEmotePops(){
+  for (let i = EMOTE_POPS.length - 1; i >= 0; i--) {
+    const p = EMOTE_POPS[i];
+    p.t++;
+    if (p.t > 70) { EMOTE_POPS.splice(i, 1); continue; }
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, p.t / 6) * Math.min(1, (70 - p.t) / 18);
+    ctx.font = (26 + Math.min(10, p.t)) + 'px system-ui, "Apple Color Emoji", sans-serif';
+    ctx.textAlign = "center";
+    ctx.fillText(p.ch, p.x, p.y - p.t * 1.5);
+    ctx.restore();
+    ctx.textAlign = "left";
+  }
+}
+
 /* ---------- putting the overlays where the HUD is not ----------
    The HUD is drawn in a virtual W x 540 space which is then scaled by SCALE
    and centred with OFFX/OFFY, so a DOM overlay pinned at a fixed number of CSS
@@ -10152,7 +10678,6 @@ function renderPolls(){
 
 document.getElementById("chatForm").addEventListener("submit", chatSubmit);
 document.getElementById("chatBack").addEventListener("click", closeChat);
-document.getElementById("openChat").addEventListener("click", openChat);
 /* The tab coming back is the one moment a fresh pull is always worth it: the
    beat was stopped the whole time it was hidden. */
 document.addEventListener("visibilitychange", () => {
@@ -11181,6 +11706,7 @@ function openAuth(){
   S.mode = "auth"; S.paused = false;   // paused draws its overlay behind the sheet
   elMenu.hidden = true; elShop.hidden = true; elAuth.hidden = false;
   setAuthMode("in");
+  renderTabs();                             // nothing to navigate to yet
   const u = document.getElementById("authUser");
   if (u) setTimeout(() => u.focus(), 30);
 }
@@ -12010,12 +12536,92 @@ function openAdmin(){
   S.mode = "admin"; S.paused = false;
   elMenu.hidden = true; elShop.hidden = true; elBoard.hidden = true;
   elSeason.hidden = true; elCrew.hidden = true; elProfile.hidden = true;
-  elChat.hidden = true; elAdmin.hidden = false;
+  elChat.hidden = true; elAccount.hidden = true; elAdmin.hidden = false;
   sfx.ui();
+  renderTabs();
   adminCheck().then(renderAdmin);
 }
-function closeAdmin(){ elAdmin.hidden = true; openMenu(); }
+function closeAdmin(){ elAdmin.hidden = true; openAccount(); }
 document.getElementById("adminBack").addEventListener("click", closeAdmin);
+
+/* ============================================================
+   THE BOTTOM BAR
+   ------------------------------------------------------------
+   Five screens, always one tap away, in the same place on all of them. The
+   old menu stacked everything into one long scroll: the leaderboard, crews,
+   your profile and the garage were all links you had to scroll a page of
+   banners and quests to reach. They are tabs now.
+
+   The bar routes to functions that already existed - openMenu, openShop,
+   openChat, openBoard - so nothing about those screens changed. Only Account
+   is new, and it is where the things that are about YOU rather than about
+   riding went: who you are signed in as, the season pass, rebirth, the second
+   world, your profile and your crew.
+   ============================================================ */
+const elAccount = document.getElementById("account");
+/* Which tab owns which screen. The four sub-screens reached from Account keep
+   Account lit rather than nothing, so the bar never goes blank underneath you. */
+const TAB_OF = {
+  menu:"play", shop:"garage", chat:"chat", board:"board",
+  account:"account", crew:"account", profile:"account",
+  season:"account", rebirth:"account", admin:"account",
+};
+function renderTabs(){
+  const bar = document.getElementById("tabBar");
+  if (!bar) return;
+  /* Riding owns the bottom of the screen - the HUD, the exit button and the
+     touch pad all live there - and the sign-in screen has nothing to navigate
+     to yet. Versus draws its own full-screen furniture. */
+  const show = !!TAB_OF[S.mode] && !VS.on;
+  bar.hidden = !show;
+  if (!show) return;
+  const cur = TAB_OF[S.mode];
+  for (const b of bar.querySelectorAll(".tabb"))
+    b.setAttribute("aria-current", String(b.dataset.tab === cur));
+}
+function goTab(t){
+  if (TAB_OF[S.mode] === t && S.mode !== "crew" && S.mode !== "profile"
+      && S.mode !== "season" && S.mode !== "rebirth" && S.mode !== "admin") return;
+  if (t === "play")    return openMenu();
+  if (t === "garage")  return openShop();
+  if (t === "chat")    return openChat();
+  if (t === "board")   return openBoard();
+  if (t === "account") return openAccount();
+}
+for (const b of document.querySelectorAll("#tabBar .tabb"))
+  b.addEventListener("click", () => goTab(b.dataset.tab));
+
+/* ---------- account screen ---------- */
+function openAccount(){
+  S.mode = "account"; S.paused = false;
+  elMenu.hidden = true; elShop.hidden = true; elBoard.hidden = true;
+  elSeason.hidden = true; elCrew.hidden = true; elProfile.hidden = true;
+  elChat.hidden = true; elRebirth.hidden = true; elAdmin.hidden = true;
+  elAccount.hidden = false;
+  CHAT.open = false;
+  sfx.ui();
+  renderAccount();
+  renderTabs();
+}
+function closeAccount(){ elAccount.hidden = true; openMenu(); }
+function renderAccount(){
+  syncWallet();
+  // The same renderers the menu used to call. The elements moved sheets but
+  // kept their ids, so none of them had to learn anything about the move.
+  renderWho(); renderSeasonBanner(); renderRebirthBanner(); renderWorldBanner();
+  renderCrewLink(); renderProfileLink();
+  const lv = document.getElementById("lvlbarAcct");
+  const src = document.getElementById("lvlbar");
+  if (lv && src) lv.innerHTML = src.innerHTML;
+  const ad = document.getElementById("openAdminBtn");
+  if (ad) ad.hidden = !ADMIN.is;
+  const note = document.getElementById("acctNote");
+  if (note) note.innerHTML = cloudOn()
+    ? `Your garage, your records and your badges follow this account to any device you sign in on.`
+    : `Cloud saves are not set up, so everything lives on this device only.`;
+}
+const adminBtn = document.getElementById("openAdminBtn");
+if (adminBtn) adminBtn.addEventListener("click", openAdmin);
 
 /* ---------- crews screen ---------- */
 const elCrew = document.getElementById("crew");
@@ -12179,11 +12785,12 @@ function renderCrewLink(){
 function openCrew(){
   S.mode = "crew"; S.paused = false;
   elMenu.hidden = true; elShop.hidden = true; elBoard.hidden = true; elSeason.hidden = true;
-  elChat.hidden = true; elCrew.hidden = false; CHAT.open = false;
+  elChat.hidden = true; elAccount.hidden = true; elCrew.hidden = false; CHAT.open = false;
   sfx.ui(); syncWallet();
+  renderTabs();
   showCrew();
 }
-function closeCrew(){ elCrew.hidden = true; openMenu(); }
+function closeCrew(){ elCrew.hidden = true; openAccount(); }
 document.getElementById("openCrew").addEventListener("click", openCrew);
 document.getElementById("crewBack").addEventListener("click", closeCrew);
 
@@ -12205,11 +12812,12 @@ function renderSeasonBanner(){
 function openSeason(){
   S.mode = "season"; S.paused = false;
   elMenu.hidden = true; elShop.hidden = true; elBoard.hidden = true; elChat.hidden = true;
-  elSeason.hidden = false; CHAT.open = false;
+  elAccount.hidden = true; elSeason.hidden = false; CHAT.open = false;
   sfx.ui();
+  renderTabs();
   renderSeason();
 }
-function closeSeason(){ elSeason.hidden = true; openMenu(); }
+function closeSeason(){ elSeason.hidden = true; openAccount(); }
 document.getElementById("openSeason").addEventListener("click", openSeason);
 document.getElementById("seasonBack").addEventListener("click", closeSeason);
 
@@ -12444,12 +13052,14 @@ document.getElementById("openWorld").addEventListener("click", toggleWorld);
 function openRebirth(){
   S.mode = "rebirth"; S.paused = false;
   elMenu.hidden = true; elShop.hidden = true; elBoard.hidden = true;
-  elSeason.hidden = true; elRebirth.hidden = false;
+  elSeason.hidden = true; elChat.hidden = true; elAccount.hidden = true;
+  elRebirth.hidden = false;
   RB.armed = false;
   sfx.ui();
+  renderTabs();
   renderRebirth();
 }
-function closeRebirth(){ RB.done = null; RB.armed = false; elRebirth.hidden = true; openMenu(); }
+function closeRebirth(){ RB.done = null; RB.armed = false; elRebirth.hidden = true; openAccount(); }
 document.getElementById("openRebirth").addEventListener("click", openRebirth);
 document.getElementById("rbBack").addEventListener("click", closeRebirth);
 
@@ -12544,15 +13154,16 @@ async function showBoard(){
 }
 function openBoard(){
   S.mode = "board"; S.paused = false;
-  elMenu.hidden = true; elShop.hidden = true; elChat.hidden = true; elBoard.hidden = false;
+  elMenu.hidden = true; elShop.hidden = true; elChat.hidden = true;
+  elAccount.hidden = true; elBoard.hidden = false;
   sfx.ui();
   scoresPush().catch(() => {});     // make sure your own record is up there first
   dailyPush().catch(() => {});      // and a daily run banked while offline
   ttPush().catch(() => {});
+  renderTabs();
   showBoard();
 }
 function closeBoard(){ elBoard.hidden = true; openMenu(); }
-document.getElementById("openBoard").addEventListener("click", openBoard);
 document.getElementById("lbBack").addEventListener("click", closeBoard);
 
 /* ============================================================
@@ -12857,9 +13468,10 @@ function openProfile(name, from){
   S.mode = "profile"; S.paused = false;
   elMenu.hidden = true; elShop.hidden = true; elBoard.hidden = true;
   elCrew.hidden = true; elSeason.hidden = true; elChat.hidden = true;
-  elProfile.hidden = false;
+  elAccount.hidden = true; elProfile.hidden = false;
   CHAT.open = false;
   sfx.ui();
+  renderTabs();
   showProfile();
 }
 function closeProfile(){
@@ -12867,10 +13479,10 @@ function closeProfile(){
   if (PROF.from === "board") openBoard();
   else if (PROF.from === "crew") openCrew();
   else if (PROF.from === "chat") openChat();      // tapping a name in the chat goes back to it
-  else openMenu();
+  else openAccount();
 }
 document.getElementById("profBack").addEventListener("click", closeProfile);
-document.getElementById("openMyProfile").addEventListener("click", () => openProfile(AUTH.name, "menu"));
+document.getElementById("openMyProfile").addEventListener("click", () => openProfile(AUTH.name, "account"));
 
 syncWallet();
 renderDailyCard();
