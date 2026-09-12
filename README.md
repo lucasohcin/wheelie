@@ -15,6 +15,14 @@ python3 -m http.server 8000
 
 Pushes to `main` deploy automatically to Vercel.
 
+## Accounts and the live systems
+
+Accounts, the leaderboard, crews, announcements, events, chat and polls all run
+on Supabase and are set up by the SQL files in this directory. See
+[CLOUD-SAVES.md](CLOUD-SAVES.md) for what each one adds and which order to run
+them in. The game plays fine with none of them: leave `CLOUD.url` and
+`CLOUD.key` blank and it is a local game with a local save.
+
 ## Player saves
 
 Progress lives in `localStorage` under the key `soflo.save`, so it survives
