@@ -129,6 +129,33 @@ end $$;
 -- crew's combined total passes nine quintillion.
 
 -- ---------------- check it worked ----------------
--- Should list three bigint columns and one check constraint per table.
---   select column_name, data_type from information_schema.columns
---    where table_name = 'scores' and column_name in ('best','best_ride','ramp_best');
+-- This used to be a commented-out suggestion, which meant running the file
+-- printed "Success. No rows returned" and told you nothing - and a board that
+-- is still broken afterwards looks exactly like a board that was never fixed.
+-- It is a real query now. Read the output before you close the tab.
+--
+-- WANT: every row says bigint, and every ceiling reads 9000000000000000.
+-- Any row still saying `integer`, or a ceiling of 100000000, means that table
+-- did not get migrated - usually because it did not exist yet when this file
+-- was last run. Run the file that creates it, then run this one again.
+select t.table_name,
+       c.column_name,
+       c.data_type,
+       case when c.data_type = 'bigint' then 'ok' else 'STILL CAPPED - re-run this file' end as verdict
+  from information_schema.columns c
+  join (values ('scores'),('scores2'),('daily')) as t(table_name)
+    on t.table_name = c.table_name
+ where c.table_schema = 'public'
+   and c.column_name in ('best','best_ride','ramp_best','score','dist')
+ order by t.table_name, c.column_name;
+
+-- And the ceilings themselves, straight out of the constraint definitions.
+select con.conrelid::regclass as table_name,
+       con.conname,
+       pg_get_constraintdef(con.oid) as rule
+  from pg_constraint con
+ where con.contype = 'c'
+   and con.conrelid in (
+     select oid from pg_class
+      where relname in ('scores','scores2','daily') and relnamespace = 'public'::regnamespace)
+ order by 1, 2;

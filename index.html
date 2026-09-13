@@ -264,6 +264,9 @@
   .lbrow.me .pos{color:var(--neon)}
   .lbrow.gold .pos{color:#FFD24B} .lbrow.silver .pos{color:#D6DCE4} .lbrow.bronze .pos{color:#D89A5C}
   .lbnote{padding:26px 18px; text-align:center; color:var(--dim); font-size:14px; line-height:1.6}
+  .lbwarn{margin:10px 0 2px; padding:12px 14px; border-radius:10px; font-size:13px; line-height:1.55;
+          color:#FFD9A8; background:rgba(70,34,10,.55); border:1px solid rgba(255,140,40,.45)}
+  .lbwarn b{display:block; color:#FFB259; font-size:13px; margin-bottom:4px}
   .lbmine{display:flex; justify-content:center; gap:10px; align-items:center; color:var(--dim); font-size:13px}
   .lbmine b{color:var(--text); font-family:var(--num); font-size:15px}
 
@@ -12417,6 +12420,43 @@ function capScore(n){
   if (!isFinite(n) || n < 0) return 0;
   return Math.min(SCORE_CAP, n);
 }
+/* WHY THE BOARD STOPS, AND WHY NOBODY EVER FINDS OUT
+   ------------------------------------------------------------
+   scoresPush is called from cloudSyncNow inside a bare `try {} catch(e){}`,
+   and that swallow is the actual bug behind every "the leaderboard is broken"
+   report this game has had. Raising the ceiling in score-caps.sql fixed one
+   REASON the server said no. It did nothing about the fact that when the
+   server says no, the rider is told nothing at all: the run counts locally,
+   the footer still says "your best 150,000,000 - rank #1" because that rank
+   is worked out from the number on this device, and the row itself simply
+   never appears in the list above it. A board that lies in exactly that shape
+   is worse than a board that is plainly down.
+
+   So the rejection is kept now, turned into a sentence, and shown - on the
+   leaderboard where it matters and once as a toast so it is noticed without
+   going looking. LBFAIL is cleared by the first push that succeeds. */
+const LBFAIL = { msg:null, code:null, at:0, told:false };
+/* Plain English for the handful of things the server actually says, and the
+   file that fixes each one. Anything unrecognised is passed through verbatim
+   rather than flattened into "something went wrong" - the raw PostgREST
+   message is more use to whoever has to fix it than a reassuring noise. */
+function scoreFail(e){
+  const raw  = String((e && e.message) || e || "unknown");
+  const code = (e && e.code) || "";
+  const low  = raw.toLowerCase();
+  if (code === "23514" || low.includes("check constraint"))
+    return "The server is still on the old 100,000,000 ceiling, so any score past it is refused - " +
+           "and because all three boards share one row, it takes Ride Out and Ramp down with it. " +
+           "Run score-caps.sql in the Supabase SQL editor.";
+  if (code === "22003" || low.includes("out of range"))
+    return "The score columns are still `integer`, which stops at 2,147,483,647. " +
+           "Run score-caps.sql to move them to bigint.";
+  if (e && (e.status === 404 || code === "42P01"))
+    return "The leaderboard table is not on the server yet. Run leaderboard.sql.";
+  if (e && e.status === 401)
+    return "Your session expired before the score could be filed. Sign in again.";
+  return raw;
+}
 async function scoresPush(){
   if (!cloudOn() || !AUTH.uid) return false;
   if (!await freshToken()) return false;
@@ -12428,16 +12468,32 @@ async function scoresPush(){
     best_ride: capScore(W[w].bestRide),
     ramp_best: capScore(W[w].rampBest),
   });
-  await api("/rest/v1/scores", { method:"POST",
-    headers:{ "Prefer":"resolution=merge-duplicates,return=minimal" },
-    body:JSON.stringify(row(0)) });
+  try {
+    await api("/rest/v1/scores", { method:"POST",
+      headers:{ "Prefer":"resolution=merge-duplicates,return=minimal" },
+      body:JSON.stringify(row(0)) });
+    LBFAIL.msg = null; LBFAIL.code = null; LBFAIL.told = false;
+  } catch(e){
+    LBFAIL.msg = scoreFail(e); LBFAIL.code = (e && e.code) || ""; LBFAIL.at = Date.now();
+    /* Once per session, and never mid-run: a rider halfway through a wheelie
+       does not need a sentence about SQL across the screen. It waits for the
+       menu, where the board they are about to open is one tap away. */
+    if (!LBFAIL.told && !bcastPlaying()) { LBFAIL.told = true; toast("Score not filed - see the leaderboard"); }
+    throw e;                       // cloudSyncNow still swallows it; the note is what carries
+  }
   const w2 = W[1];
   if (whole(w2.best) || whole(w2.bestRide) || whole(w2.rampBest)) {
     try {
       await api("/rest/v1/scores2", { method:"POST",
         headers:{ "Prefer":"resolution=merge-duplicates,return=minimal" },
         body:JSON.stringify(row(1)) });
-    } catch(e){}      // world2.sql not run yet; the board says so in plain words
+    } catch(e){
+      // a missing table here is world2.sql not run, which is not a fault. A
+      // refusal is, and it is worth the same sentence as the first board
+      if (e && e.status !== 404 && e.code !== "42P01") {
+        LBFAIL.msg = "Afterburn board: " + scoreFail(e); LBFAIL.code = (e && e.code) || "";
+      }
+    }
   }
   return true;
 }
@@ -13955,6 +14011,9 @@ async function showBoard(){
   lbTab = board.key;
   try {
     if (!await freshToken()) { lbNote("Sign in to see the leaderboard."); lbBusy = false; return; }
+    // one last attempt before drawing it, so a board opened right after a big
+    // run shows that run rather than yesterday's
+    try { await scoresPush(); } catch(e){}
     const rows = board.daily ? await dailyTop(dailyState().day)
               : board.trial ? await ttTop(ttWeek())
               : await scoresTop(board.key, lbTable());
@@ -14008,6 +14067,15 @@ async function showBoard(){
                                    : `You haven't set a score in ${board.name} yet`;
     }
     document.getElementById("lbBody").appendChild(foot);
+    /* The whole point of LBFAIL. Below your own line, because the line above
+       it is the one that looks wrong - "your best 150,000,000, rank #1" over
+       a list you are not in - and this is the sentence that explains it. */
+    if (LBFAIL.msg && !board.daily && !board.trial) {
+      const warn = document.createElement("div");
+      warn.className = "lbwarn";
+      warn.innerHTML = "<b>Your score is not reaching the board.</b>" + esc(LBFAIL.msg);
+      document.getElementById("lbBody").appendChild(warn);
+    }
   } catch(e){
     // the daily table is newer than the game: say so plainly rather than
     // leaving a dead screen, because the run itself still counted locally
