@@ -3254,6 +3254,122 @@ const EVENTS = {
   tide:    { name:"High Tide", ic:"\u{1F30A}", col:"#35A0A0", paint:true,
              sky:["#04202C", .44],
              blurb:() => "The water comes up. Every gap is a crossing now" },
+
+  /* ---- the games ----
+     Everything above this line happens to the ramp world or to the sky. These
+     twenty-five happen on the STREET, which until now got a coin multiplier
+     and some weather and nothing else - the whole spectacle layer was built
+     for a mode that only ever had two things in it.
+
+     They are declared the same way everything else is, and the street layer
+     below reads the fields rather than knowing any event by name:
+
+       pick  - things sitting on the road ahead that pay when you ride
+               through them. Flat, like a rain drop, for the same reason.
+       chase - something behind you that closes while you are slower than
+               `need` and drops back while you are faster. It catches you and
+               the run is over, so it is off in versus and off after a crash.
+       scale - how big the rider is drawn. Nothing else about him changes.
+       road  - how many cars, riders and holes a RIDE OUT puts on the road.
+
+     The first wing is other people's games, played on a motorbike. */
+  garden:  { name:"Grow-Out", ic:"\u{1F331}", col:"#6BE86B", mul:true, wing:"The games",
+             sky:["#0A2410", .30], floor:"garden",
+             pick:{ look:"plant", rate:.085, max:9, pay:700 },
+             blurb:m => "The asphalt splits open and grows - " + (700 * m).toLocaleString() + " a harvest" },
+  brainrot:{ name:"Brainrot Heist", ic:"\u{1F9E0}", col:"#FF5FE0", mul:true, wing:"The games",
+             sky:["#1A0426", .40], strobe:true,
+             pick:{ look:"blob", rate:.055, max:6, pay:500, streak:true },
+             blurb:m => "They are sitting on the median. Take " + (500 * m).toLocaleString() +
+                        " each, and more for every one in a row" },
+  fruit:   { name:"Devil Fruit", ic:"\u{1F348}", col:"#A855F7", wing:"The games",
+             sky:["#140A26", .38],
+             drop:{ rate:.030, max:2, pay:2500, look:"fruit", vy:[4,6], r:16 },
+             blurb:() => "One falls now and then. Catch it and it changes the rest of your run" },
+  pets:    { name:"Pet Parade", ic:"\u{1F43E}", col:"#FFD54A", pet:true, wing:"The games",
+             blurb:() => "Something rides with you, and it hoovers up anything you get near" },
+  rush:    { name:"The Rush", ic:"\u{1F6AA}", col:"#7B4BFF", wing:"The games",
+             sky:["#08040E", .66],
+             chase:{ frac:0.62, look:"rush", say:"the Rush" },
+             blurb:() => "Something is coming down the A1A behind you. Hold two thirds of what the bike has" },
+  blade:   { name:"Blade Ball", ic:"\u2694\uFE0F", col:"#FFE66B", mul:true, wing:"The games",
+             sky:["#0C0A18", .36],
+             blurb:m => "It gets thrown at you. Brake the moment it arrives for " +
+                        (2600 * m).toLocaleString() + " style, or wear it" },
+  jail:    { name:"Jailbreak", ic:"\u{1F693}", col:"#4B8BFF", mul:true, wing:"The games",
+             sky:["#06101E", .38],
+             chase:{ frac:0.74, look:"cop", say:"the heat" },
+             blurb:m => "Every cop in Broward is behind you - " + m +
+                        "\u00d7 coins, and you will need most of the bike's top end" },
+  nights:  { name:"99 Nights", ic:"\u{1F332}", col:"#4BE0A0", mul:true, wing:"The games",
+             sky:["#03120A", .70], stars:true,
+             pick:{ look:"fire", rate:.05, max:5, pay:900 },
+             blurb:m => "The sun does not come back up. Keep finding fires - " +
+                        (900 * m).toLocaleString() + " each" },
+  fisch:   { name:"Gone Fischin'", ic:"\u{1F3A3}", col:"#35C9E0", mul:true, wing:"The games",
+             sky:["#04202C", .42], floor:"flood",
+             pick:{ look:"fish", rate:.095, max:8, pay:600 },
+             blurb:m => "The strip floods and they come up with it - " + (600 * m).toLocaleString() + " a catch" },
+  chaos:   { name:"Disaster Roulette", ic:"\u{1F32A}\uFE0F", col:"#FF8A3C", chaos:true, wing:"The games",
+             sky:["#1A1208", .34],
+             blurb:() => "A different disaster every twenty seconds, and it never asks first" },
+
+  /* ---- the insane ----
+     The wing that exists because somebody asked for the most unhinged thing
+     the street could survive. Every one of them is still honest about the
+     physics: the ones that change how a run PLAYS say so on the card, and the
+     ones that only change what you see leave the handling exactly alone. */
+  tsunami: { name:"The Wall", ic:"\u{1F30A}", col:"#2FA8C8", wing:"The insane",
+             sky:["#03202E", .54],
+             chase:{ frac:0.54, look:"wave", say:"the wall" },
+             blurb:() => "The ocean is coming up the strip. Hold better than half of what the bike has" },
+  kaiju:   { name:"Something Big", ic:"\u{1F996}", col:"#9ADB4B", mul:true, quake:true, kaiju:true,
+             wing:"The insane", sky:["#12180A", .44],
+             drop:{ rate:.10, max:6, pay:1100, look:"rock", vy:[8,13], r:14 },
+             blurb:m => "It is walking the horizon and shaking the county apart - " +
+                        (1100 * m).toLocaleString() + " a chunk" },
+  blackhole:{ name:"Singularity", ic:"\u{1F573}\uFE0F", col:"#B06BFF", hole:true, stars:true,
+             wing:"The insane", sky:["#05030C", .74],
+             blurb:() => "A hole opens over the A1A and everything falling bends towards you" },
+  giant:   { name:"Giant Mode", ic:"\u{1F5FF}", col:"#E0B44B", mul:true, scale:2.1, quake:true,
+             wing:"The insane",
+             blurb:m => m + "\u00d7 coins, and you no longer fit under the overpass" },
+  tiny:    { name:"Ant Mode", ic:"\u{1F41C}", col:"#8BFF6B", mul:true, scale:0.42,
+             wing:"The insane",
+             blurb:m => "You are the size of a mailbox - style banks " + m + "\u00d7" },
+  bullet:  { name:"Bullet Time", ic:"\u23F1\uFE0F", col:"#C8D4FF", mul:true, slow:0.55, warp:true,
+             wing:"The insane", sky:["#0A0E1C", .34],
+             blurb:m => "The whole street runs at half speed and style banks " + m + "\u00d7" },
+  clones:  { name:"Doppelg\u00e4ngers", ic:"\u{1F465}", col:"#7BE7FF", clones:true,
+             wing:"The insane",
+             blurb:() => "Three more of you, a beat behind, riding the line you just rode" },
+  nuke:    { name:"Last Call", ic:"\u2622\uFE0F", col:"#FFDD33", mul:true, nuke:true, quake:true,
+             wing:"The insane", sky:["#2A1A02", .58],
+             blurb:m => "Sirens, a light on the horizon, and " + m + "\u00d7 on coins, XP and style at once" },
+  roll:    { name:"Rollover", ic:"\u{1F643}", col:"#FF2D9B", roll:true, wing:"The insane",
+             blurb:() => "The whole street turns over. It does come back around" },
+  hundred: { name:"Hundredfold", ic:"\u{1F4AF}", col:"#FFC24B", mul:true, wash:"#FFC24B",
+             wing:"The insane", sky:["#3A2A05", .44], strobe:true,
+             blurb:m => m + "\u00d7 coins, " + m + "\u00d7 XP and " + m + "\u00d7 style. The whole cupboard" },
+
+  /* ---- the road ----
+     Ride out only, and they say so. A ride out is the only mode with traffic,
+     a pack and potholes in it, so these five are the only events in the game
+     that do nothing at all on a plain street run - the card says which. */
+  traffic: { name:"Rush Hour", ic:"\u{1F697}", col:"#FF6B4B", mul:true, wing:"The road",
+             road:{ cars:12 },
+             blurb:m => "Ride out: four times the traffic, and " + m + "\u00d7 for every car you slip past" },
+  broken:  { name:"Broken Road", ic:"\u{1F6A7}", col:"#C9A227", wing:"The road",
+             road:{ haz:3 },
+             blurb:() => "Ride out: the county gave up. Three times the holes, five times the payout" },
+  ghost:   { name:"Ghost Town", ic:"\u{1F47B}", col:"#9FB4CC", mul:true, wing:"The road",
+             road:{ cars:0, pack:0, empty:true }, sky:["#0A0C12", .34],
+             blurb:m => "Ride out: not a car, not a rider, not a hole. Just you and " + m + "\u00d7 XP" },
+  rally:   { name:"The Rally", ic:"\u{1F3C1}", col:"#FF9F1C", wing:"The road",
+             road:{ pack:11 },
+             blurb:() => "Ride out: the whole county turns out, and every one you pass feeds the chain" },
+  nitro:   { name:"Nitrous", ic:"\u{1F4A8}", col:"#7BFFD4", warp:true, wing:"The road",
+             blurb:() => "Every bike on the strip is on the bottle - past the limiter and past the sense" },
 };
 
 /* The ramp palette a `paint` event swaps in, in the same shape RTRACKS uses,
@@ -3278,6 +3394,27 @@ const RPAINT = {
              hill1:"rgba(40,110,124,.56)", hill2:"rgba(18,54,66,.72)",
              sky:[[0,"#04202C"],[.44,"#0E4456"],[.78,"#2A7E90"],[1,"#6ECBD0"]] },
 };
+/* Fifty-five events is more than a dropdown can be read down, so the admin
+   panel groups them by the wing they were added in. Derived from the entries
+   rather than written out again beside them: an event with no `wing` is one
+   of the thirty that were here before the street had any. */
+function evtGroups(){
+  const out = [], seen = {};
+  for (const k in EVENTS) {
+    const w = EVENTS[k].wing || "South Florida";
+    if (!seen[w]) { seen[w] = { name:w, keys:[] }; out.push(seen[w]); }
+    seen[w].keys.push(k);
+  }
+  return out;
+}
+/* Is anything live wearing this flag, and if so which. Several events now ask
+   for the same piece of the show - three of them strobe, two of them wash the
+   screen - and the renderer should be asking "is anything strobing" rather
+   than naming them one at a time and quietly missing the newest. */
+function evtFlag(f){
+  for (const e of evtLive()) { const K = EVENTS[e.kind]; if (K && K[f]) return K; }
+  return null;
+}
 const EVT = { list:[], fetched:0, first:true };
 
 async function listEvents(){
@@ -3331,12 +3468,18 @@ const evtLive = () => inW2() ? [] : EVT.list.filter(e => new Date(e.expires_at).
    - the same reason a rain drop pays flat. Coin Rush at 100x standing next to
    Midas Hour at 3x is 100x, not 300x, because nobody designed 300x. */
 const evtBest     = (...ks) => ks.reduce((m, k) => Math.max(m, evtMul(k)), 1);
-const evtCoinMul  = () => evtBest("coins", "gold", "blood");
-const evtXPMul    = () => evtBest("xp", "eclipse", "swarm");
-const evtStyleMul = () => evtBest("disco", "frost", "neon", "glass");
-const evtGrav     = () => evtOn("zero") ? 0.16 : evtOn("moon") ? 0.42 : 1;
-const evtTurbo    = () => evtOn("hyper") ? 1.45 : evtOn("volcano") ? 1.30 : evtOn("turbo") ? 1.22 : 1;
-const evtWind     = () => evtOn("storm") ? 3 : 1;
+const evtCoinMul  = () => evtBest("coins", "gold", "blood", "giant", "nuke", "hundred", "traffic", "jail");
+const evtXPMul    = () => evtBest("xp", "eclipse", "swarm", "ghost", "nuke", "hundred");
+const evtStyleMul = () => evtBest("disco", "frost", "neon", "glass", "tiny", "bullet", "nuke", "hundred")
+                        * (ST.buff === "style" ? 2 : 1);
+const evtGrav     = () => evtOn("zero") ? 0.16 : evtOn("blackhole") ? 0.30 : evtOn("moon") ? 0.42 : 1;
+const evtTurbo    = () => evtOn("nitro") ? 1.70 : evtOn("hyper") ? 1.45
+                        : evtOn("volcano") ? 1.30 : evtOn("turbo") ? 1.22 : 1;
+const evtWind     = () => evtOn("storm") ? 3 : chaosNow() === "gust" ? 2.5 : 1;
+/* The events that pay their own pickups do NOT also appear in evtCoinMul.
+   Grow-Out at 10x means a 7,000 coin plant, not a 7,000 coin plant on top of
+   ten times everything else you earn - the same rule that keeps a rain drop
+   flat, applied one level up. */
 /* How long the front wheel may be down before the chain banks itself. Rainbow
    Road is the event that does not drop it at all, so it returns a number no
    run will ever count down through rather than a special case in tickStreet. */
@@ -5011,7 +5154,15 @@ function crash(why){
   S.score = 0; S.mult = 1; S.spd = 0; S.av = 0; S.rpm = 0; S.wheelieT = 0;
   rivalRebase();
 }
-function respawn(){ dropStyle(); S.over = false; S.dir = 90; S.av = 0; S.spd = 0; S.sag = 0; S.sagV = 0; S.crashSpin = 0; }
+function respawn(){
+  dropStyle(); S.over = false; S.dir = 90; S.av = 0; S.spd = 0; S.sag = 0; S.sagV = 0; S.crashSpin = 0;
+  /* Whatever was chasing you starts over at full distance AND at full grace.
+     You come back at a standstill, so without both of these the thing that
+     just caught you is still on top of you and catches you again before the
+     bike has pulled away - which is not a hard event, it is a locked run. */
+  if (ST.chaseK) { ST.chase = 820; ST.grace = CHASE_GRACE; }
+  ST.streak = 0;
+}
 
 /* ---------- particles ---------- */
 function stepParts(){
@@ -6104,6 +6255,7 @@ function spawnCar(ahead){
   return { t, dirn,
     wx: S.scroll + (ahead ? W + 200 + Math.random()*700 : -260 - Math.random()*500),
     spd: (7 + Math.random()*11) * dirn,
+    sx: W + 400, passed: false,
     tint: Math.random() < 0.5 ? t.body : PAINT[Math.floor(Math.random()*PAINT.length)] };
 }
 function makeHaz(wx){ return { wx, type: HAZ_TYPES[Math.floor(Math.random()*3)], done:false }; }
@@ -6114,8 +6266,35 @@ function spawnRideOut(){
   HAZ.push(makeHaz(S.scroll + W + 700));
 }
 
+/* How busy the road is. Four road events move these numbers and nothing else
+   does, so a ride out with no event running returns exactly the three
+   constants spawnRideOut has always used. `haz` divides the gap between
+   holes rather than multiplying a rate, because the holes are placed one
+   ahead of the last rather than rolled for each tick.
+
+   Deliberately no cap-per-event cleverness: two road events at once simply
+   both apply, and Ghost Town wins the ones it touches because it is last. */
+function evtRoad(){
+  const r = { cars:3, pack:4, haz:1, empty:false };
+  if (evtOn("traffic")) r.cars = 12;
+  if (evtOn("rally"))   r.pack = 11;
+  if (evtOn("broken"))  r.haz  = 3;
+  if (evtOn("ghost"))   { r.cars = 0; r.pack = 0; r.empty = true; }
+  return r;
+}
+
 function updateRideOut(){
   const sc = S.scroll;
+  const RD = evtRoad();
+
+  /* Grow or shrink the road to what the events want, a few at a time rather
+     than all at once, so Rush Hour arriving mid-run fills the lane up in
+     front of you instead of popping nine cars into existence in one frame. */
+  if (PACK.length > RD.pack) PACK.pop();
+  else if (PACK.length < RD.pack) PACK.push(spawnRider(true));
+  if (CARS.length > RD.cars) CARS.pop();
+  else if (CARS.length < RD.cars) CARS.push(spawnCar(true));
+  if (RD.empty && HAZ.length) HAZ.length = 0;
 
   for (let i = 0; i < PACK.length; i++) {
     const a = PACK[i], B = a.B;
@@ -6147,19 +6326,35 @@ function updateRideOut(){
     if (!a.passed && px >= BIKE_X && a.sx < BIKE_X) {
       a.passed = true; qAdd("passed", 1);
       a.tgt = 30; a.t = 150;                      // they answer back
+      // The Rally is the only event that pays for this, and it pays into the
+      // chain rather than the bank: passing eleven riders in a row is a run,
+      // and a run is what the chain is for
+      if (evtOn("rally") && !VS.on) { styleAdd(700 * (1 + S.combo), "passed"); sfx.flip(1); }
     }
     if (a.sx < -420 || a.sx > W + 560) PACK[i] = spawnRider(a.sx < 0);
   }
 
+  const rush = evtOn("traffic");
   for (let i = 0; i < CARS.length; i++) {
     const c = CARS[i];
     c.wx += c.spd;
-    const sx = c.wx - sc;
+    const px = c.sx, sx = c.wx - sc;
+    c.sx = sx;
+    /* Rush Hour is the only thing that makes a car worth anything. Paid as
+       score through earn() rather than straight to the wallet, because
+       unlike a drop out of the sky this is something you rode for. */
+    if (rush && !c.passed && !VS.on && !S.over && px >= BIKE_X && sx < BIKE_X && S.spd > 6) {
+      c.passed = true;
+      const pts = Math.round(90 * S.mult * Math.max(1, evtMul("traffic")));
+      S.score += pts; earn(pts / 15);
+      toast("slipped past  +" + pts.toLocaleString()); sfx.coin();
+    }
     if (sx < -400 || sx > W + 520) CARS[i] = spawnCar(sx < 0);
   }
 
   const last = HAZ[HAZ.length - 1];
-  if (!last || last.wx - sc < W - 40) HAZ.push(makeHaz((last ? last.wx : sc + W) + 2400 + Math.random()*3000));
+  if (!RD.empty && (!last || last.wx - sc < W - 40))
+    HAZ.push(makeHaz((last ? last.wx : sc + W) + (2400 + Math.random()*3000) / RD.haz));
   for (let i = HAZ.length - 1; i >= 0; i--) {
     const h = HAZ[i], sx = h.wx - sc;
     if (sx < -160) { HAZ.splice(i, 1); continue; }
@@ -6171,7 +6366,9 @@ function updateRideOut(){
         S.shake = REDUCED ? 0 : 5; sfx.land(0.3); toast("bounced it");
         continue;
       }
-      const pts = Math.round(160 * S.mult);
+      // Broken Road puts three times as many in front of you and pays five
+      // times for each one, so a county that gave up is worth riding through
+      const pts = Math.round(160 * S.mult * (evtOn("broken") ? 5 : 1));
       S.score += pts; earn(pts / 15);
       S.cleared++; qAdd("cleared", 1);
       toast("cleared  +" + pts);
@@ -6981,8 +7178,17 @@ function renderStreet(){
   if (S.photo) { ctx.translate(BIKE_X, GROUND); ctx.scale(S.pz, S.pz); ctx.translate(-BIKE_X + S.pox, -GROUND + S.poy); }
   else if (S.shake > 0.2) ctx.translate((Math.random()-.5)*S.shake, (Math.random()-.5)*S.shake);
 
+  /* Rollover turns the WORLD, inside this save block, so the HUD, the
+     announcements and the event chips stay the right way up outside it -
+     upside down scores are a joke that stops being funny on the first read.
+     Scaled up because a rotated rectangle does not cover its own corners. */
+  if (ST.roll > 0) {
+    ctx.translate(W / 2, H / 2); ctx.rotate(ST.roll); ctx.scale(1.44, 1.44);
+    ctx.translate(-W / 2, -H / 2);
+  }
+
   drawScene();
-  drawFxBack(); drawFxFloor();
+  drawFxBack(); drawFxFloor(); drawFxRoad();
   if (S.rideOut) { drawCars(); drawPack(0); drawPack(1); drawHazards(); }
   drawRain();
 
@@ -6994,6 +7200,12 @@ function renderStreet(){
 
   POSE = easePose(POSE, bike(), S.anim);
   ctx.save();
+  /* Giant and Ant, and nothing else in the game, change this number. It is a
+     transform around the rear contact patch and it is the LAST thing applied,
+     so the physics, the ground, the collection boxes and every other event
+     carry on with a rider exactly where he always was. */
+  const bsc = evtScale();
+  if (bsc !== 1) { ctx.translate(BIKE_X, GROUND); ctx.scale(bsc, bsc); ctx.translate(-BIKE_X, -GROUND); }
   bikeTransform();
   drawBike();
   drawRider(null, null, null, VS.on ? VS_JERSEY[vsSide - 1] : null);
@@ -9493,7 +9705,12 @@ function loop(now){
   const playing = (S.mode === "street" || S.mode === "ramp") && !S.paused && !S.photo
                   && !(VS.on && VS.phase === "over");
   if (playing) {
-    acc += dt;
+    /* Bullet Time is the only thing that touches the clock, and it feeds the
+       accumulator rather than TICK itself - every tick is still exactly the
+       same fixed step, there are simply fewer of them per second. Street
+       only: a ramp run is a landing and a half-speed landing is a different
+       game, and a seeded daily has to be the same day for everybody. */
+    acc += dt * (S.mode === "street" ? evtSlow() : 1);
     let guard = 0;
     while (acc >= TICK && guard++ < 6) {
       if (VS.on) {
@@ -10706,7 +10923,9 @@ function rainTick(){
     const d = RAIN.drops[i];
     d.y += d.vy; d.x -= drift * d.sp; d.t++;
     // the rider's box: from the front wheel back, shoulder height to the road
-    const hit = d.x > BIKE_X - 40 && d.x < BIKE_X + 150 && d.y > GROUND - 150 && d.y < GROUND + 6;
+    const reach = evtReach();
+    const hit = d.x > BIKE_X - 40 - reach && d.x < BIKE_X + 150 + reach
+             && d.y > GROUND - 150 - reach * 0.4 && d.y < GROUND + 6;
     if (hit) {
       RAIN.drops.splice(i, 1);
       /* Paid flat, straight to the wallet, rather than through earn(). A drop
@@ -10715,7 +10934,8 @@ function rainTick(){
          too, so 100x plus rain minted 419,000 coins in thirty seconds. Two
          events that each make sense should not compound into a third that
          does not. Rain is world 1 only, so this never touches embers. */
-      SAVE.coins += RAIN_PAY; S.score += 250; sfx.coin(); qAdd("coinsGot", 1);
+      const got = RAIN_PAY * buffPay();
+      SAVE.coins += got; S.score += got; sfx.coin(); qAdd("coinsGot", 1);
       spark({ x:d.x, y:d.y }, "#FFD11A");
       continue;
     }
@@ -10784,7 +11004,7 @@ const wrapX = (v, m) => ((v % m) + m) % m;
 const HERO_RISE = 60, HERO_ARM = 34;
 
 function fxTick(){
-  if (S.mode !== "street") { if (FX.drops.length || FX.bits.length) fxClear(); return; }
+  if (S.mode !== "street") { fxClear(); return; }
   FX.t++;
   if (FX.flash > 0) FX.flash--;
   if (FX.quake > 0) FX.quake *= 0.90;
@@ -10846,7 +11066,9 @@ function fxTick(){
   }
 
   /* ---- ambient bits: snow, ash, drifting stars ---- */
-  const amb = evtOn("frost") ? "snow" : evtOn("volcano") ? "ash" : evtOn("zero") ? "star" : null;
+  const amb = evtOn("frost") ? "snow" : evtOn("volcano") ? "ash"
+            : chaosNow() === "hail" ? "snow"
+            : (evtOn("zero") || evtOn("blackhole") || evtOn("nights")) ? "star" : null;
   if (amb) {
     const cap = heavy ? 70 : 26;
     if (FX.bits.length < cap)
@@ -10897,9 +11119,13 @@ function fxTick(){
   for (let i = FX.drops.length - 1; i >= 0; i--) {
     const d = FX.drops[i];
     d.y += d.vy; d.x += (d.vx || 0) - drift * d.sp * 0.5; d.t++;
-    // the rider's box, the same one the rain uses: front wheel back, shoulder down
-    const hit = canPay && d.x > BIKE_X - 46 && d.x < BIKE_X + 155
-                       && d.y > GROUND - 155 && d.y < GROUND + 8;
+    // the singularity bends what is falling towards whoever is riding under it
+    if (evtOn("blackhole")) d.x += ((BIKE_X + 54) - d.x) * 0.022;
+    // the rider's box, the same one the rain uses: front wheel back, shoulder
+    // down, and wider by whatever is riding with you
+    const reach = evtReach();
+    const hit = canPay && d.x > BIKE_X - 46 - reach && d.x < BIKE_X + 155 + reach
+                       && d.y > GROUND - 155 - reach * 0.4 && d.y < GROUND + 8;
     const landed = d.y > GROUND + 4;
     if (hit || landed) {
       FX.drops.splice(i, 1);
@@ -10918,16 +11144,582 @@ function fxTick(){
            fixed event payout like the daily reward - putting it through the
            multiplier is how 100x plus rain once minted 419,000 coins in
            thirty seconds. */
-        SAVE.coins += d.pay; S.score += Math.round(d.pay / 3);
+        const got = Math.round(d.pay * buffPay());
+        SAVE.coins += got; S.score += Math.round(got / 3);
         qAdd("coinsGot", 1); sfx.coin();
-        toast("+" + d.pay.toLocaleString());
+        toast("+" + got.toLocaleString());
+        if (d.look === "fruit") grantBuff();      // the one drop that is not money
       }
       continue;
     }
     if (d.x < -80 || d.t > 400) FX.drops.splice(i, 1);
   }
+
+  /* The street's own events, last, because the only one that can end a run -
+     something catching you from behind - has to be able to call crash() with
+     everything else already settled for this tick. tickStreet checks S.over
+     immediately after fxTick returns. */
+  streetTick();
 }
-function fxClear(){ FX.drops.length = 0; FX.bits.length = 0; FX.ghosts.length = 0; }
+function fxClear(){
+  FX.drops.length = 0; FX.bits.length = 0; FX.ghosts.length = 0;
+  stClear();
+}
+
+/* ============================================================
+   THE STREET
+   ------------------------------------------------------------
+   The spectacle layer above was built for the sky. This one is built for the
+   road, because the street was the mode that had the least in it: a coin
+   multiplier, some weather, and on a ride out a pack and a few cars.
+
+   Four systems, and every one of them is declared up in EVENTS rather than
+   known by name down here, so a twenty-sixth street event is one entry up
+   there and nothing at all in this block:
+
+     pick   things sitting on the road that pay when you ride through them
+     chase  something behind you that catches you if you slow down
+     scale  how big the rider is drawn, and nothing else
+     road   what a RIDE OUT puts on the road: cars, riders, holes
+
+   Two rules, the same two the sky layer keeps. None of it reaches Afterburn,
+   because evtOn returns null there. And nothing pays or kills in versus,
+   which pays nothing and where a hole in the road nobody agreed to would
+   decide somebody's round - `canPay` is the one gate for both.
+   ============================================================ */
+const CHAOS = [
+  { k:"quake",    name:"EARTHQUAKE" },
+  { k:"blackout", name:"BLACKOUT" },
+  { k:"gust",     name:"GALE" },
+  { k:"hail",     name:"HAIL" },
+];
+const ST = {
+  picks:[], trail:[], poses:[null, null, null],
+  chase:-1, chaseK:"", grace:0, streak:0,
+  buff:"", buffT:0,
+  ball:0, ballX:0, parry:0,
+  kx:-520, kstep:0, kfoot:0,
+  roll:0, siren:0, chaosI:0, chaosT:0,
+};
+const CHASE_GRACE = 90;                 // three seconds before it starts closing
+/* What the thing behind you is asking for, in mph, on the bike you are
+   actually on. It has to be a FRACTION of the bike rather than a flat number:
+   the slowest thing in the garage tops out at 26, so a flat "hold 30" was a
+   run that could not be won on it - not a hard event, a locked one. A share
+   of the bike's own top end is the same ask on every bike in the game, and
+   the arrival toast and the chip on screen both spell out what that is in
+   mph so nobody has to work it out mid-run. */
+function chaseNeed(C){ return Math.round((bike().limit || 40) * (C.frac || 0.6)); }
+function stClear(){
+  ST.picks.length = 0; ST.trail.length = 0; ST.poses = [null, null, null];
+  ST.chase = -1; ST.chaseK = ""; ST.grace = 0; ST.streak = 0; ST.ball = 0; ST.parry = 0;
+  ST.buff = ""; ST.buffT = 0; ST.roll = 0; ST.siren = 0;
+}
+/* Which disaster the roulette is currently on. Returns "" when it is not
+   running, so every reader is a plain string compare rather than a flag. */
+const chaosNow = () => evtOn("chaos") ? CHAOS[ST.chaosI].k : "";
+/* How big the rider is drawn. Drawing only: the hit boxes, the ground and the
+   physics are all exactly where they were, so a giant is a giant to look at
+   and rides like himself. */
+const evtScale = () => { for (const k in EVENTS) if (EVENTS[k].scale && evtOn(k)) return EVENTS[k].scale; return 1; };
+const evtSlow  = () => evtOn("bullet") ? 0.55 : 1;
+/* Extra pixels on every collection box - a pet, or a magnet fruit. */
+const evtReach = () => (evtOn("pets") ? 150 : 0) + (ST.buff === "magnet" ? 130 : 0);
+const buffPay  = () => ST.buff === "riches" ? 2 : 1;
+
+/* A devil fruit is the only thing in the game that falls out of the sky and
+   is not money. Thirty seconds, one of three, announced - so a rider who
+   catches one knows what they got and when it left. */
+const BUFFS = [
+  { k:"riches", say:"RICHES  \u00b7  everything that lands pays double" },
+  { k:"style",  say:"STYLE  \u00b7  the chain banks double" },
+  { k:"magnet", say:"MAGNET  \u00b7  you no longer have to be close" },
+];
+function grantBuff(){
+  const b = BUFFS[Math.floor(Math.random() * BUFFS.length)];
+  ST.buff = b.k; ST.buffT = 900;                 // thirty seconds at 30 ticks
+  toast(b.say); sfx.chime(); FX.flash = 14; FX.flashCol = "#A855F7";
+}
+
+function streetTick(){
+  const canPay = !VS.on && !S.over;
+  if (S.over) { ST.streak = 0; ST.ball = 0; }
+
+  /* ---- the rollover ----
+     Started, it keeps turning. Ended, it finishes the revolution it is in and
+     stops upright rather than snapping back - a scene that jumps 200 degrees
+     between two frames is a scene nobody can ride through. */
+  if ((evtOn("roll") || ST.roll > 0) && !REDUCED) {
+    ST.roll += 0.0040;
+    if (ST.roll >= 6.2832) ST.roll = evtOn("roll") ? ST.roll - 6.2832 : 0;
+  } else if (REDUCED) ST.roll = 0;
+
+  if (ST.buffT > 0 && --ST.buffT <= 0) { ST.buff = ""; toast("it wore off"); }
+  if (ST.parry > 0) ST.parry--;
+
+  /* ---- disaster roulette ----
+     Twenty seconds each, announced when it turns over, and the four of them
+     are all effects that already exist: the quake the volcano uses, the gale
+     the hurricane uses, the hail the freeze draws and a blackout. */
+  if (evtOn("chaos")) {
+    if (--ST.chaosT <= 0) {
+      ST.chaosT = 600;
+      ST.chaosI = Math.floor(Math.random() * CHAOS.length);
+      toast("\u{1F32A}\uFE0F  " + CHAOS[ST.chaosI].name);
+      sfx.riser(1.1);
+    }
+    if (CHAOS[ST.chaosI].k === "quake") FX.quake = Math.max(FX.quake, 3.4);
+  } else ST.chaosT = 0;
+
+  /* ---- the colossus on the horizon ----
+     It never touches the rider. It walks, and the ground answers - which is
+     also what shakes the coins loose, through the ordinary drop spec. */
+  if (evtOn("kaiju")) {
+    ST.kx += 0.5;
+    if (ST.kx > W + 460) ST.kx = -460;
+    ST.kstep += 0.030;
+    if (Math.sin(ST.kstep) > 0.985 && ST.kfoot <= 0) {
+      ST.kfoot = 16; FX.quake = Math.max(FX.quake, 6); sfx.rumble();
+    }
+    if (ST.kfoot > 0) ST.kfoot--;
+  } else ST.kx = -520;
+
+  if (evtOn("nuke")) {
+    ST.siren++;
+    FX.quake = Math.max(FX.quake, 1.5);
+    if (ST.siren % 210 === 0) { FX.flash = 18; FX.flashCol = "#FFE9A8"; sfx.boom(0.8); }
+  } else ST.siren = 0;
+
+  if (evtOn("giant")) FX.quake = Math.max(FX.quake, 2.2);   // you weigh something now
+
+  /* ---- the line you just rode, for the copies of you riding it ---- */
+  if (evtOn("clones") && !S.over) {
+    ST.trail.push({ dir:S.dir, anim:S.anim, wheelA:S.wheelA });
+    if (ST.trail.length > 150) ST.trail.shift();
+  } else if (ST.trail.length) { ST.trail.length = 0; ST.poses = [null, null, null]; }
+
+  /* ---- things on the road ----
+     Spawned in world coordinates ahead of the rider and left to scroll back,
+     so they sit still on the tarmac instead of sliding along it. Every pickup
+     event runs its own stream with its own cap: two of them at once is two
+     harvests, not a fight over one array. */
+  for (const k in EVENTS) {
+    const spec = EVENTS[k].pick;
+    if (!spec || !canPay) continue;
+    const e = evtOn(k);
+    if (!e) continue;
+    let mine = 0;
+    for (const p of ST.picks) if (p.k === k) mine++;
+    if (mine < spec.max && Math.random() < spec.rate)
+      ST.picks.push({ k, look:spec.look,
+        wx: S.scroll + W + 90 + Math.random() * 620,
+        y: GROUND - 2 - Math.random() * 12,
+        pay: Math.round(spec.pay * (EVENTS[k].mul ? Math.max(1, +e.mult || 1) : 1)),
+        streak: !!spec.streak, t:0 });
+  }
+  for (let i = ST.picks.length - 1; i >= 0; i--) {
+    const p = ST.picks[i];
+    p.t++;
+    const sx = p.wx - S.scroll;
+    // one that goes by uncollected breaks a streak. That is the whole game of
+    // the heist: a run of them is worth far more than the same number missed
+    if (sx < -140) { ST.picks.splice(i, 1); if (p.streak) ST.streak = 0; continue; }
+    if (!canPay || Math.abs(sx - (BIKE_X + 44)) > 58 + evtReach()) continue;
+    ST.picks.splice(i, 1);
+    /* Flat, straight to the wallet, never through earn(). Same reason a rain
+       drop is flat: a fixed event payout that went through the multipliers is
+       how a coin hour and a weather event once minted 419,000 in half a
+       minute. The strength number is already baked into `pay` above. */
+    let pay = Math.round(p.pay * buffPay());
+    if (p.streak) { ST.streak = Math.min(24, ST.streak + 1); pay = Math.round(pay * (1 + ST.streak * 0.30)); }
+    SAVE.coins += pay; S.score += Math.round(pay / 3);
+    qAdd("coinsGot", 1); sfx.coin();
+    spark({ x:sx, y:p.y }, (EVENTS[p.k] || {}).col || "#FFD11A");
+    toast("+" + pay.toLocaleString() + (p.streak && ST.streak > 1 ? "   \u00d7" + ST.streak : ""));
+  }
+
+  /* ---- something behind you ----
+     The only event in the game that can end a run on its own, so it is by far
+     the most carefully fenced thing in this file. Never in versus, never while
+     you are already down, and two rules that exist because the first version
+     of this was an infinite loop:
+
+     A GRACE, three seconds, on arrival and on every respawn. You come back
+     from a crash at a standstill, and a chase that starts closing the instant
+     you land puts you back on the floor before the bike has pulled away - the
+     same crash over and over with nothing you can do about it. Three seconds
+     is long enough to be moving on any bike in the garage.
+
+     A FLOOR under how fast it closes. Stopped dead is the worst case, and
+     capped at 18 a tick the worst case still takes a second and a half from
+     full distance. Without the cap a slow bike caught at a red light was
+     gone in under a second. */
+  let ck = "", C = null;
+  for (const k in EVENTS) { const c = EVENTS[k].chase; if (c && evtOn(k)) { ck = k; C = c; break; } }
+  if (C && canPay) {
+    const need = chaseNeed(C);
+    if (ST.chaseK !== ck) {
+      ST.chaseK = ck; ST.chase = 820; ST.grace = CHASE_GRACE;
+      toast(EVENTS[ck].ic + "  BEHIND YOU  \u00b7  hold " + need);
+      sfx.rumble();
+    }
+    if (ST.grace > 0) { ST.grace--; ST.chase = Math.max(ST.chase, 820); }
+    else {
+      ST.chase = Math.min(940, ST.chase + Math.max(-18, (S.spd - need) * 1.5));
+      if (ST.chase < 300 && FX.t % 20 === 0) sfx.rumble();
+      if (ST.chase <= 0) { ST.chase = 820; ST.grace = CHASE_GRACE; crash("caught by " + C.say); return; }
+    }
+  } else if (!C) { ST.chaseK = ""; ST.chase = -1; ST.grace = 0; }
+
+  /* ---- the ball ----
+     Thrown from off the right of the screen, and the answer is the brake: it
+     is the one control a wheelie game has that is not already spoken for
+     while the front wheel is up. Miss it and it takes the run. */
+  if (evtOn("blade") && canPay) {
+    if (ST.ball <= 0) {
+      // never in the first seconds of a run: the answer to it is the brake,
+      // and there is nothing to brake at a standstill
+      if (S.spd > 8 && Math.random() < 0.010) {
+        ST.ball = 1; ST.ballX = W + 150;
+        sfx.zap(); toast("\u2694\uFE0F  INCOMING  \u00b7  brake it");
+      }
+    } else {
+      ST.ballX -= 10 + S.spd * 0.30;
+      const gap = ST.ballX - (BIKE_X + 40);
+      if (gap < 100 && gap > -70 && BRAKE()) {
+        ST.ball = 0; ST.parry = 16;
+        styleAdd(2600 * Math.max(1, evtMul("blade")), "parried");
+        sfx.flip(1); FX.flash = 12; FX.flashCol = "#FFE66B";
+      } else if (ST.ballX < BIKE_X - 70) {
+        ST.ball = 0; crash("took the ball"); return;
+      }
+    }
+  } else ST.ball = 0;
+}
+
+/* ---------- road layer: everything standing on the tarmac ----------
+   Between the floor and the rider, so a plant is behind the front wheel and
+   the wall chasing you is behind both. */
+function drawFxRoad(){
+  if (inW2()) return;
+  const sc = S.scroll;
+  for (const p of ST.picks) {
+    const x = p.wx - sc;
+    if (x < -90 || x > W + 90) continue;
+    drawPick(x, p.y, p.look, p.t);
+  }
+  if (ST.trail.length)           drawClones();
+  if (ST.chase >= 0 && ST.chaseK) { drawChase(); drawChaseChip(); }
+  if (evtOn("pets"))             drawPet();
+  if (ST.ball > 0)               drawBall();
+  if (ST.parry > 0) {
+    ctx.save();
+    ctx.globalAlpha = ST.parry / 16 * 0.8;
+    ctx.strokeStyle = "#FFE66B"; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.arc(BIKE_X + 40, GROUND - 70, 30 + (16 - ST.parry) * 14, 0, 7); ctx.stroke();
+    ctx.restore();
+  }
+}
+
+/* The number it wants and how close it is, because a toast at the start of a
+   four hour event is not something the rider still has when it matters. */
+function drawChaseChip(){
+  const C = (EVENTS[ST.chaseK] || {}).chase;
+  if (!C) return;
+  const need = chaseNeed(C), under = S.spd < need && ST.grace <= 0;
+  const col = ST.grace > 0 ? "#7BE7FF" : under ? "#FF2D4B" : "#3CF08C";
+  ctx.save();
+  ctx.font = '700 12px "Barlow Condensed", sans-serif';
+  const label = (ST.grace > 0 ? "GET GOING  \u00b7  " : under ? "FASTER  \u00b7  " : "HOLD  \u00b7  ") + need;
+  const w = ctx.measureText(label).width + 22;
+  ctx.globalAlpha = under && Math.floor(FX.t / 5) % 2 ? 0.5 : 1;
+  ctx.fillStyle = "rgba(8,12,17,.82)";
+  rr(14, 96, w, 22, 7); ctx.fill();
+  ctx.strokeStyle = col; ctx.lineWidth = 1.2;
+  rr(14, 96, w, 22, 7); ctx.stroke();
+  ctx.fillStyle = col;
+  ctx.fillText(label, 25, 111);
+  // how much road is left between you and it
+  ctx.fillStyle = "rgba(255,255,255,.12)";
+  rr(14, 122, w, 5, 3); ctx.fill();
+  ctx.fillStyle = col;
+  rr(14, 122, Math.max(2, w * Math.min(1, Math.max(0, ST.chase) / 940)), 5, 3); ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+
+function drawPick(x, y, look, t){
+  ctx.save();
+  ctx.translate(x, y);
+  const bob = Math.sin(t * 0.09);
+  if (look === "plant") {
+    ctx.strokeStyle = "#2F7A32"; ctx.lineWidth = 4; ctx.lineCap = "round";
+    ctx.beginPath(); ctx.moveTo(0, 2); ctx.quadraticCurveTo(bob * 4, -26, bob * 7, -50); ctx.stroke();
+    ctx.fillStyle = "#4BC44B";
+    for (const sgn of [-1, 1]) {
+      ctx.beginPath();
+      ctx.ellipse(sgn * 11 + bob * 4, -30, 12, 6, sgn * 0.5, 0, 7); ctx.fill();
+    }
+    ctx.fillStyle = "#FF5C5C";
+    ctx.beginPath(); ctx.arc(bob * 7, -56, 10, 0, 7); ctx.fill();
+    ctx.fillStyle = "#FFD5D5";
+    ctx.beginPath(); ctx.arc(bob * 7 - 3, -59, 3, 0, 7); ctx.fill();
+  } else if (look === "blob") {
+    const yy = -40 + bob * 6;
+    const g = ctx.createRadialGradient(0, yy, 2, 0, yy, 42);
+    g.addColorStop(0, "rgba(255,95,224,.55)"); g.addColorStop(1, "rgba(255,95,224,0)");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, yy, 42, 0, 7); ctx.fill();
+    ctx.fillStyle = "#C13BFF";
+    ctx.beginPath(); ctx.ellipse(0, yy, 19, 16, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = "#FFFFFF";
+    ctx.beginPath(); ctx.arc(-7, yy - 3, 6, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.arc(8, yy - 3, 6, 0, 7); ctx.fill();
+    ctx.fillStyle = "#160A1E";
+    ctx.beginPath(); ctx.arc(-6 + bob, yy - 2, 3, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.arc(9 + bob, yy - 2, 3, 0, 7); ctx.fill();
+  } else if (look === "fire") {
+    ctx.fillStyle = "#4A3020";
+    ctx.fillRect(-16, -6, 32, 6);
+    ctx.fillRect(-13, -11, 26, 5);
+    const h = 30 + bob * 7;
+    const g = ctx.createLinearGradient(0, -10, 0, -10 - h);
+    g.addColorStop(0, "#FFD86B"); g.addColorStop(0.5, "#FF6A13"); g.addColorStop(1, "rgba(255,60,0,0)");
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.moveTo(-13, -10); ctx.quadraticCurveTo(-5, -10 - h * 0.6, 0, -10 - h);
+    ctx.quadraticCurveTo(5, -10 - h * 0.6, 13, -10); ctx.closePath(); ctx.fill();
+  } else {                                             // a fish, mid-flop
+    const yy = -26 - Math.abs(bob) * 22;
+    ctx.translate(0, yy); ctx.rotate(bob * 0.5);
+    ctx.fillStyle = "#35C9E0";
+    ctx.beginPath(); ctx.ellipse(0, 0, 20, 10, 0, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(17, 0); ctx.lineTo(31, -10); ctx.lineTo(31, 10); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "#0B3A44";
+    ctx.beginPath(); ctx.arc(-11, -2, 3, 0, 7); ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,.5)";
+    ctx.beginPath(); ctx.ellipse(-2, -4, 9, 3, -0.2, 0, 7); ctx.fill();
+  }
+  ctx.restore();
+}
+
+/* Three of you, a beat behind each, riding the angles you rode. Each ghost
+   keeps its own eased pose store, because easePose mutates the one it is
+   handed and they are all at different points in the same movement. */
+function drawClones(){
+  const keep = S.wheelA, B = bike();
+  for (let i = 0; i < 3; i++) {
+    const back = (i + 1) * 34;
+    const f = ST.trail[ST.trail.length - 1 - back];
+    if (!f) continue;
+    ST.poses[i] = easePose(ST.poses[i], B, f.anim);
+    const theta = (90 - f.dir) * Math.PI / 180;
+    const lift  = Math.max(0, (90 - f.dir) - 65) / 2;
+    S.wheelA = f.wheelA;
+    ctx.save();
+    ctx.globalAlpha = 0.34 - i * 0.08;
+    // they are copies of you, so they are also whatever size you are
+    const bsc = evtScale();
+    ctx.translate(BIKE_X + (lift - (i + 1) * 118) * bsc, GROUND);
+    ctx.rotate(-theta);
+    ctx.scale(BIKE_SCALE * bsc, BIKE_SCALE * bsc);
+    ctx.translate(0, -B.rr);
+    drawBike(B);
+    drawRider(B, ST.poses[i], null, "#7BE7FF", true);
+    ctx.restore();
+  }
+  S.wheelA = keep;
+  ctx.globalAlpha = 1;
+}
+
+/* Whatever is behind you, drawn at the left edge and closing. One function,
+   four looks, because the thing they have in common - a wall of something
+   filling the screen from the left - is most of the drawing. */
+function drawChase(){
+  const C = (EVENTS[ST.chaseK] || {}).chase;
+  if (!C) return;
+  const x = BIKE_X - ST.chase;                 // its leading edge, in screen space
+  if (x > W) return;
+  ctx.save();
+  const look = C.look;
+  if (look === "cop") {
+    const n = 3;
+    for (let i = 0; i < n; i++) {
+      const cx = x - i * 150;
+      if (cx < -200) continue;
+      drawCar(cx, 402, 0.70, { t:CAR_TYPES[4], dirn:1, tint:"#F2F5F8" });
+      const on = Math.floor(FX.t / 6) % 2 === 0;
+      ctx.fillStyle = on ? "#FF2D4B" : "#2D6BFF";
+      ctx.globalAlpha = 0.9;
+      ctx.beginPath(); ctx.arc(cx, 372, 9, 0, 7); ctx.fill();
+      const g = ctx.createRadialGradient(cx, 372, 3, cx, 372, 90);
+      g.addColorStop(0, (on ? "rgba(255,45,75,.5)" : "rgba(45,107,255,.5)"));
+      g.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, 372, 90, 0, 7); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+    ctx.restore();
+    return;
+  }
+  // a wall: the water, or whatever the Rush is made of
+  const wave = look === "wave";
+  const top = wave ? 150 : 60;
+  const g = ctx.createLinearGradient(x - 420, 0, x, 0);
+  if (wave) { g.addColorStop(0, "#04303E"); g.addColorStop(0.7, "#1A7E96"); g.addColorStop(1, "rgba(110,203,208,.86)"); }
+  else      { g.addColorStop(0, "#030208"); g.addColorStop(0.7, "#1A0A2E"); g.addColorStop(1, "rgba(123,75,255,.78)"); }
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.moveTo(x - 460, H);
+  ctx.lineTo(x - 460, top);
+  // a curling lip, so the leading edge is a shape rather than a straight cut
+  for (let i = 0; i <= 10; i++) {
+    const t = i / 10;
+    ctx.lineTo(x - 460 + t * 460,
+               top + Math.sin(FX.t * 0.06 + t * 5) * 14 + (1 - Math.cos(t * Math.PI)) * 26);
+  }
+  ctx.lineTo(x, H);
+  ctx.closePath(); ctx.fill();
+  // spray off the lip
+  ctx.fillStyle = wave ? "rgba(220,245,255,.7)" : "rgba(190,150,255,.55)";
+  for (let i = 0; i < 22; i++) {
+    const t = rand(i + Math.floor(FX.t / 4));
+    ctx.beginPath();
+    ctx.arc(x - t * 150, top + 20 + rand(i + 40) * 180 - (FX.t * 2 % 60), 2 + rand(i + 7) * 4, 0, 7);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+/* The thing riding with you. Deliberately nobody's intellectual property:
+   a small round animal with a helmet on, keeping up. */
+function drawPet(){
+  const x = BIKE_X - 86, y = GROUND - 22 - Math.abs(Math.sin(FX.t * 0.16)) * 26;
+  ctx.save();
+  ctx.fillStyle = "rgba(0,0,0,.24)";
+  ctx.beginPath(); ctx.ellipse(x, GROUND + 2, 22, 5, 0, 0, 7); ctx.fill();
+  ctx.translate(x, y);
+  const g = ctx.createRadialGradient(0, 0, 4, 0, 0, 54);
+  g.addColorStop(0, "rgba(255,213,74,.36)"); g.addColorStop(1, "rgba(255,213,74,0)");
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, 54, 0, 7); ctx.fill();
+  ctx.fillStyle = "#FFD54A";
+  ctx.beginPath(); ctx.ellipse(0, 0, 19, 17, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = "#E0A81C";
+  ctx.beginPath(); ctx.ellipse(-16, -6, 7, 8, -0.4, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(16, -6, 7, 8, 0.4, 0, 7); ctx.fill();
+  ctx.fillStyle = "#20242C";
+  ctx.beginPath(); ctx.arc(-6, -2, 2.6, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.arc(6, -2, 2.6, 0, 7); ctx.fill();
+  ctx.fillStyle = "#FF7B9C";
+  ctx.beginPath(); ctx.arc(0, 6, 3, 0, 7); ctx.fill();
+  ctx.restore();
+}
+
+function drawBall(){
+  const x = ST.ballX, y = GROUND - 76;
+  ctx.save();
+  const g = ctx.createRadialGradient(x, y, 3, x, y, 46);
+  g.addColorStop(0, "rgba(255,255,220,.95)");
+  g.addColorStop(0.4, "rgba(255,230,107,.6)");
+  g.addColorStop(1, "rgba(255,180,20,0)");
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, 46, 0, 7); ctx.fill();
+  ctx.fillStyle = "#FFF6C8";
+  ctx.beginPath(); ctx.arc(x, y, 13, 0, 7); ctx.fill();
+  ctx.strokeStyle = "rgba(255,230,107,.55)"; ctx.lineWidth = 7;
+  ctx.beginPath(); ctx.moveTo(x + 14, y); ctx.lineTo(x + 150, y - 10); ctx.stroke();
+  ctx.restore();
+}
+
+/* ---------- the three that live up in the sky ---------- */
+function drawHole(){
+  const cx = W * 0.62, cy = 128, r = 74;
+  ctx.save();
+  for (let i = 0; i < 3; i++) {
+    ctx.strokeStyle = "rgba(176,107,255," + (0.36 - i * 0.09) + ")";
+    ctx.lineWidth = 10 - i * 2.5;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, r * (1.45 + i * 0.42), r * (0.40 + i * 0.13),
+                FX.t * 0.004 + i * 0.5, 0, 7);
+    ctx.stroke();
+  }
+  const g = ctx.createRadialGradient(cx, cy, r * 0.35, cx, cy, r * 1.9);
+  g.addColorStop(0, "#000000"); g.addColorStop(0.62, "#1A0630"); g.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, r * 1.9, 0, 7); ctx.fill();
+  ctx.fillStyle = "#000000";
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, 7); ctx.fill();
+  ctx.restore();
+}
+
+function drawKaiju(){
+  const x = ST.kx, base = 372, tall = 300;
+  const sway = Math.sin(ST.kstep) * 16;
+  ctx.save();
+  ctx.globalAlpha = 0.88;
+  ctx.fillStyle = "#0C1408";
+  // legs, out of phase with each other so it walks
+  for (const sgn of [-1, 1]) {
+    const sw = Math.sin(ST.kstep + (sgn > 0 ? Math.PI : 0));
+    ctx.save();
+    ctx.translate(x + sgn * 34, base - 110);
+    ctx.rotate(sw * 0.32);
+    ctx.fillRect(-24, 0, 48, 118);
+    ctx.restore();
+  }
+  ctx.beginPath();                                   // body
+  ctx.moveTo(x - 66, base - 96);
+  ctx.quadraticCurveTo(x - 92 + sway * 0.2, base - tall * 0.62, x - 40, base - tall * 0.88);
+  ctx.lineTo(x + 40, base - tall * 0.88);
+  ctx.quadraticCurveTo(x + 92 + sway * 0.2, base - tall * 0.62, x + 66, base - 96);
+  ctx.closePath(); ctx.fill();
+  ctx.beginPath();                                   // head
+  ctx.ellipse(x + sway * 0.3, base - tall - 6, 48, 38, 0, 0, 7); ctx.fill();
+  ctx.beginPath();                                   // tail
+  ctx.moveTo(x + 50, base - 120);
+  ctx.quadraticCurveTo(x + 220, base - 150, x + 330, base - 20);
+  ctx.lineTo(x + 300, base - 6);
+  ctx.quadraticCurveTo(x + 200, base - 110, x + 44, base - 92);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#9ADB4B";                         // spines and an eye
+  for (let i = 0; i < 6; i++) {
+    const t = i / 6;
+    ctx.beginPath();
+    ctx.moveTo(x - 10 - t * 30, base - tall * (0.86 - t * 0.5));
+    ctx.lineTo(x - 34 - t * 34, base - tall * (0.80 - t * 0.5));
+    ctx.lineTo(x - 12 - t * 30, base - tall * (0.74 - t * 0.5));
+    ctx.closePath(); ctx.fill();
+  }
+  ctx.beginPath(); ctx.arc(x + sway * 0.3 + 20, base - tall - 12, 7, 0, 7); ctx.fill();
+  if (ST.kfoot > 0) {                                // dust where the foot landed
+    ctx.globalAlpha = ST.kfoot / 16 * 0.5;
+    ctx.fillStyle = "#6A6A58";
+    ctx.beginPath(); ctx.ellipse(x, base + 4, 90 + (16 - ST.kfoot) * 9, 16, 0, 0, 7); ctx.fill();
+  }
+  ctx.restore();
+  ctx.globalAlpha = 1;
+}
+
+function drawNuke(){
+  const cx = W * 0.28, base = 380;
+  const k = Math.min(1, ST.siren / 200);
+  ctx.save();
+  ctx.globalAlpha = 0.9;
+  const g = ctx.createLinearGradient(cx, base, cx, base - 340);
+  g.addColorStop(0, "rgba(255,120,20,.85)");
+  g.addColorStop(0.5, "rgba(255,190,70,.6)");
+  g.addColorStop(1, "rgba(120,90,60,.45)");
+  ctx.fillStyle = g;
+  const w = 26 + k * 12 + Math.sin(FX.t * 0.02) * 3;
+  ctx.beginPath();                                   // the stem
+  ctx.moveTo(cx - w, base);
+  ctx.quadraticCurveTo(cx - w * 0.5, base - 200, cx - w * 1.6, base - 250);
+  ctx.lineTo(cx + w * 1.6, base - 250);
+  ctx.quadraticCurveTo(cx + w * 0.5, base - 200, cx + w, base);
+  ctx.closePath(); ctx.fill();
+  ctx.beginPath();                                   // the cap
+  ctx.ellipse(cx, base - 268, 122 + Math.sin(FX.t * 0.015) * 6, 62, 0, 0, 7); ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(cx, base - 300, 82, 40, 0, 0, 7); ctx.fill();
+  ctx.restore();
+  ctx.globalAlpha = 1;
+}
 
 /* ---------- back layer: sky, moon, the Rider, the horizon ---------- */
 function drawFxBack(){
@@ -10944,8 +11736,9 @@ function drawFxBack(){
   }
   if (sky) { ctx.globalAlpha = a; ctx.fillStyle = sky; ctx.fillRect(0, 0, W, 406); ctx.globalAlpha = 1; }
 
-  // Zero G puts stars behind everything else
-  if (evtOn("zero")) {
+  // Zero G put stars behind everything else, and so now do the singularity
+  // and a night that does not end - asked for by the flag, not by name
+  if (evtFlag("stars")) {
     ctx.fillStyle = "#FFFFFF";
     for (let i = 0; i < 60; i++) {
       const x = wrapX(i * 173 - S.scroll * 0.02, W + 60) - 30, y = 14 + rand(i) * 270;
@@ -10978,6 +11771,9 @@ function drawFxBack(){
     break;
   }
 
+  if (evtOn("blackhole")) drawHole();
+  if (evtOn("nuke"))      drawNuke();
+  if (evtOn("kaiju"))     drawKaiju();
   if (FX.hero > 0) drawRider_Hero();
   if (evtOn("ufo")) drawSaucer();
 
@@ -11157,7 +11953,8 @@ function drawSaucer(){
 function drawFxFloor(){
   if (inW2()) return;
   const disco = evtOn("disco"), rain = evtOn("rainbow"), ice = evtOn("frost"), gold = evtOn("gold");
-  if (!disco && !rain && !ice && !gold) return;
+  const green = evtOn("garden"), flood = evtOn("fisch");
+  if (!disco && !rain && !ice && !gold && !green && !flood) return;
   ctx.save();
   const sc = S.scroll;
 
@@ -11193,6 +11990,32 @@ function drawFxFloor(){
   if (gold) {
     ctx.globalAlpha = 0.26;
     ctx.fillStyle = "#FFC24B"; ctx.fillRect(0, 406, W, H - 406);
+  }
+  // the road losing to whatever is underneath it
+  if (green) {
+    ctx.globalAlpha = 0.32;
+    ctx.fillStyle = "#1E5E24"; ctx.fillRect(0, 406, W, H - 406);
+    ctx.globalAlpha = 0.85;
+    ctx.fillStyle = "#3FA83F";
+    for (let i = 0; i < 90; i++) {
+      const x = wrapX(i * 63 - sc * 0.9, W + 120) - 60;
+      const y = 412 + rand(i) * (H - 424), h = 6 + rand(i + 5) * 14;
+      ctx.fillRect(x, y - h, 2.5, h);
+      ctx.fillRect(x + 5, y - h * 0.7, 2.5, h * 0.7);
+    }
+  }
+  if (flood) {
+    ctx.globalAlpha = 0.40;
+    ctx.fillStyle = "#1A6E88"; ctx.fillRect(0, 400, W, H - 400);
+    ctx.globalAlpha = 0.5; ctx.strokeStyle = "rgba(210,245,255,.7)"; ctx.lineWidth = 1.6;
+    for (let i = 0; i < 30; i++) {
+      const x = wrapX(i * 131 - sc * 1.1, W + 200) - 100;
+      const y = 416 + rand(i) * (H - 430);
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.quadraticCurveTo(x + 22, y - 5 + Math.sin(FX.t * 0.07 + i) * 3, x + 44, y);
+      ctx.stroke();
+    }
   }
   ctx.globalAlpha = 1;
   ctx.restore();
@@ -11275,12 +12098,15 @@ function drawFxFront(){
   }
 
   // Midas washes everything, Disco strobes it, Eclipse darkens the corners
-  if (evtOn("gold")) {
+  const washK = evtFlag("wash");
+  if (washK) {
     ctx.globalCompositeOperation = "overlay";
-    ctx.fillStyle = "rgba(255,194,75,.34)"; ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = 0.34;
+    ctx.fillStyle = washK.wash; ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = "source-over";
   }
-  if (evtOn("disco") && !REDUCED) {
+  if (evtFlag("strobe") && !REDUCED) {
     ctx.globalAlpha = 0.10 + 0.07 * Math.sin(FX.t * 0.22);
     ctx.fillStyle = "hsl(" + ((FX.t * 7) % 360) + ",95%,60%)";
     ctx.fillRect(0, 0, W, H);
@@ -11292,7 +12118,7 @@ function drawFxFront(){
     v.addColorStop(1, evtOn("frost") ? "rgba(140,215,255,.55)" : "rgba(0,0,0,.80)");
     ctx.fillStyle = v; ctx.fillRect(0, 0, W, H);
   }
-  if (evtOn("hyper") && !REDUCED) {
+  if ((evtOn("hyper") || evtOn("nitro") || evtOn("bullet")) && !REDUCED) {
     ctx.strokeStyle = "rgba(255,240,123,.35)"; ctx.lineWidth = 2;
     for (let i = 0; i < 26; i++) {
       const y = rand(i * 3) * H;
@@ -11301,6 +12127,23 @@ function drawFxFront(){
     }
   }
 
+  // the roulette's blackout: the one disaster with nothing falling in it
+  if (chaosNow() === "blackout") {
+    ctx.fillStyle = "rgba(2,4,8,.74)"; ctx.fillRect(0, 0, W, H);
+    const g = ctx.createRadialGradient(BIKE_X + 40, GROUND - 60, 20, BIKE_X + 40, GROUND - 60, 320);
+    g.addColorStop(0, "rgba(255,232,180,.34)"); g.addColorStop(1, "rgba(255,232,180,0)");
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  }
+  // whatever a devil fruit handed you, and how long is left of it
+  if (ST.buffT > 0) {
+    ctx.globalAlpha = ST.buffT < 90 && Math.floor(FX.t / 5) % 2 ? 0.35 : 1;
+    ctx.font = '700 13px "Barlow Condensed", sans-serif';
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#A855F7";
+    ctx.fillText(ST.buff.toUpperCase() + "   " + Math.ceil(ST.buffT / 30) + "s", W / 2, 34);
+    ctx.textAlign = "left";
+    ctx.globalAlpha = 1;
+  }
   // the whole-screen flash an event arrives with
   if (FX.flash > 0) {
     ctx.globalAlpha = Math.min(0.85, FX.flash / 26);
@@ -11326,6 +12169,26 @@ function evtSound(kind){
     case "gold":
     case "jackpot":
     case "rainbow": sfx.chime(); break;
+    /* the street wing */
+    case "rush":
+    case "tsunami":
+    case "kaiju":
+    case "nuke":
+    case "giant":   sfx.rumble(); break;
+    case "jail":
+    case "blade":
+    case "chaos":   sfx.zap(); break;
+    case "blackhole":
+    case "roll":
+    case "bullet":  sfx.riser(1.6); break;
+    case "fruit":
+    case "pets":
+    case "garden":
+    case "nights":
+    case "fisch":   sfx.chime(); break;
+    case "clones":
+    case "tiny":    sfx.freeze(); break;
+    case "brainrot":sfx.alien(); break;
     default:        sfx.quest(); break;
   }
 }
@@ -12008,8 +12871,10 @@ async function renderAdmin(){
   ev.innerHTML = `<h3>Start a live event</h3>
     <div class="adrow">
       <label class="fld"><span>Event</span>
-        <select id="adEvtKind">${Object.keys(EVENTS).map(k =>
-          `<option value="${k}">${EVENTS[k].ic} ${esc(EVENTS[k].name)}</option>`).join("")}</select></label>
+        <select id="adEvtKind">${evtGroups().map(g =>
+          `<optgroup label="${esc(g.name)}">` + g.keys.map(k =>
+            `<option value="${k}">${EVENTS[k].ic} ${esc(EVENTS[k].name)}</option>`).join("") +
+          `</optgroup>`).join("")}</select></label>
       <label class="fld" id="adEvtMultRow"><span>Strength</span>
         <input id="adEvtMult" type="number" min="1" max="100" value="3"></label>
       <label class="fld"><span>Hours</span>
