@@ -30,7 +30,65 @@
 --   3. The client clamps to the same number before it sends, so a score that
 --      somehow exceeds even this is filed at the ceiling rather than thrown
 --      away along with the other two boards in the row.
+--
+-- ------------------------------------------------------------
+-- WHY THE FIRST VERSION OF THIS FILE NEVER APPLIED
+-- ------------------------------------------------------------
+-- It went straight to `alter table public.scores alter column best type
+-- bigint`, and Postgres refused:
+--
+--   ERROR: 0A000: cannot alter type of a column used by a view or rule
+--   DETAIL: rule _RETURN on view crew_board depends on column "best"
+--
+-- crews.sql builds public.crew_board on top of scores.best, best_ride and
+-- ramp_best to add a crew's scores together. A view pins the TYPE of every
+-- column it reads, and Postgres will not retype a column out from under one -
+-- there is no `alter ... cascade` for this.
+--
+-- The Supabase SQL editor runs a script as one transaction, so the failure
+-- rolled the whole file back: the constraints were not dropped, the columns
+-- were not widened, and the board carried on refusing anything over a hundred
+-- million exactly as before. The file reported an error, but an error at the
+-- top of a long script is easy to read as "already done" - and every symptom
+-- afterwards was identical to the bug never having been fixed.
+--
+-- So the view is dropped before the columns are retyped and rebuilt after,
+-- from the same definition crews.sql uses. And because a second view added
+-- later would reproduce this exact stall, the file now looks for dependents
+-- FIRST and names any it does not know how to rebuild, rather than letting
+-- Postgres fail halfway through with a message about a rule called _RETURN.
 -- ============================================================
+
+-- ---------------- anything reading these columns ----------------
+-- Views pin column types. Find every one that reads a score column, and stop
+-- with a sentence naming it unless it is crew_board, which this file knows how
+-- to put back. Better a refusal that says what to do than a rollback that
+-- looks like success to anybody not reading the output.
+do $$
+declare v text; extra text[] := '{}';
+begin
+  for v in
+    select distinct c.relname
+      from pg_depend d
+      join pg_rewrite r on r.oid = d.objid and r.rulename = '_RETURN'
+      join pg_class   c on c.oid = r.ev_class
+      join pg_class   t on t.oid = d.refobjid
+     where c.relkind in ('v', 'm')
+       and t.relname in ('scores', 'scores2', 'daily')
+       and t.relnamespace = 'public'::regnamespace
+       and c.relname <> 'crew_board'
+  loop
+    extra := extra || v;
+  end loop;
+  if array_length(extra, 1) > 0 then
+    raise exception
+      'These views read the score columns and will block the retype: %. '
+      'Drop them, run this file, then create them again.', array_to_string(extra, ', ');
+  end if;
+end $$;
+
+-- crew_board is rebuilt at the bottom of this file, verbatim from crews.sql.
+drop view if exists public.crew_board;
 
 -- ---------------- scores ----------------
 -- The constraints are unnamed in leaderboard.sql, so Postgres generated their
@@ -119,14 +177,41 @@ exception
     raise notice 'public.daily does not exist yet - run daily.sql if you want the daily board';
 end $$;
 
--- ---------------- the crew totals ----------------
--- crew_board sums public.scores.best across a crew. It already casts to
--- bigint, so summing bigints needs no change there - but a sum of many large
--- bests can outrun bigint where one best could not, and numeric is what
--- Postgres promotes sum(bigint) to anyway. Left alone deliberately: the cast
--- in crews.sql is applied to the sum, not to each term, and `sum(bigint)`
--- returns numeric, so the existing `::bigint` is doing the right thing until a
--- crew's combined total passes nine quintillion.
+-- ---------------- put crew_board back ----------------
+-- Verbatim from crews.sql, including the grant, which a DROP takes with it.
+-- Keep the two in step: if the view changes there, change it here too.
+--
+-- The sums need no widening. `sum(bigint)` returns numeric in Postgres and the
+-- ::bigint cast is applied to the sum rather than to each term, so a crew's
+-- combined total is right until it passes nine quintillion. What DID need
+-- fixing is that the view existed at all when the retype ran.
+--
+-- Skipped without complaint if crews.sql has not been run - there is nothing
+-- to rebuild, and creating a view over tables that do not exist would fail the
+-- file for a feature this database is not using.
+do $$
+begin
+  if to_regclass('public.crews') is null or to_regclass('public.crew_members') is null then
+    raise notice 'public.crews not found - skipping crew_board (run crews.sql if you want crews)';
+    return;
+  end if;
+  execute $v$
+    create or replace view public.crew_board as
+      select c.id,
+             c.name,
+             c.tag,
+             count(m.user_id)                       as members,
+             coalesce(sum(s.best), 0)::bigint       as total_best,
+             coalesce(max(s.best), 0)::bigint       as top_best,
+             coalesce(sum(s.best_ride), 0)::bigint  as total_ride,
+             coalesce(sum(s.ramp_best), 0)::bigint  as total_ramp
+        from public.crews c
+        left join public.crew_members m on m.crew_id = c.id
+        left join public.scores s       on s.user_id = m.user_id
+       group by c.id, c.name, c.tag
+  $v$;
+  execute 'grant select on public.crew_board to anon, authenticated';
+end $$;
 
 -- ---------------- check it worked ----------------
 -- This used to be a commented-out suggestion, which meant running the file
@@ -138,6 +223,9 @@ end $$;
 -- Any row still saying `integer`, or a ceiling of 100000000, means that table
 -- did not get migrated - usually because it did not exist yet when this file
 -- was last run. Run the file that creates it, then run this one again.
+--
+-- If you get output at all, the file reached the end and the retype worked -
+-- the failure this file was written to survive stops it long before here.
 select t.table_name,
        c.column_name,
        c.data_type,
